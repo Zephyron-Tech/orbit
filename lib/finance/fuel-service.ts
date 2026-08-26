@@ -1,8 +1,7 @@
 import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
-import { isOrlenTopUp } from '@/lib/import/internal-transfers';
 
-import { FUEL_DATA_CUTOFF, monthlyFuelSpend, walletBalance, type MonthlyFuelSpend } from './fuel';
+import { monthlyFuelSpend, walletBalance, type MonthlyFuelSpend } from './fuel';
 
 export interface FuelOverview {
   monthly: MonthlyFuelSpend[];
@@ -15,29 +14,23 @@ export interface FuelOverview {
 }
 
 /**
- * Database-facing wrapper around the pure aggregation in `fuel.ts`.
- * Top-up detection (`isOrlenTopUp`) only reads Moneta transactions already
- * in the ledger — it never writes anything, so an occasional heuristic miss
- * only affects this report's wallet-balance number, not the ledger itself.
+ * Database-facing wrapper around the pure aggregation in `fuel.ts`. Top-ups
+ * come from `FuelTopUp` (tankarta.cz's own "DOBITÝ KREDIT" export) — a
+ * Moneta bank transaction was tried first and dropped: its merchant text
+ * can't distinguish a real top-up from an unrelated Orlen charge, and its
+ * posting date lags the real payment by a few days.
  */
 export async function loadFuelOverview(): Promise<FuelOverview> {
-  const [purchases, candidateTopUps, receipts] = await Promise.all([
+  const [purchases, topUps, receipts] = await Promise.all([
     prisma.fuelPurchase.findMany({
       select: { purchasedAt: true, amountCzk: true, quantityLiters: true },
       orderBy: { purchasedAt: 'asc' },
     }),
-    // Scoped to the same FUEL_DATA_CUTOFF window as FuelPurchase — a top-up
-    // from before fuel tracking even started would inflate the balance
-    // against purchases that were never counted in the first place.
-    prisma.transaction.findMany({
-      where: { kind: 'NORMAL', amount: { lt: 0 }, date: { gte: FUEL_DATA_CUTOFF } },
-      select: { merchant: true, description: true, amount: true, amountCzk: true, currency: true },
-    }),
+    prisma.fuelTopUp.findMany({ select: { amountCzk: true } }),
     prisma.fuelReceipt.findMany({ select: { discountAmount: true } }),
   ]);
 
-  const topUps = candidateTopUps.filter((transaction) => isOrlenTopUp(transaction.merchant, transaction.description, transaction.amount.toString()));
-  const topUpAmountsCzk = topUps.map((transaction) => (transaction.currency === 'CZK' ? transaction.amount : (transaction.amountCzk ?? transaction.amount)));
+  const topUpAmountsCzk = topUps.map((topUp) => topUp.amountCzk);
   const purchaseAmountsCzk = purchases.map((purchase) => purchase.amountCzk);
   const totalDiscount = receipts.reduce((sum, receipt) => sum.plus(receipt.discountAmount), new Prisma.Decimal(0));
 

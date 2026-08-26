@@ -70,20 +70,3 @@ export function isTrading212Funding(merchant: string | null, description: string
     .toUpperCase();
   return /TRADING\s*212/.test(text);
 }
-
-/**
- * Flags a Moneta transaction as an Orlen Tankarta wallet top-up \u2014 purely a
- * display-time heuristic for the fuel wallet-balance estimate
- * (`lib/finance/fuel.ts`), never used to change `Transaction.kind`. The
- * top-up itself still counts as a normal `fuel`-category expense in
- * cash-flow/settlement, exactly as it does today; an occasional miss here
- * only makes the wallet-balance display a bit off, not a ledger error.
- */
-export function isOrlenTopUp(merchant: string | null, description: string | null, amount: string): boolean {
-  if (!amount.trim().startsWith('-')) return false;
-  const text = `${merchant ?? ''} ${description ?? ''}`
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase();
-  return /ORLEN/.test(text);
-}

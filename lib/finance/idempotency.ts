@@ -174,3 +174,30 @@ export function buildFuelPurchaseKey(input: {
 
   return createHash('sha256').update(parts.join(SEPARATOR)).digest('hex');
 }
+
+/**
+ * Dedup key for a `FuelTopUp` row — same reasoning as `buildFuelPurchaseKey`
+ * (no `accountId`, full timestamp precision), just for the ChargingPrepaids
+ * export instead of Sales.xls: date/method/station/amount instead of
+ * card/date/station/amount.
+ */
+export function buildFuelTopUpKey(input: {
+  toppedUpAt: Date;
+  method: string;
+  station: string;
+  amountCzk: string | number;
+}): string {
+  if (Number.isNaN(input.toppedUpAt.getTime())) {
+    throw new Error('Invalid toppedUpAt for fuel top-up idempotency key');
+  }
+
+  const parts = [
+    'tankkarta-topup',
+    input.toppedUpAt.toISOString(),
+    input.method.trim(),
+    input.station.trim(),
+    toMinorUnits(input.amountCzk),
+  ];
+
+  return createHash('sha256').update(parts.join(SEPARATOR)).digest('hex');
+}

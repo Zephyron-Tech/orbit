@@ -44,6 +44,26 @@ interface FuelImportSummary {
   failures: { rowNumber: number; reason: string }[];
 }
 
+interface FuelTopUpPreview {
+  toppedUpAt: string;
+  method: string;
+  station: string;
+  amountCzk: string;
+  duplicate: boolean;
+}
+
+interface FuelTopUpImportSummary {
+  batchId: string | null;
+  dryRun: boolean;
+  rowCount: number;
+  inserted: number;
+  skipped: number;
+  excludedBeforeCutoff: number;
+  failed: number;
+  preview: FuelTopUpPreview[];
+  failures: { rowNumber: number; reason: string }[];
+}
+
 type ReceiptUploadResult =
   | {
       ok: true;
@@ -97,6 +117,12 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
   const [xlsFileName, setXlsFileName] = useState<string | null>(null);
   const xlsInputRef = useRef<HTMLInputElement>(null);
 
+  const [topUpsPending, setTopUpsPending] = useState(false);
+  const [topUpsError, setTopUpsError] = useState<string | null>(null);
+  const [topUpsPreview, setTopUpsPreview] = useState<FuelTopUpImportSummary | null>(null);
+  const [topUpsFileName, setTopUpsFileName] = useState<string | null>(null);
+  const topUpsInputRef = useRef<HTMLInputElement>(null);
+
   const [receiptPending, setReceiptPending] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<ReceiptUploadResult[] | null>(null);
@@ -146,6 +172,53 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
       setXlsError('Import se teď nezdařil. Zkontrolujte připojení a zkuste to znovu.');
     } finally {
       setXlsPending(false);
+    }
+  }
+
+  async function uploadTopUps(dryRun: boolean): Promise<void> {
+    const file = topUpsInputRef.current?.files?.[0];
+
+    if (!file) {
+      setTopUpsError('Vyberte prosím soubor ChargingPrepaids.xls');
+      return;
+    }
+
+    setTopUpsPending(true);
+    setTopUpsError(null);
+
+    try {
+      const formData = new FormData();
+      formData.set('file', file);
+      formData.set('dryRun', String(dryRun));
+
+      const response = await fetch('/api/import/fuel-topups', { method: 'POST', body: formData });
+      const payload: unknown = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          typeof payload === 'object' && payload !== null && 'error' in payload && typeof payload.error === 'string'
+            ? payload.error
+            : 'Import se nezdařil.';
+
+        setTopUpsError(message);
+        setTopUpsPreview(null);
+        return;
+      }
+
+      const summary = payload as FuelTopUpImportSummary;
+
+      if (dryRun) {
+        setTopUpsPreview(summary);
+      } else {
+        setTopUpsPreview(null);
+        if (topUpsInputRef.current) topUpsInputRef.current.value = '';
+        setTopUpsFileName(null);
+        router.refresh();
+      }
+    } catch {
+      setTopUpsError('Import se teď nezdařil. Zkontrolujte připojení a zkuste to znovu.');
+    } finally {
+      setTopUpsPending(false);
     }
   }
 
@@ -337,6 +410,85 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                 className="ui-button ui-button-primary mt-3 min-h-9 px-3 py-2 text-xs"
               >
                 {xlsPending ? 'Ukládám…' : `Uložit ${xlsPreview.inserted} nových nákupů`}
+              </button>
+            ) : (
+              <p className="mt-2 text-xs text-ink-muted">Nic nového k uložení.</p>
+            )}
+          </div>
+        ) : null}
+      </section>
+
+      <section className="surface flex flex-col gap-4 p-4 sm:p-5">
+        <div className="flex items-center gap-2">
+          <GasPump size={19} aria-hidden="true" />
+          <h2 className="font-semibold">Import dobitého kreditu (.xls)</h2>
+        </div>
+        <p className="text-sm text-ink-muted">Export &bdquo;DOBITÝ KREDIT&ldquo; z uživatelského účtu na tankarta.cz — přesný záznam každého dobití, ne odhad z bankovních transakcí. Import je bezpečné opakovat.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => topUpsInputRef.current?.click()}
+            disabled={topUpsPending}
+            className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
+          >
+            Vybrat soubor
+          </button>
+          <input
+            ref={topUpsInputRef}
+            type="file"
+            accept=".xls"
+            disabled={topUpsPending}
+            className="sr-only"
+            onChange={(event) => setTopUpsFileName(event.target.files?.[0]?.name ?? null)}
+          />
+          {topUpsFileName ? <p title={topUpsFileName} className="max-w-full break-words text-xs font-medium text-ink-muted [overflow-wrap:anywhere]">{topUpsFileName}</p> : null}
+          <button
+            type="button"
+            onClick={() => void uploadTopUps(true)}
+            disabled={topUpsPending}
+            className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
+          >
+            {topUpsPending ? 'Načítám…' : 'Náhled'}
+          </button>
+        </div>
+        {topUpsError ? <StatusNotice tone="danger">{topUpsError}</StatusNotice> : null}
+        {topUpsPreview ? (
+          <div className="rounded-xl border border-line bg-surface-subtle p-4">
+            <p className="text-sm">
+              {topUpsPreview.rowCount} řádků · {topUpsPreview.inserted} nových · {topUpsPreview.skipped} duplicitních · {topUpsPreview.excludedBeforeCutoff} mimo sledované období · {topUpsPreview.failed} chybných
+            </p>
+            {topUpsPreview.preview.length > 0 ? (
+              <div className="mt-3 max-h-64 overflow-y-auto rounded-lg border border-line">
+                <table className="w-full min-w-[28rem] text-left text-xs">
+                  <thead className="border-b border-line bg-surface text-ink-muted">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Datum</th>
+                      <th className="px-3 py-2 font-medium">Způsob</th>
+                      <th className="px-3 py-2 text-right font-medium">Částka</th>
+                      <th className="px-3 py-2 font-medium">Stav</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {topUpsPreview.preview.map((row) => (
+                      <tr key={`${row.toppedUpAt}-${row.amountCzk}`}>
+                        <td className="whitespace-nowrap px-3 py-2 tabular-nums">{new Date(row.toppedUpAt).toLocaleString('cs-CZ', { timeZone: 'UTC' })}</td>
+                        <td className="px-3 py-2">{row.method}</td>
+                        <td className="money-value whitespace-nowrap px-3 py-2 text-right tabular-nums"><MoneyValue>{CZK.format(Number(row.amountCzk))}</MoneyValue></td>
+                        <td className="px-3 py-2">{row.duplicate ? <span className="text-ink-muted">duplicita</span> : <span className="text-positive">nové</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            {topUpsPreview.inserted > 0 ? (
+              <button
+                type="button"
+                onClick={() => void uploadTopUps(false)}
+                disabled={topUpsPending}
+                className="ui-button ui-button-primary mt-3 min-h-9 px-3 py-2 text-xs"
+              >
+                {topUpsPending ? 'Ukládám…' : `Uložit ${topUpsPreview.inserted} nových dobití`}
               </button>
             ) : (
               <p className="mt-2 text-xs text-ink-muted">Nic nového k uložení.</p>

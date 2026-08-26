@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildFuelPurchaseKey,
+  buildFuelTopUpKey,
   buildIdempotencyKey,
   dedupStrategyFor,
   normalizeMerchant,
@@ -166,5 +167,44 @@ describe('buildFuelPurchaseKey', () => {
 
   it('rejects an invalid date', () => {
     expect(() => buildFuelPurchaseKey({ ...fuelBase, purchasedAt: new Date('not-a-date') })).toThrow();
+  });
+});
+
+describe('buildFuelTopUpKey', () => {
+  const topUpBase = {
+    toppedUpAt: new Date('2026-08-20T15:35:20.000Z'),
+    method: 'Dobití online',
+    station: '1MA - TKE',
+    amountCzk: '100.00',
+  };
+
+  it('is stable for the same inputs', () => {
+    expect(buildFuelTopUpKey(topUpBase)).toBe(buildFuelTopUpKey({ ...topUpBase }));
+  });
+
+  it('keeps second-precision', () => {
+    const oneSecondLater = buildFuelTopUpKey({ ...topUpBase, toppedUpAt: new Date('2026-08-20T15:35:21.000Z') });
+
+    expect(oneSecondLater).not.toBe(buildFuelTopUpKey(topUpBase));
+  });
+
+  it('separates top-ups by method', () => {
+    expect(buildFuelTopUpKey({ ...topUpBase, method: 'Dobití na pokladně' })).not.toBe(buildFuelTopUpKey(topUpBase));
+  });
+
+  it('separates top-ups by station', () => {
+    expect(buildFuelTopUpKey({ ...topUpBase, station: '2XY - ABC' })).not.toBe(buildFuelTopUpKey(topUpBase));
+  });
+
+  it('allows an empty station, unlike other fields', () => {
+    expect(() => buildFuelTopUpKey({ ...topUpBase, station: '' })).not.toThrow();
+  });
+
+  it('separates different amounts', () => {
+    expect(buildFuelTopUpKey({ ...topUpBase, amountCzk: '100.01' })).not.toBe(buildFuelTopUpKey(topUpBase));
+  });
+
+  it('rejects an invalid date', () => {
+    expect(() => buildFuelTopUpKey({ ...topUpBase, toppedUpAt: new Date('not-a-date') })).toThrow();
   });
 });

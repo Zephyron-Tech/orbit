@@ -38,7 +38,7 @@ describe('monthlyFuelSpend', () => {
 
 describe('walletBalance', () => {
   it('is top-ups minus purchases, both all-time', () => {
-    const balance = walletBalance([decimal('-5000'), decimal('-3000')], [decimal('4500'), decimal('1200')]);
+    const balance = walletBalance([decimal('5000'), decimal('3000')], [decimal('4500'), decimal('1200')]);
 
     expect(balance.toString()).toBe('2300');
   });
@@ -48,6 +48,6 @@ describe('walletBalance', () => {
   });
 
   it('goes negative when purchases exceed top-ups (a top-up outside the known window)', () => {
-    expect(walletBalance([decimal('-100')], [decimal('250')]).toString()).toBe('-150');
+    expect(walletBalance([decimal('100')], [decimal('250')]).toString()).toBe('-150');
   });
 });

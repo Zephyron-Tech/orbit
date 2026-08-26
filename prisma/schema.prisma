@@ -375,10 +375,11 @@ model InsurancePolicy {
   updatedAt DateTime @updatedAt
 }
 
-/// One row per Orlen Tankkarta fuel-card purchase, imported from the
-/// tankkarta.cz `Sales.xls` export. Not a bank `Transaction` — the wallet
-/// top-up is the real bank movement (a normal Moneta transaction); this is
-/// the ground truth for *when* the prepaid balance was actually spent.
+/// One row per Orlen Tankarta fuel-card purchase, imported from the
+/// tankarta.cz `Sales.xls` export. Not a bank `Transaction` — a Moneta
+/// top-up transaction proved unreliable as a source of truth for this (see
+/// `FuelTopUp`); this is the ground truth for *when* the prepaid balance
+/// was actually spent.
 model FuelPurchase {
   id String @id @default(uuid())
 
@@ -450,6 +451,32 @@ model FuelImportBatch {
   failedCount   Int
 
   importedAt DateTime @default(now())
+}
+
+/// One row per Orlen Tankarta wallet top-up, imported from the tankarta.cz
+/// `ChargingPrepaids.xls` ("DOBITÝ KREDIT") export. The authoritative source
+/// for wallet-balance reconciliation — a Moneta bank transaction can't tell
+/// a real top-up apart from an unrelated Orlen charge by merchant text
+/// alone, and its posting date lags the real payment by a few days.
+model FuelTopUp {
+  id String @id @default(uuid())
+
+  toppedUpAt DateTime
+  /// "Dobití online" | "Dobití na pokladně" | "Dobití/vrácení bankovním převodem"
+  method String
+  /// Raw "Číslo a název ČS" — format is inconsistent ("1MA - TKE" for an
+  /// online top-up vs a real station for one done at a till — not worth
+  /// splitting into code/name like FuelPurchase.stationCode/stationName.
+  station       String
+  operationType String
+  amountCzk     Decimal @db.Decimal(18, 4)
+
+  /// No natural external id in the export; ATTRIBUTES-style hash of
+  /// date/method/station/amount. See lib/finance/idempotency.ts.
+  idempotencyKey String @unique
+  rawData        Json
+
+  createdAt DateTime @default(now())
 }
 
 /// One household-wide planning row. Explicit targets must never be inferred.
