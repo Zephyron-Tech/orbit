@@ -217,7 +217,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
       <section className="surface flex flex-col gap-4 p-4 sm:p-5">
         <div className="flex items-center gap-2">
           <GasPump size={19} aria-hidden="true" />
-          <h2 className="font-semibold">Import z tankkarta.cz (Sales.xls)</h2>
+          <h2 className="font-semibold">Import z tankkarta.cz (.xls)</h2>
         </div>
         <p className="text-sm text-ink-muted">Export historie nákupů z uživatelského účtu na tankkarta.cz. Import je bezpečné opakovat — duplicity se přeskočí. Sledujeme jen srpen 2026 a novější, starší řádky se neukládají.</p>
         <div className="flex flex-wrap items-center gap-3">
@@ -308,7 +308,8 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
             disabled={receiptPending}
             className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
           >
-            Vybrat soubor
+            <UploadSimple size={16} aria-hidden="true" />
+            {receiptPending ? 'Nahrávám…' : 'Nahrát účtenku'}
           </button>
           <input
             ref={receiptInputRef}
@@ -316,18 +317,12 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
             accept=".pdf"
             disabled={receiptPending}
             className="sr-only"
-            onChange={(event) => setReceiptFileName(event.target.files?.[0]?.name ?? null)}
+            onChange={(event) => {
+              setReceiptFileName(event.target.files?.[0]?.name ?? null);
+              if (event.target.files?.[0]) void uploadReceipt();
+            }}
           />
           {receiptFileName ? <p title={receiptFileName} className="max-w-full break-words text-xs font-medium text-ink-muted [overflow-wrap:anywhere]">{receiptFileName}</p> : null}
-          <button
-            type="button"
-            onClick={() => void uploadReceipt()}
-            disabled={receiptPending}
-            className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
-          >
-            <UploadSimple size={16} aria-hidden="true" />
-            {receiptPending ? 'Nahrávám…' : 'Nahrát'}
-          </button>
         </div>
         {receiptError ? <StatusNotice tone="danger">{receiptError}</StatusNotice> : null}
         {receiptMessage ? <StatusNotice tone="success">{receiptMessage}</StatusNotice> : null}

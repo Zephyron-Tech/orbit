@@ -21,6 +21,7 @@
     "t212:check": "tsx scripts/check-trading212.ts"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.8",
     "@phosphor-icons/react": "^2.1.10",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
