@@ -432,7 +432,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
               <GasPump size={18} aria-hidden="true" className="shrink-0 text-ink-muted" />
               <div>
                 <h2 className="text-sm font-semibold">Import dobitého kreditu</h2>
-                <p className="text-xs text-ink-muted">Export „DOBITÝ KREDIT“ (.xls)</p>
+                <p className="text-xs text-ink-muted">Historie vkladů (.xls)</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
