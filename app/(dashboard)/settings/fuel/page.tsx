@@ -1,11 +1,11 @@
 import { FuelManager } from '@/components/fuel/fuel-manager';
 import { PageHeader, PageShell } from '@/components/ui/page-container';
-import { loadFuelOverview, loadUnmatchedReceipts } from '@/lib/finance/fuel-service';
+import { loadFuelOverview, loadRecentReceipts } from '@/lib/finance/fuel-service';
 
 export const dynamic = 'force-dynamic';
 
 export default async function FuelPage(): Promise<React.JSX.Element> {
-  const [overview, unmatchedReceipts] = await Promise.all([loadFuelOverview(), loadUnmatchedReceipts()]);
+  const [overview, receipts] = await Promise.all([loadFuelOverview(), loadRecentReceipts()]);
 
   return (
     <PageShell>
@@ -18,7 +18,9 @@ export default async function FuelPage(): Promise<React.JSX.Element> {
         walletBalanceCzk={overview.walletBalanceCzk}
         topUpCount={overview.topUpCount}
         purchaseCount={overview.purchaseCount}
-        unmatchedReceipts={unmatchedReceipts.map((receipt) => ({ ...receipt, purchasedAt: receipt.purchasedAt.toISOString() }))}
+        totalDiscountCzk={overview.totalDiscountCzk}
+        receiptCount={overview.receiptCount}
+        receipts={receipts.map((receipt) => ({ ...receipt, purchasedAt: receipt.purchasedAt.toISOString() }))}
       />
     </PageShell>
   );

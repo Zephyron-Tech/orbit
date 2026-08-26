@@ -66,7 +66,7 @@ export async function processFuelReceiptUpload(bytes: Uint8Array): Promise<FuelR
 
   if (existingByHash) {
     throw new FuelReceiptError(
-      `This receipt was already uploaded on ${existingByHash.createdAt.toISOString().slice(0, 10)}`,
+      `Tato účtenka už byla nahrána ${existingByHash.createdAt.toISOString().slice(0, 10)}`,
       'ALREADY_IMPORTED',
     );
   }
@@ -86,7 +86,7 @@ export async function processFuelReceiptUpload(bytes: Uint8Array): Promise<FuelR
   try {
     parsed = parseOrlenReceipt(text);
   } catch (error: unknown) {
-    const reason = error instanceof ReceiptParseError ? error.message : 'Unreadable receipt PDF';
+    const reason = error instanceof ReceiptParseError ? error.message : 'Nečitelná účtenka (PDF)';
 
     throw new FuelReceiptError(reason, 'BAD_FORMAT');
   }
@@ -94,7 +94,7 @@ export async function processFuelReceiptUpload(bytes: Uint8Array): Promise<FuelR
   const existingByDoc = await prisma.fuelReceipt.findUnique({ where: { docNumber: parsed.docNumber } });
 
   if (existingByDoc) {
-    throw new FuelReceiptError(`Receipt ${parsed.docNumber} was already uploaded`, 'ALREADY_IMPORTED');
+    throw new FuelReceiptError(`Účtenka ${parsed.docNumber} už byla nahrána`, 'ALREADY_IMPORTED');
   }
 
   const candidates = await prisma.fuelPurchase.findMany({

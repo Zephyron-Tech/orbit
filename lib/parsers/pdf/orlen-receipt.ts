@@ -50,7 +50,7 @@ function requireMatch(pattern: RegExp, text: string, label: string): RegExpExecA
   const match = pattern.exec(text);
 
   if (!match) {
-    throw new ReceiptParseError(`Cannot find ${label} in receipt text`);
+    throw new ReceiptParseError(`V textu účtenky se nepodařilo najít: ${label}`);
   }
 
   return match;
@@ -63,21 +63,21 @@ export function parseOrlenReceipt(text: string): ParsedFuelReceipt {
   const purchasedAt = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)));
 
   if (Number.isNaN(purchasedAt.getTime())) {
-    throw new ReceiptParseError(`Invalid receipt date: ${dateMatch[0]}`);
+    throw new ReceiptParseError(`Neplatné datum na účtence: ${dateMatch[0]}`);
   }
 
-  const docNumber = requireMatch(DOC_NUMBER_PATTERN, text, 'Doklad number')[1];
-  const stationMatch = requireMatch(STATION_PATTERN, text, 'station');
-  const productMatch = requireMatch(PRODUCT_LINE_PATTERN, text, 'product line');
-  const quantityPriceMatch = requireMatch(QUANTITY_PRICE_PATTERN, text, 'quantity/price');
-  const totalMatch = requireMatch(TOTAL_PATTERN, text, 'Suma total');
-  const cardMatch = requireMatch(CARD_PATTERN, text, 'Karta');
+  const docNumber = requireMatch(DOC_NUMBER_PATTERN, text, 'číslo dokladu')[1];
+  const stationMatch = requireMatch(STATION_PATTERN, text, 'čerpací stanici');
+  const productMatch = requireMatch(PRODUCT_LINE_PATTERN, text, 'řádek s produktem');
+  const quantityPriceMatch = requireMatch(QUANTITY_PRICE_PATTERN, text, 'množství/cenu');
+  const totalMatch = requireMatch(TOTAL_PATTERN, text, 'celkovou částku (Suma)');
+  const cardMatch = requireMatch(CARD_PATTERN, text, 'kartu');
 
   const discountMatch = DISCOUNT_PATTERN.exec(text);
   const transactionCodeMatch = TRANSACTION_CODE_PATTERN.exec(text);
 
   if (!docNumber) {
-    throw new ReceiptParseError('Empty Doklad number');
+    throw new ReceiptParseError('Prázdné číslo dokladu');
   }
 
   const cardNumber = cardMatch[1] ?? '';

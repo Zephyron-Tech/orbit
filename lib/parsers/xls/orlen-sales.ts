@@ -97,7 +97,7 @@ export function parseOrlenSales(buffer: Buffer): XlsParseResult {
   const sheetName = workbook.SheetNames[0];
 
   if (!sheetName) {
-    throw new XlsStructureError('Sales.xls has no worksheet');
+    throw new XlsStructureError('Soubor Sales.xls neobsahuje žádný list');
   }
 
   const sheet = workbook.Sheets[sheetName];
@@ -105,7 +105,7 @@ export function parseOrlenSales(buffer: Buffer): XlsParseResult {
   const header = rows[0];
 
   if (!header || EXPECTED_HEADERS.some((expected, index) => header[index] !== expected)) {
-    throw new XlsStructureError(`Unexpected Sales.xls header. Expected columns: ${EXPECTED_HEADERS.join(', ')}`);
+    throw new XlsStructureError(`Neočekávaná hlavička souboru Sales.xls. Očekávané sloupce: ${EXPECTED_HEADERS.join(', ')}`);
   }
 
   const purchases: ParsedFuelPurchase[] = [];

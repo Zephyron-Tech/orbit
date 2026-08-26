@@ -58,7 +58,7 @@ export async function processFuelXlsImport(options: ProcessFuelXlsOptions): Prom
 
   if (previousBatch) {
     throw new FuelImportError(
-      `This file was already imported on ${previousBatch.importedAt.toISOString().slice(0, 10)}`,
+      `Tento soubor už byl importován ${previousBatch.importedAt.toISOString().slice(0, 10)}`,
       'ALREADY_IMPORTED',
     );
   }
@@ -68,7 +68,7 @@ export async function processFuelXlsImport(options: ProcessFuelXlsOptions): Prom
   try {
     parsed = parseOrlenSales(Buffer.from(options.bytes));
   } catch (error: unknown) {
-    const reason = error instanceof XlsStructureError ? error.message : 'Unreadable Sales.xls file';
+    const reason = error instanceof XlsStructureError ? error.message : 'Nečitelný soubor Sales.xls';
 
     throw new FuelImportError(reason, 'BAD_FORMAT');
   }

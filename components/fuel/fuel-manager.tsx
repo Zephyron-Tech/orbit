@@ -6,7 +6,7 @@ import { useRef, useState } from 'react';
 
 import { Metric } from '@/components/ui/metric';
 import { MoneyValue } from '@/components/ui/money-value';
-import { StatusNotice } from '@/components/ui/status';
+import { Badge, StatusNotice } from '@/components/ui/status';
 
 interface MonthlyRow {
   month: string;
@@ -14,12 +14,13 @@ interface MonthlyRow {
   liters: string;
 }
 
-interface UnmatchedReceipt {
+interface ReceiptRow {
   id: string;
   purchasedAt: string;
   stationName: string;
   totalAfterDiscount: string;
   discountAmount: string;
+  matched: boolean;
 }
 
 interface FuelPurchasePreview {
@@ -48,7 +49,9 @@ interface Props {
   walletBalanceCzk: string;
   topUpCount: number;
   purchaseCount: number;
-  unmatchedReceipts: UnmatchedReceipt[];
+  totalDiscountCzk: string;
+  receiptCount: number;
+  receipts: ReceiptRow[];
 }
 
 const MONTH_FORMAT = new Intl.DateTimeFormat('cs-CZ', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -59,7 +62,8 @@ function formatMonth(month: string): string {
   return MONTH_FORMAT.format(new Date(`${month}-01T00:00:00Z`));
 }
 
-export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCount, unmatchedReceipts }: Props): React.JSX.Element {
+export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCount, totalDiscountCzk, receiptCount, receipts }: Props): React.JSX.Element {
+  const unmatchedCount = receipts.filter((receipt) => !receipt.matched).length;
   const router = useRouter();
   const [xlsPending, setXlsPending] = useState(false);
   const [xlsError, setXlsError] = useState<string | null>(null);
@@ -170,7 +174,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Metric label="Odhadovaný zůstatek na kartě" value={CZK.format(Number(walletBalanceCzk))} detail={`${topUpCount} dobití · ${purchaseCount} nákupů`} sensitive />
         <Metric
           label="Poslední měsíc"
@@ -179,10 +183,17 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
           sensitive
         />
         <Metric
+          label="Sleva díky Tankkartě"
+          value={CZK.format(Number(totalDiscountCzk))}
+          detail={`${receiptCount} ${receiptCount === 1 ? 'nahraná účtenka' : 'nahraných účtenek'}`}
+          tone="positive"
+          sensitive
+        />
+        <Metric
           label="Nespárované účtenky"
-          value={String(unmatchedReceipts.length)}
-          detail={unmatchedReceipts.length > 0 ? 'Vyžadují kontrolu' : 'Vše spárováno'}
-          tone={unmatchedReceipts.length > 0 ? 'critical' : 'default'}
+          value={String(unmatchedCount)}
+          detail={unmatchedCount > 0 ? 'Vyžadují kontrolu' : 'Vše spárováno'}
+          tone={unmatchedCount > 0 ? 'critical' : 'default'}
         />
       </section>
 
@@ -328,22 +339,30 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
         {receiptMessage ? <StatusNotice tone="success">{receiptMessage}</StatusNotice> : null}
       </section>
 
-      {unmatchedReceipts.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="font-semibold">Účtenky čekající na spárování</h2>
+      <section className="flex flex-col gap-3">
+        <h2 className="font-semibold">Nahrané účtenky</h2>
+        {receipts.length === 0 ? (
+          <StatusNotice tone="info">Zatím nejsou nahrané žádné účtenky.</StatusNotice>
+        ) : (
           <ul className="surface divide-y divide-line overflow-hidden">
-            {unmatchedReceipts.map((receipt) => (
+            {receipts.map((receipt) => (
               <li key={receipt.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div className="min-w-0">
-                  <p className="font-medium">{receipt.stationName}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{receipt.stationName}</p>
+                    {receipt.matched ? <Badge tone="success">Spárováno</Badge> : <Badge tone="warning">Čeká na spárování</Badge>}
+                  </div>
                   <p className="text-xs text-ink-muted">{new Date(receipt.purchasedAt).toLocaleString('cs-CZ', { timeZone: 'UTC' })}</p>
                 </div>
-                <p className="money-value font-semibold"><MoneyValue>{CZK.format(Number(receipt.totalAfterDiscount))}</MoneyValue></p>
+                <div className="text-right">
+                  <p className="money-value font-semibold"><MoneyValue>{CZK.format(Number(receipt.totalAfterDiscount))}</MoneyValue></p>
+                  <p className="text-xs text-positive">sleva <MoneyValue>{CZK.format(Number(receipt.discountAmount))}</MoneyValue></p>
+                </div>
               </li>
             ))}
           </ul>
-        </section>
-      ) : null}
+        )}
+      </section>
     </div>
   );
 }

@@ -121,14 +121,14 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
   const account = await prisma.account.findUnique({ where: { id: options.accountId } });
 
   if (!account) {
-    throw new ImportError('Selected account does not exist', 'ACCOUNT_NOT_FOUND');
+    throw new ImportError('Vybraný účet neexistuje', 'ACCOUNT_NOT_FOUND');
   }
 
   const parser = (() => {
     try {
       return getCsvParser(account.provider);
     } catch {
-      throw new ImportError(`No CSV parser for provider ${account.provider}`, 'UNSUPPORTED_PROVIDER');
+      throw new ImportError(`Pro poskytovatele ${account.provider} není k dispozici parser`, 'UNSUPPORTED_PROVIDER');
     }
   })();
 
@@ -139,7 +139,7 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
 
   if (previousBatch?.status === 'COMPLETED') {
     throw new ImportError(
-      `This file was already imported on ${previousBatch.createdAt.toISOString().slice(0, 10)}`,
+      `Tento soubor už byl importován ${previousBatch.createdAt.toISOString().slice(0, 10)}`,
       'ALREADY_IMPORTED',
     );
   }
@@ -174,7 +174,7 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
         try {
           return parser(decoded.text);
         } catch (error: unknown) {
-          const reason = error instanceof CsvStructureError ? error.message : 'Unreadable CSV file';
+          const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný CSV soubor';
 
           throw new ImportError(reason, 'BAD_FORMAT');
         }
@@ -186,21 +186,21 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
   if (parsed.sourceAccountId && account.externalId) {
     if (normalizeAccountNumber(parsed.sourceAccountId) !== normalizeAccountNumber(account.externalId)) {
       throw new ImportError(
-        `The file belongs to account ${parsed.sourceAccountId}, but ${account.name} is ${account.externalId}`,
+        `Soubor patří k účtu ${parsed.sourceAccountId}, ale ${account.name} má číslo ${account.externalId}`,
         'ACCOUNT_MISMATCH',
       );
     }
   }
   if (parsed.sourceCardLast4) {
     if (account.type !== 'CREDIT') {
-      throw new ImportError('Card-history export can only be imported into a credit account', 'ACCOUNT_MISMATCH');
+      throw new ImportError('Export historie karty lze importovat jen na kreditní účet', 'ACCOUNT_MISMATCH');
     }
     if (!account.cardLast4) {
-      throw new ImportError('Set the last four card digits in account settings before importing card history', 'ACCOUNT_MISMATCH');
+      throw new ImportError('Před importem historie karty nastavte poslední čtyři číslice karty v nastavení účtu', 'ACCOUNT_MISMATCH');
     }
     if (account.cardLast4 !== parsed.sourceCardLast4) {
       throw new ImportError(
-        `The export belongs to card ending ${parsed.sourceCardLast4}, but ${account.name} ends ${account.cardLast4}`,
+        `Export patří ke kartě končící ${parsed.sourceCardLast4}, ale ${account.name} končí ${account.cardLast4}`,
         'ACCOUNT_MISMATCH',
       );
     }
