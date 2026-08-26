@@ -142,3 +142,35 @@ export function buildIdempotencyKey(input: IdempotencyInput): string {
 
   return createHash('sha256').update(parts.join(SEPARATOR)).digest('hex');
 }
+
+/**
+ * Dedup key for a `FuelPurchase` row. Not part of `buildIdempotencyKey`
+ * above: that function is Account/Provider-shaped (every bank/broker
+ * transaction belongs to an Orbit `Account`), and a fuel-card purchase from
+ * the tankkarta.cz export isn't a bank movement and has no `accountId`.
+ *
+ * Unlike the bank ATTRIBUTES fallback, the export supplies a full
+ * second-precision timestamp rather than just a calendar day, so that full
+ * precision is hashed instead of collapsing to `toBookingDay` — two
+ * genuine same-day fill-ups at the same station stay distinguishable.
+ */
+export function buildFuelPurchaseKey(input: {
+  cardLast4: string;
+  purchasedAt: Date;
+  stationCode: string;
+  amountCzk: string | number;
+}): string {
+  if (Number.isNaN(input.purchasedAt.getTime())) {
+    throw new Error('Invalid purchasedAt for fuel purchase idempotency key');
+  }
+
+  const parts = [
+    'tankkarta',
+    input.cardLast4.trim(),
+    input.purchasedAt.toISOString(),
+    input.stationCode.trim(),
+    toMinorUnits(input.amountCzk),
+  ];
+
+  return createHash('sha256').update(parts.join(SEPARATOR)).digest('hex');
+}

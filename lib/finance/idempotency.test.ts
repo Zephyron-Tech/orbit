@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildFuelPurchaseKey,
   buildIdempotencyKey,
   dedupStrategyFor,
   normalizeMerchant,
@@ -134,5 +135,36 @@ describe('buildIdempotencyKey with a source reference', () => {
 
   it('cannot collide with an attribute-derived key', () => {
     expect(buildIdempotencyKey(withRef)).not.toBe(buildIdempotencyKey(base));
+  });
+});
+
+describe('buildFuelPurchaseKey', () => {
+  const fuelBase = {
+    cardLast4: '8372',
+    purchasedAt: new Date('2026-08-20T10:27:23.000Z'),
+    stationCode: '190',
+    amountCzk: '1399.94',
+  };
+
+  it('is stable for the same inputs', () => {
+    expect(buildFuelPurchaseKey(fuelBase)).toBe(buildFuelPurchaseKey({ ...fuelBase }));
+  });
+
+  it('keeps second-precision, unlike the bank ATTRIBUTES fallback (day-only)', () => {
+    const oneSecondLater = buildFuelPurchaseKey({ ...fuelBase, purchasedAt: new Date('2026-08-20T10:27:24.000Z') });
+
+    expect(oneSecondLater).not.toBe(buildFuelPurchaseKey(fuelBase));
+  });
+
+  it('separates purchases at different stations', () => {
+    expect(buildFuelPurchaseKey({ ...fuelBase, stationCode: '131' })).not.toBe(buildFuelPurchaseKey(fuelBase));
+  });
+
+  it('separates purchases on different cards', () => {
+    expect(buildFuelPurchaseKey({ ...fuelBase, cardLast4: '0000' })).not.toBe(buildFuelPurchaseKey(fuelBase));
+  });
+
+  it('rejects an invalid date', () => {
+    expect(() => buildFuelPurchaseKey({ ...fuelBase, purchasedAt: new Date('not-a-date') })).toThrow();
   });
 });

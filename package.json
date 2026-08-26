@@ -28,10 +28,12 @@
     "fast-xml-parser": "^5.11.0",
     "next": "16.3.1",
     "next-auth": "^5.0.0-beta.32",
+    "pdf-parse": "^2.4.5",
     "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "recharts": "^3.10.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -4,6 +4,7 @@ import {
   Bank,
   CarIcon as Car,
   DownloadSimple,
+  GasPump,
   Handshake,
   List,
   PlanetIcon as Planet,
@@ -47,6 +48,7 @@ const SETTINGS: NavItem[] = [
   { href: '/settings/accounts', label: 'Účty', icon: Bank },
   { href: '/settings/planning', label: 'Plánování', icon: Target },
   { href: '/settings/insurance', label: 'Pojistky', icon: Car },
+  { href: '/settings/fuel', label: 'Palivo', icon: GasPump },
   { href: '/settings/users', label: 'Domácnost', icon: UsersThree },
 ];
 
