@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 
 import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
-import { FUEL_DATA_CUTOFF } from '@/lib/finance/fuel';
 import { buildFuelTopUpKey } from '@/lib/finance/idempotency';
 import { parseOrlenTopUps, XlsStructureError, type ParsedFuelTopUp } from '@/lib/parsers/xls/orlen-topups';
 
@@ -33,8 +32,6 @@ export interface FuelTopUpImportSummary {
   rowCount: number;
   inserted: number;
   skipped: number;
-  /** Rows before FUEL_DATA_CUTOFF, in scope for the export but not for Orbit. */
-  excludedBeforeCutoff: number;
   failed: number;
   preview: FuelTopUpPreview[];
   failures: { rowNumber: number; reason: string }[];
@@ -72,11 +69,12 @@ export async function processFuelTopUpsImport(options: ProcessFuelTopUpsOptions)
     throw new FuelTopUpImportError(reason, 'BAD_FORMAT');
   }
 
-  // Same scope decision as FuelPurchase — only FUEL_DATA_CUTOFF onward.
-  const inScope = parsed.topUps.filter((topUp) => topUp.toppedUpAt >= FUEL_DATA_CUTOFF);
-  const excludedBeforeCutoff = parsed.topUps.length - inScope.length;
-
-  const keyed = inScope.map((topUp) => ({
+  // Full history is stored, even though only FUEL_DATA_CUTOFF onward is ever
+  // shown: an all-time wallet balance needs every top-up, including ones
+  // from before the reporting window, or it silently starts from zero
+  // instead of the real prepaid-card balance. FUEL_DATA_CUTOFF filtering
+  // happens at display time, in `fuel-service.ts`.
+  const keyed = parsed.topUps.map((topUp) => ({
     topUp,
     key: buildFuelTopUpKey({
       toppedUpAt: topUp.toppedUpAt,
@@ -122,7 +120,6 @@ export async function processFuelTopUpsImport(options: ProcessFuelTopUpsOptions)
     rowCount: parsed.topUps.length + parsed.failures.length,
     inserted: fresh.length,
     skipped,
-    excludedBeforeCutoff,
     failed: parsed.failures.length,
     preview,
     failures: parsed.failures.map((failure) => ({ rowNumber: failure.rowNumber, reason: failure.reason })),

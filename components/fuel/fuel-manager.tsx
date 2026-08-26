@@ -38,7 +38,6 @@ interface FuelImportSummary {
   rowCount: number;
   inserted: number;
   skipped: number;
-  excludedBeforeCutoff: number;
   failed: number;
   preview: FuelPurchasePreview[];
   failures: { rowNumber: number; reason: string }[];
@@ -58,7 +57,6 @@ interface FuelTopUpImportSummary {
   rowCount: number;
   inserted: number;
   skipped: number;
-  excludedBeforeCutoff: number;
   failed: number;
   preview: FuelTopUpPreview[];
   failures: { rowNumber: number; reason: string }[];
@@ -374,7 +372,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
         {xlsPreview ? (
           <div className="rounded-xl border border-line bg-surface-subtle p-4">
             <p className="text-sm">
-              {xlsPreview.rowCount} řádků · {xlsPreview.inserted} nových · {xlsPreview.skipped} duplicitních · {xlsPreview.excludedBeforeCutoff} mimo sledované období · {xlsPreview.failed} chybných
+              {xlsPreview.rowCount} řádků · {xlsPreview.inserted} nových · {xlsPreview.skipped} duplicitních · {xlsPreview.failed} chybných
             </p>
             {xlsPreview.preview.length > 0 ? (
               <div className="mt-3 max-h-64 overflow-y-auto rounded-lg border border-line">
@@ -455,7 +453,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
         {topUpsPreview ? (
           <div className="rounded-xl border border-line bg-surface-subtle p-4">
             <p className="text-sm">
-              {topUpsPreview.rowCount} řádků · {topUpsPreview.inserted} nových · {topUpsPreview.skipped} duplicitních · {topUpsPreview.excludedBeforeCutoff} mimo sledované období · {topUpsPreview.failed} chybných
+              {topUpsPreview.rowCount} řádků · {topUpsPreview.inserted} nových · {topUpsPreview.skipped} duplicitních · {topUpsPreview.failed} chybných
             </p>
             {topUpsPreview.preview.length > 0 ? (
               <div className="mt-3 max-h-64 overflow-y-auto rounded-lg border border-line">

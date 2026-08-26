@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
 
-import { monthlyFuelSpend, walletBalance, type MonthlyFuelSpend } from './fuel';
+import { FUEL_DATA_CUTOFF, monthlyFuelSpend, walletBalance, type MonthlyFuelSpend } from './fuel';
 
 export interface FuelOverview {
   monthly: MonthlyFuelSpend[];
@@ -19,6 +19,13 @@ export interface FuelOverview {
  * Moneta bank transaction was tried first and dropped: its merchant text
  * can't distinguish a real top-up from an unrelated Orlen charge, and its
  * posting date lags the real payment by a few days.
+ *
+ * `walletBalance` is computed from full history, not just FUEL_DATA_CUTOFF
+ * onward: the prepaid card's real balance depends on every top-up and
+ * purchase that ever happened, not only the ones inside Orbit's reporting
+ * window. Only the `monthly` breakdown — a display concern, not a balance —
+ * is cut down to FUEL_DATA_CUTOFF onward, per the scope decision to not
+ * report on driving from before August 2026.
  */
 export async function loadFuelOverview(): Promise<FuelOverview> {
   const [purchases, topUps, receipts] = await Promise.all([
@@ -33,9 +40,10 @@ export async function loadFuelOverview(): Promise<FuelOverview> {
   const topUpAmountsCzk = topUps.map((topUp) => topUp.amountCzk);
   const purchaseAmountsCzk = purchases.map((purchase) => purchase.amountCzk);
   const totalDiscount = receipts.reduce((sum, receipt) => sum.plus(receipt.discountAmount), new Prisma.Decimal(0));
+  const purchasesInReportingWindow = purchases.filter((purchase) => purchase.purchasedAt >= FUEL_DATA_CUTOFF);
 
   return {
-    monthly: monthlyFuelSpend(purchases),
+    monthly: monthlyFuelSpend(purchasesInReportingWindow),
     walletBalanceCzk: walletBalance(topUpAmountsCzk, purchaseAmountsCzk).toFixed(2),
     topUpCount: topUps.length,
     purchaseCount: purchases.length,

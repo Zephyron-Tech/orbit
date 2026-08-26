@@ -19,11 +19,14 @@ import { Prisma } from '@/lib/generated/prisma/client';
 const ZERO = new Prisma.Decimal(0);
 
 /**
- * Fuel tracking only covers August 2026 onward — the user doesn't want older
- * tankarta.cz history (back to 2020) imported or reported. Applied at
- * import time (`lib/import/process-fuel-xls.ts` skips earlier rows before
- * they ever reach the database), not as a display-time filter, so the
- * scope decision is enforced in one place.
+ * Fuel *reporting* only covers August 2026 onward — the user doesn't want
+ * older tankarta.cz driving history (back to 2020) shown in the monthly
+ * breakdown. Applied at display time only (`fuel-service.ts`'s `monthly`),
+ * not at import: `walletBalance` needs full history to be correct, since a
+ * prepaid card's real balance depends on every top-up and purchase that
+ * ever happened, not just the ones inside the reporting window. An earlier
+ * version filtered at import time and undercounted the wallet balance by
+ * exactly the pre-cutoff carryover as a result.
  */
 export const FUEL_DATA_CUTOFF = new Date('2026-08-01T00:00:00.000Z');
 
