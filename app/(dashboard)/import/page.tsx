@@ -1,6 +1,6 @@
 import { CsvDropzone } from '@/components/import/csv-dropzone';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page';
+import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { prisma } from '@/lib/db/prisma';
 
 export const dynamic = 'force-dynamic';

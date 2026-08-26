@@ -2,7 +2,7 @@ import { TransactionTable } from '@/components/transactions/transaction-table';
 import { CategoryManager } from '@/components/transactions/category-manager';
 import { cookies } from 'next/headers';
 import { Metric } from '@/components/ui/metric';
-import { PageHeader, PageShell } from '@/components/ui/page';
+import { PageHeader, PageShell } from '@/components/ui/page-container';
 import { StatusNotice } from '@/components/ui/status';
 import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';

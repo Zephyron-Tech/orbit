@@ -6,7 +6,7 @@ import { PortfolioHistoryChart, type PortfolioHistoryPoint } from '@/components/
 import { PortfolioChart, type PortfolioPosition } from '@/components/charts/portfolio-chart';
 import { RefreshPortfolioButton } from '@/components/charts/refresh-portfolio-button';
 import { Metric } from '@/components/ui/metric';
-import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page';
+import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { StatusNotice } from '@/components/ui/status';
 import { prisma } from '@/lib/db/prisma';
 import { accountSummarySchema, positionsSchema } from '@/lib/providers/trading212/schemas';

@@ -14,6 +14,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - default
+      - orbit-net
 
   # One-shot: applies migrations and seeds, then exits. The app waits for it.
   migrate:
@@ -89,3 +92,7 @@ volumes:
 networks:
   web_proxy:
     external: true
+  # Shared with docker-compose.dev.yml so the dev app can reach this
+  # container's postgres by hostname without a second postgres process.
+  orbit-net:
+    name: orbit-net

@@ -6,7 +6,7 @@ import { czk } from '@/components/charts/chart-theme';
 import { NetWorthChart } from '@/components/charts/net-worth-chart';
 import { AccountCards, type AccountCardData } from '@/components/net-worth/account-cards';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page';
+import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { Badge } from '@/components/ui/status';
 import { prisma } from '@/lib/db/prisma';
 import { loadAccountAnalytics } from '@/lib/finance/account-analytics-service';

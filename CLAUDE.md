@@ -258,7 +258,8 @@ would mean inventing rows.
 ```
 prisma.config.ts           # Prisma 7 config: schema path, migrations, DATABASE_URL
 Dockerfile                 # multi-stage: deps -> builder -> migrator / runner
-docker-compose.yml         # postgres + one-shot migrate + app
+docker-compose.yml         # local dev: postgres + one-shot migrate + app + cron
+docker-compose.prod.yml    # VPS deploy: prebuilt GHCR images + Traefik labels
 prisma/
   schema.prisma            # single schema file (no datasource url — see prisma.config.ts)
   migrations/
@@ -271,6 +272,7 @@ app/
     setup/route.ts                    # first owner account
     invites/route.ts                  # create / list invitations
     invites/accept/route.ts           # redeem an invitation
+    session/status/route.ts           # current session probe
     cron/sync-trading212/route.ts     # pull positions + cash snapshot
     cron/net-worth-snapshot/route.ts  # nightly net worth rollup
     health/route.ts                   # liveness + DB probe (Docker healthcheck)
@@ -278,60 +280,78 @@ app/
   (dashboard)/
     import/                # CSV dropzone + import history
     settings/users/        # who has access, invitations
+    settings/accounts/     # account CRUD
     settings/recurring/    # recurring-expense CRUD (tags for burn rate)
+    settings/insurance/    # insurance policy tracking
+    settings/planning/     # planning inputs
     dashboard/             # home route: burn rate, expected vs. actual, missing-this-month
     transactions/          # ledger, categorization, isShared toggle, split/merge, transfer matching
-    buckets/               # sinking funds
+    portfolio/             # T212 portfolio view
+    buckets/               # sinking funds (planned, not yet built)
     net-worth/             # history chart, unmatched-transfer panel
     settlement/            # monthly couple settlement
 lib/
   generated/prisma/        # generated Prisma client — git-ignored, never edited
   db/prisma.ts             # singleton PrismaClient (pg driver adapter)
-  auth/                    # Auth.js config, scrypt passwords, invitations
-  parsers/csv/
-    registry.ts            # provider -> parser map
-    types.ts               # ParsedTransaction contract
-    decode.ts              # bytes -> text (BOM, Windows-1250)
-    numbers.ts dates.ts    # Czech amount and date parsing
-    moneta.ts              # Moneta column map + row mapper
-    moneta-categories.ts   # bank category -> Orbit category, merchant-text fallback
+  auth/                    # Auth.js config, scrypt passwords, invitations, user CRUD
+  ui/period.ts             # shared month/period helpers for dashboard-style views
+  parsers/
+    reference.ts            # normalizeSourceReference — shared CSV/XML reference reduction
+    csv/
+      registry.ts            # provider -> parser map
+      types.ts               # ParsedTransaction contract
+      decode.ts               # bytes -> text (BOM, Windows-1250)
+      numbers.ts dates.ts    # Czech amount and date parsing
+      moneta.ts               # Moneta column map + row mapper
+      moneta-categories.ts   # bank category -> Orbit category, merchant-text fallback
+    xml/moneta-statement.ts  # Moneta monthly statement (XML), self-verifying
   import/
-    process-csv.ts          # decode -> parse -> dedup -> persist
-    internal-transfers.ts   # counterparty-account heuristic, sets kind
-    transfer-sync.ts        # Prisma wrapper: finds candidates, writes Transfer rows
+    process-csv.ts           # decode -> parse -> dedup -> persist
+    internal-transfers.ts    # counterparty-account heuristic, sets kind
+    transfer-sync.ts         # Prisma wrapper: finds candidates, writes Transfer rows
+    checkpoints.ts           # AccountSnapshot balance checkpoints
+    coverage.ts              # findCoverageGaps — missing statement periods (pure)
+    recurring-matching.ts    # recurring-expense merchant matching (pure)
+    recurring-alias-worker.ts # Prisma wrapper around recurring-matching
   providers/trading212/
     client.ts               # REST client: summary, positions, dividends, transaction history
     schemas.ts              # Zod response shapes
     sync.ts                  # portfolio value -> AccountSnapshot
     income-sync.ts           # dividends + interest -> real Transaction rows
   finance/
-    idempotency.ts         # idempotency key builder
-    settlement.ts          # couple settlement math (pure)
-    share.ts                # "my share of a ratio" math, shared by settlement + burn rate (pure)
-    split.ts               # transaction split validation (pure)
-    transfer-matching.ts   # transfer pairing algorithm (pure)
-    burn-rate.ts            # recurring-expense expected vs. actual (pure)
-    net-worth.ts           # net worth aggregation (pure)
-    cash-flow.ts           # free cash-flow after buckets (pure)
+    idempotency.ts                  # idempotency key builder
+    settlement.ts                   # couple settlement math (pure)
+    share.ts                        # "my share of a ratio" math, shared by settlement + burn rate (pure)
+    split.ts                        # transaction split validation (pure)
+    transfer-matching.ts            # transfer pairing algorithm (pure)
+    burn-rate.ts                    # recurring-expense expected vs. actual (pure)
+    net-worth.ts                    # net worth aggregation (pure)
+    net-worth-service.ts            # net-worth Prisma queries (impure half of net-worth.ts)
+    monthly-net-worth-service.ts    # nightly net-worth rollup persistence
+    account-analytics-service.ts    # per-account analytics Prisma queries
+    insurance.ts                    # insurance math (pure)
+    insurance-service.ts            # insurance Prisma queries (impure half of insurance.ts)
+    merchant-category-recommendations.ts  # category suggestion heuristics (pure)
   validation/              # shared Zod schemas
 components/{ui,charts}/
 components/recurring/       # RecurringExpense CRUD manager
 components/dashboard/       # month picker for the burn-rate view
+components/accounts/ auth/ import/ layout/ net-worth/ planning/ settlement/ transactions/
 types/
-scripts/                   # replay-ingestion, backfill helpers
+scripts/                   # anonymizers, backfills, account/password admin, replay-ingestion
 docs/
 ```
 
 Rules:
-- `lib/finance/*` is **pure** — inputs in, numbers out, no Prisma, no `fetch`, no `Date.now()` (time is injected).
+- `lib/finance/*` is **pure** — inputs in, numbers out, no Prisma, no `fetch`, no `Date.now()` (time is injected). Where a Prisma-touching counterpart exists, it lives alongside as `*-service.ts` (e.g. `net-worth.ts` / `net-worth-service.ts`), never inline in the pure file.
 - `lib/parsers/*` never touches the DB. A parser returns `ParsedTransaction | ParseFailure`; `lib/import/*` deduplicates and persists.
-- Route handlers stay thin: verify secret, Zod-parse, delegate, respond.
+- Route handlers stay thin: verify secret, Zod-parse, delegate, respond. A single inline Prisma call for a trivial lookup (health check, session probe) is fine — don't wrap a one-liner in a service file just for the sake of the rule.
 
 ---
 
 ## 5. Conventions
 
-- Files `kebab-case.ts`; React components `PascalCase.tsx`; types/interfaces `PascalCase`, no `I` prefix.
+- Files `kebab-case.ts` — including React components (`transaction-table.tsx`, not `TransactionTable.tsx`). Types/interfaces `PascalCase`, no `I` prefix.
 - Enums live in Prisma and are imported from `@/lib/generated/prisma/enums` — do not redeclare them as TS unions.
 - Commits: Conventional Commits, English, imperative (`feat(parsers): add Revolut card payment template`).
 - **Never add AI-attribution trailers to commits** (no `Co-Authored-By: Claude`, no session links).

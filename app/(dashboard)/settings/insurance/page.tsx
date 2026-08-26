@@ -1,6 +1,6 @@
 import { FileTextIcon as FileText, UserIcon as User } from '@phosphor-icons/react/dist/ssr';
 
-import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page';
+import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { Badge } from '@/components/ui/status';
 import { prisma } from '@/lib/db/prisma';
 import { nextOccurrenceOnOrAfter } from '@/lib/finance/insurance';

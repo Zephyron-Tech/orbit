@@ -6,7 +6,7 @@ import { useState, useTransition } from 'react';
 
 import { createIncomeSourceRule, createInvestmentPlan, deleteIncomeSourceRule, deleteInvestmentPlan, saveSpendingTarget, setIncomeSourceRuleActive, setInvestmentPlanActive, updateIncomeSourceRule, updateInvestmentPlan, type IncomeSourceRuleInput, type InvestmentPlanInput } from '@/app/(dashboard)/settings/planning/actions';
 import { EmptyState } from '@/components/ui/empty-state';
-import { SectionHeader } from '@/components/ui/page';
+import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
 import { Badge, StatusNotice } from '@/components/ui/status';
 

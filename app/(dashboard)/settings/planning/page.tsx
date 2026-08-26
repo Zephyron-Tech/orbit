@@ -1,6 +1,6 @@
 import { PlanningManager, type IncomeSourceRuleRow, type InvestmentPlanRow } from '@/components/planning/planning-manager';
 import { RecurringExpenseManager, type RecurringExpenseRow } from '@/components/recurring/recurring-manager';
-import { PageHeader, PageShell } from '@/components/ui/page';
+import { PageHeader, PageShell } from '@/components/ui/page-container';
 import { prisma } from '@/lib/db/prisma';
 
 export const dynamic = 'force-dynamic';

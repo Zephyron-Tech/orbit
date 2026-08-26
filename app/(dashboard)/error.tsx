@@ -3,7 +3,7 @@
 import { WarningCircle } from '@phosphor-icons/react';
 import { useEffect } from 'react';
 
-import { PageShell } from '@/components/ui/page';
+import { PageShell } from '@/components/ui/page-container';
 
 export default function DashboardError({
   error,

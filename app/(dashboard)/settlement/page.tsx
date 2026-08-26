@@ -2,7 +2,7 @@ import { loadPeriodTransactions } from './actions';
 import { cookies } from 'next/headers';
 
 import { SettlementView } from '@/components/settlement/settlement-view';
-import { PageHeader, PageShell } from '@/components/ui/page';
+import { PageHeader, PageShell } from '@/components/ui/page-container';
 import { prisma } from '@/lib/db/prisma';
 import { calculateSettlement, describeBalance, monthPeriod } from '@/lib/finance/settlement';
 import { computeMyShare } from '@/lib/finance/share';

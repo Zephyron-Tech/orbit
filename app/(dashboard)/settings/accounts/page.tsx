@@ -1,6 +1,6 @@
 import { AccountManager, type AccountRow } from '@/components/accounts/account-manager';
 import { findCreditRepaymentCandidates } from './actions';
-import { PageHeader, PageShell } from '@/components/ui/page';
+import { PageHeader, PageShell } from '@/components/ui/page-container';
 import { prisma } from '@/lib/db/prisma';
 import { loadNetWorth } from '@/lib/finance/net-worth-service';
 

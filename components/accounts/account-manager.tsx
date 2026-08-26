@@ -16,7 +16,7 @@ import {
   type AccountInput,
 } from '@/app/(dashboard)/settings/accounts/actions';
 import { EmptyState } from '@/components/ui/empty-state';
-import { SectionHeader } from '@/components/ui/page';
+import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
 import { Badge, StatusNotice } from '@/components/ui/status';
 

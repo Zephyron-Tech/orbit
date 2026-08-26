@@ -17,7 +17,7 @@ import { closeSettlement, markSettled, reopenSettlement } from '@/app/(dashboard
 import { EmptyState } from '@/components/ui/empty-state';
 import { Metric } from '@/components/ui/metric';
 import { MonthSelect } from '@/components/ui/month-select';
-import { SectionHeader } from '@/components/ui/page';
+import { SectionHeader } from '@/components/ui/page-container';
 import { Badge, StatusNotice } from '@/components/ui/status';
 import { formatPeriod } from '@/lib/ui/period';
 

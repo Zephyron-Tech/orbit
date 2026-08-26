@@ -16,7 +16,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 
 import { MonthPicker } from '@/components/dashboard/month-picker';
-import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page';
+import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { Badge, StatusNotice } from '@/components/ui/status';
 import { prisma } from '@/lib/db/prisma';
 import { calculateBurnRate, type BurnRateTransaction } from '@/lib/finance/burn-rate';

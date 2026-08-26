@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { InviteManager } from '@/components/auth/invite-manager';
 import { HouseholdManager } from '@/components/auth/household-manager';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page';
+import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { StatusNotice } from '@/components/ui/status';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db/prisma';
