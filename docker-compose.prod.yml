@@ -94,5 +94,9 @@ networks:
     external: true
   # Shared with docker-compose.dev.yml so the dev app can reach this
   # container's postgres by hostname without a second postgres process.
+  # external:true — created once by hand (docker network create orbit-net);
+  # without this, compose treats the name as one it should own/create itself
+  # and silently never attaches anything to the pre-existing network.
   orbit-net:
+    external: true
     name: orbit-net
