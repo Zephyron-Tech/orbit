@@ -4,10 +4,14 @@
  * history (daily + monthly), and any closed settlement periods entirely
  * before the cutoff. Also drops Transfer rows left with zero surviving legs.
  *
- * Deliberately NOT touched: ImportBatch rows. They're an audit trail, not
- * something any dashboard figure is computed from directly — leaving them
- * only risks a stale-looking import-history entry, never a wrong number.
+ * Also deletes any ImportBatch row whose covered period starts before the
+ * cutoff. Originally left alone (it's just an audit trail, no dashboard
+ * figure reads it directly) — but its `fileHash` uniqueness blocks
+ * re-uploading that exact file, which is exactly what setting a fresh
+ * opening balance requires (re-import the same file so the "no anchor yet"
+ * prompt appears). Leaving it intact turned "start fresh" into a dead end.
  *
+
  * Old AccountSnapshot rows must go, not just old transactions: net worth's
  * cash-balance derivation is "newest checkpoint + every transaction booked
  * strictly after it" (lib/finance/net-worth.ts). An old checkpoint surviving
@@ -40,12 +44,13 @@ async function main(): Promise<void> {
 
   const cutoff = new Date(`${cutoffRaw}T00:00:00.000Z`);
 
-  const [transactionCount, accountSnapshotCount, netWorthSnapshotCount, monthlySnapshotCount, settlementCount] = await Promise.all([
+  const [transactionCount, accountSnapshotCount, netWorthSnapshotCount, monthlySnapshotCount, settlementCount, importBatchCount] = await Promise.all([
     prisma.transaction.count({ where: { date: { lt: cutoff } } }),
     prisma.accountSnapshot.count({ where: { capturedAt: { lt: cutoff } } }),
     prisma.netWorthSnapshot.count({ where: { date: { lt: cutoff } } }),
     prisma.monthlyNetWorthSnapshot.count({ where: { month: { lt: cutoff } } }),
     prisma.settlement.count({ where: { periodTo: { lt: cutoff } } }),
+    prisma.importBatch.count({ where: { periodFrom: { lt: cutoff } } }),
   ]);
 
   console.log(`Cutoff: ${cutoff.toISOString().slice(0, 10)}`);
@@ -54,6 +59,7 @@ async function main(): Promise<void> {
   console.log(`  daily net-worth snapshots to delete: ${netWorthSnapshotCount}`);
   console.log(`  monthly net-worth snapshots to delete: ${monthlySnapshotCount}`);
   console.log(`  settlements to delete:              ${settlementCount}`);
+  console.log(`  import batches to delete:           ${importBatchCount}`);
 
   if (!confirm) {
     console.log('\nDry run only — nothing deleted. Re-run with --confirm to actually delete.');
@@ -66,6 +72,7 @@ async function main(): Promise<void> {
     await tx.netWorthSnapshot.deleteMany({ where: { date: { lt: cutoff } } });
     await tx.monthlyNetWorthSnapshot.deleteMany({ where: { month: { lt: cutoff } } });
     await tx.settlement.deleteMany({ where: { periodTo: { lt: cutoff } } });
+    await tx.importBatch.deleteMany({ where: { periodFrom: { lt: cutoff } } });
 
     // A Transfer with zero surviving legs (both were pre-cutoff) is dead
     // weight; one with exactly one surviving leg is left alone.
