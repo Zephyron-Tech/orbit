@@ -237,7 +237,16 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
               >
                 Smazat
               </button>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                disabled
+                title="Účet má transakce — smazání není možné, použijte archivaci."
+                className="ui-button ui-button-ghost min-h-9 px-3 py-2 text-xs text-ink-muted"
+              >
+                Smazat
+              </button>
+            )}
           </div>
         </div>
 

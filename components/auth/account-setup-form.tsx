@@ -1,6 +1,7 @@
 'use client';
 
 import { Eye, EyeSlash } from '@phosphor-icons/react';
+import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
@@ -61,8 +62,17 @@ export function AccountSetupForm({ token, email, endpoint, minPasswordLength }: 
         return;
       }
 
+      const result = await signIn('credentials', { email, password, redirect: false });
+
+      if (result?.error) {
+        setDone(true);
+        router.push('/signin');
+        return;
+      }
+
       setDone(true);
-      router.push('/signin');
+      router.push('/dashboard');
+      router.refresh();
     } catch {
       setError('Registraci se teď nepodařilo dokončit. Zkontrolujte připojení a zkuste to znovu.');
     } finally {
@@ -73,7 +83,7 @@ export function AccountSetupForm({ token, email, endpoint, minPasswordLength }: 
   if (done) {
     return (
       <p className="rounded-xl border border-positive/25 bg-[var(--positive-soft)] p-4 text-sm text-ink" aria-live="polite">
-        Účet je vytvořený. Přesměrovávám vás na přihlášení…
+        Účet je vytvořený. Přesměrovávám vás dál…
       </p>
     );
   }
