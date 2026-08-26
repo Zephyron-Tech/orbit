@@ -335,40 +335,45 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
         )}
       </section>
 
-      <section className="surface flex flex-col gap-4 p-4 sm:p-5">
-        <div className="flex items-center gap-2">
-          <GasPump size={19} aria-hidden="true" />
-          <h2 className="font-semibold">Import z tankarta.cz (.xls)</h2>
-        </div>
-        <p className="text-sm text-ink-muted">Export historie nákupů z uživatelského účtu na tankarta.cz. Import je bezpečné opakovat — duplicity se přeskočí. Sledujeme jen srpen 2026 a novější, starší řádky se neukládají.</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => xlsInputRef.current?.click()}
-            disabled={xlsPending}
-            className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
-          >
-            Vybrat soubor
-          </button>
-          <input
-            ref={xlsInputRef}
-            type="file"
-            accept=".xls"
-            disabled={xlsPending}
-            className="sr-only"
-            onChange={(event) => setXlsFileName(event.target.files?.[0]?.name ?? null)}
-          />
-          {xlsFileName ? <p title={xlsFileName} className="max-w-full break-words text-xs font-medium text-ink-muted [overflow-wrap:anywhere]">{xlsFileName}</p> : null}
-          <button
-            type="button"
-            onClick={() => void uploadXls(true)}
-            disabled={xlsPending}
-            className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
-          >
-            {xlsPending ? 'Načítám…' : 'Náhled'}
-          </button>
-        </div>
-        {xlsError ? <StatusNotice tone="danger">{xlsError}</StatusNotice> : null}
+      <section className="surface divide-y divide-line">
+        <div className="flex flex-col gap-3 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <GasPump size={18} aria-hidden="true" className="shrink-0 text-ink-muted" />
+              <div>
+                <h2 className="text-sm font-semibold">Import z tankarta.cz</h2>
+                <p className="text-xs text-ink-muted">Historie nákupů (.xls)</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => xlsInputRef.current?.click()}
+                disabled={xlsPending}
+                className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
+              >
+                Vybrat soubor
+              </button>
+              <input
+                ref={xlsInputRef}
+                type="file"
+                accept=".xls"
+                disabled={xlsPending}
+                className="sr-only"
+                onChange={(event) => setXlsFileName(event.target.files?.[0]?.name ?? null)}
+              />
+              {xlsFileName ? <p title={xlsFileName} className="max-w-32 truncate text-xs font-medium text-ink-muted">{xlsFileName}</p> : null}
+              <button
+                type="button"
+                onClick={() => void uploadXls(true)}
+                disabled={xlsPending}
+                className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
+              >
+                {xlsPending ? 'Načítám…' : 'Náhled'}
+              </button>
+            </div>
+          </div>
+          {xlsError ? <StatusNotice tone="danger">{xlsError}</StatusNotice> : null}
         {xlsPreview ? (
           <div className="rounded-xl border border-line bg-surface-subtle p-4">
             <p className="text-sm">
@@ -414,42 +419,46 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
             )}
           </div>
         ) : null}
-      </section>
+        </div>
 
-      <section className="surface flex flex-col gap-4 p-4 sm:p-5">
-        <div className="flex items-center gap-2">
-          <GasPump size={19} aria-hidden="true" />
-          <h2 className="font-semibold">Import dobitého kreditu (.xls)</h2>
-        </div>
-        <p className="text-sm text-ink-muted">Export &bdquo;DOBITÝ KREDIT&ldquo; z uživatelského účtu na tankarta.cz — přesný záznam každého dobití, ne odhad z bankovních transakcí. Import je bezpečné opakovat.</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => topUpsInputRef.current?.click()}
-            disabled={topUpsPending}
-            className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
-          >
-            Vybrat soubor
-          </button>
-          <input
-            ref={topUpsInputRef}
-            type="file"
-            accept=".xls"
-            disabled={topUpsPending}
-            className="sr-only"
-            onChange={(event) => setTopUpsFileName(event.target.files?.[0]?.name ?? null)}
-          />
-          {topUpsFileName ? <p title={topUpsFileName} className="max-w-full break-words text-xs font-medium text-ink-muted [overflow-wrap:anywhere]">{topUpsFileName}</p> : null}
-          <button
-            type="button"
-            onClick={() => void uploadTopUps(true)}
-            disabled={topUpsPending}
-            className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
-          >
-            {topUpsPending ? 'Načítám…' : 'Náhled'}
-          </button>
-        </div>
-        {topUpsError ? <StatusNotice tone="danger">{topUpsError}</StatusNotice> : null}
+        <div className="flex flex-col gap-3 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <GasPump size={18} aria-hidden="true" className="shrink-0 text-ink-muted" />
+              <div>
+                <h2 className="text-sm font-semibold">Import dobitého kreditu</h2>
+                <p className="text-xs text-ink-muted">Export „DOBITÝ KREDIT“ (.xls)</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => topUpsInputRef.current?.click()}
+                disabled={topUpsPending}
+                className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
+              >
+                Vybrat soubor
+              </button>
+              <input
+                ref={topUpsInputRef}
+                type="file"
+                accept=".xls"
+                disabled={topUpsPending}
+                className="sr-only"
+                onChange={(event) => setTopUpsFileName(event.target.files?.[0]?.name ?? null)}
+              />
+              {topUpsFileName ? <p title={topUpsFileName} className="max-w-32 truncate text-xs font-medium text-ink-muted">{topUpsFileName}</p> : null}
+              <button
+                type="button"
+                onClick={() => void uploadTopUps(true)}
+                disabled={topUpsPending}
+                className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
+              >
+                {topUpsPending ? 'Načítám…' : 'Náhled'}
+              </button>
+            </div>
+          </div>
+          {topUpsError ? <StatusNotice tone="danger">{topUpsError}</StatusNotice> : null}
         {topUpsPreview ? (
           <div className="rounded-xl border border-line bg-surface-subtle p-4">
             <p className="text-sm">
@@ -493,39 +502,43 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
             )}
           </div>
         ) : null}
-      </section>
+        </div>
 
-      <section className="surface flex flex-col gap-4 p-4 sm:p-5">
-        <div className="flex items-center gap-2">
-          <Receipt size={19} aria-hidden="true" />
-          <h2 className="font-semibold">Nahrát účtenky (PDF)</h2>
-        </div>
-        <p className="text-sm text-ink-muted">Účtenka obsahuje slevu Tankarty, kterou export historie neuvádí. Po nahrání se automaticky spáruje s odpovídajícím nákupem. Lze nahrát víc účtenek najednou.</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => receiptInputRef.current?.click()}
-            disabled={receiptPending}
-            className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
-          >
-            <UploadSimple size={16} aria-hidden="true" />
-            Vybrat účtenky
-          </button>
-          <input
-            ref={receiptInputRef}
-            type="file"
-            accept=".pdf"
-            multiple
-            disabled={receiptPending}
-            className="sr-only"
-            onChange={(event) => {
-              if (event.target.files && event.target.files.length > 0) void uploadReceipts(true);
-              else setReceiptPreview(null);
-            }}
-          />
-          {receiptPending ? <span className="text-xs text-ink-muted">Načítám…</span> : null}
-        </div>
-        {receiptError ? <StatusNotice tone="danger">{receiptError}</StatusNotice> : null}
+        <div className="flex flex-col gap-3 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Receipt size={18} aria-hidden="true" className="shrink-0 text-ink-muted" />
+              <div>
+                <h2 className="text-sm font-semibold">Nahrát účtenky</h2>
+                <p className="text-xs text-ink-muted">Sleva Tankarty (.pdf), auto-spárování s nákupem</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => receiptInputRef.current?.click()}
+                disabled={receiptPending}
+                className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
+              >
+                <UploadSimple size={16} aria-hidden="true" />
+                Vybrat účtenky
+              </button>
+              <input
+                ref={receiptInputRef}
+                type="file"
+                accept=".pdf"
+                multiple
+                disabled={receiptPending}
+                className="sr-only"
+                onChange={(event) => {
+                  if (event.target.files && event.target.files.length > 0) void uploadReceipts(true);
+                  else setReceiptPreview(null);
+                }}
+              />
+              {receiptPending ? <span className="text-xs text-ink-muted">Načítám…</span> : null}
+            </div>
+          </div>
+          {receiptError ? <StatusNotice tone="danger">{receiptError}</StatusNotice> : null}
         {receiptPreview ? (
           <div className="rounded-xl border border-line bg-surface-subtle p-4">
             <div className="max-h-64 overflow-y-auto rounded-lg border border-line">
@@ -574,6 +587,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
             )}
           </div>
         ) : null}
+        </div>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -581,23 +595,34 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
         {receipts.length === 0 ? (
           <StatusNotice tone="info">Zatím nejsou nahrané žádné účtenky.</StatusNotice>
         ) : (
-          <ul className="surface divide-y divide-line overflow-hidden">
-            {receipts.map((receipt) => (
-              <li key={receipt.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{receipt.stationName}</p>
-                    {receipt.matched ? <Badge tone="success">Spárováno</Badge> : <Badge tone="warning">Čeká na spárování</Badge>}
-                  </div>
-                  <p className="text-xs text-ink-muted">{new Date(receipt.purchasedAt).toLocaleString('cs-CZ', { timeZone: 'UTC' })}</p>
-                </div>
-                <div className="text-right">
-                  <p className="money-value font-semibold"><MoneyValue>{CZK.format(Number(receipt.totalAfterDiscount))}</MoneyValue></p>
-                  <p className="text-xs text-positive">sleva <MoneyValue>{CZK.format(Number(receipt.discountAmount))}</MoneyValue></p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="surface overflow-x-auto">
+            <table className="w-full min-w-[32rem] text-left text-sm">
+              <thead className="border-b border-line bg-surface-subtle text-xs text-ink-muted">
+                <tr>
+                  <th className="px-4 py-2.5 font-medium">Datum</th>
+                  <th className="px-4 py-2.5 font-medium">Stanice</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Částka</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Sleva</th>
+                  <th className="px-4 py-2.5 font-medium">Stav</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {receipts.map((receipt) => (
+                  <tr key={receipt.id}>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-xs tabular-nums text-ink-muted">
+                      {new Date(receipt.purchasedAt).toLocaleString('cs-CZ', { timeZone: 'UTC' })}
+                    </td>
+                    <td className="max-w-40 truncate px-4 py-2.5" title={receipt.stationName}>{receipt.stationName}</td>
+                    <td className="money-value whitespace-nowrap px-4 py-2.5 text-right font-medium tabular-nums"><MoneyValue>{CZK.format(Number(receipt.totalAfterDiscount))}</MoneyValue></td>
+                    <td className="money-value whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-positive"><MoneyValue>{CZK.format(Number(receipt.discountAmount))}</MoneyValue></td>
+                    <td className="px-4 py-2.5">
+                      {receipt.matched ? <Badge tone="success">Spárováno</Badge> : <Badge tone="warning">Čeká</Badge>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>
