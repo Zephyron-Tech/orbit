@@ -1,0 +1,131 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  APP_IMAGE: ghcr.io/zephyron-tech/orbit-app
+  MIGRATE_IMAGE: ghcr.io/zephyron-tech/orbit-migrate
+  PROJECT_DIR: /opt/docker/orbit
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push app image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: runner
+          push: true
+          tags: |
+            ${{ env.APP_IMAGE }}:latest
+            ${{ env.APP_IMAGE }}:${{ github.sha }}
+
+      - name: Build and push migrate image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: migrator
+          push: true
+          tags: |
+            ${{ env.MIGRATE_IMAGE }}:latest
+            ${{ env.MIGRATE_IMAGE }}:${{ github.sha }}
+
+      # Same pattern as zephyron-deck-microservice: a fresh deploy target
+      # doesn't need any manual server prep.
+      - name: Ensure project directory exists on server
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            sudo mkdir -p ${{ env.PROJECT_DIR }}
+            sudo chown "$(whoami):$(whoami)" ${{ env.PROJECT_DIR }}
+
+      - name: Copy docker-compose.yml to server
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          source: 'docker-compose.prod.yml'
+          target: ${{ env.PROJECT_DIR }}
+          strip_components: 0
+
+      - name: Rename compose file on server
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            mv ${{ env.PROJECT_DIR }}/docker-compose.prod.yml ${{ env.PROJECT_DIR }}/docker-compose.yml
+
+      # .env never touches the runner's disk and is never echoed — appleboy/ssh-action
+      # forwards the listed GitHub Secrets straight into the remote script's environment,
+      # and Actions auto-masks any secret value that shows up in logs.
+      - name: Write .env on server
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          POSTGRES_USER: ${{ secrets.ORBIT_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.ORBIT_POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.ORBIT_POSTGRES_DB }}
+          AUTH_SECRET: ${{ secrets.ORBIT_AUTH_SECRET }}
+          INGESTION_SECRET: ${{ secrets.ORBIT_INGESTION_SECRET }}
+          TRADING212_API_KEY_ID: ${{ secrets.ORBIT_TRADING212_API_KEY_ID }}
+          TRADING212_API_SECRET: ${{ secrets.ORBIT_TRADING212_API_SECRET }}
+          TRADING212_API_BASE_URL: ${{ vars.ORBIT_TRADING212_API_BASE_URL }}
+          REPORTING_CURRENCY: ${{ vars.ORBIT_REPORTING_CURRENCY }}
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,AUTH_SECRET,INGESTION_SECRET,TRADING212_API_KEY_ID,TRADING212_API_SECRET,TRADING212_API_BASE_URL,REPORTING_CURRENCY
+          script: |
+            umask 077
+            cat > "${{ env.PROJECT_DIR }}/.env" <<EOF
+            POSTGRES_USER=$POSTGRES_USER
+            POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+            POSTGRES_DB=$POSTGRES_DB
+            AUTH_SECRET=$AUTH_SECRET
+            INGESTION_SECRET=$INGESTION_SECRET
+            TRADING212_API_KEY_ID=$TRADING212_API_KEY_ID
+            TRADING212_API_SECRET=$TRADING212_API_SECRET
+            TRADING212_API_BASE_URL=$TRADING212_API_BASE_URL
+            REPORTING_CURRENCY=$REPORTING_CURRENCY
+            EOF
+            chmod 600 "${{ env.PROJECT_DIR }}/.env"
+
+      # Ephemeral login: GITHUB_TOKEN is only valid for this job run, and the
+      # pull happens right after login in the same job — nothing persists on
+      # the server, no long-lived PAT needed.
+      - name: Pull and restart
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: GHCR_TOKEN
+          script: |
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            cd ${{ env.PROJECT_DIR }}
+            docker compose pull
+            docker compose up -d --force-recreate
+            docker logout ghcr.io

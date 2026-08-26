@@ -1,0 +1,91 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: orbit-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+    volumes:
+      - orbit-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: applies migrations and seeds, then exits. The app waits for it.
+  migrate:
+    image: ghcr.io/zephyron-tech/orbit-migrate:latest
+    container_name: orbit-migrate
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  app:
+    image: ghcr.io/zephyron-tech/orbit-app:latest
+    container_name: orbit-app
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
+      AUTH_TRUST_HOST: 'true'
+      INGESTION_SECRET: ${INGESTION_SECRET:?INGESTION_SECRET is required}
+      TRADING212_API_KEY_ID: ${TRADING212_API_KEY_ID:-}
+      TRADING212_API_SECRET: ${TRADING212_API_SECRET:-}
+      TRADING212_API_BASE_URL: ${TRADING212_API_BASE_URL:-https://live.trading212.com}
+      REPORTING_CURRENCY: ${REPORTING_CURRENCY:-CZK}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:3000/api/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - default
+      - web_proxy
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=web_proxy'
+      - 'traefik.http.routers.orbit.rule=Host(`orbit.zephyron.tech`)'
+      - 'traefik.http.routers.orbit.entrypoints=websecure'
+      - 'traefik.http.routers.orbit.tls.certresolver=myresolver'
+      - 'traefik.http.services.orbit.loadbalancer.server.port=3000'
+
+  # Calls the Trading 212 sync every hour. A sleep loop rather than a cron
+  # daemon: one dependency-free image, and the interval is the whole config.
+  cron:
+    image: curlimages/curl:8.11.0
+    container_name: orbit-cron
+    restart: unless-stopped
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        while true; do
+          curl -fsS -X POST -H "Authorization: Bearer $$INGESTION_SECRET" http://app:3000/api/cron/sync-trading212 \
+            || echo "trading212 sync failed"
+          curl -fsS -X POST -H "Authorization: Bearer $$INGESTION_SECRET" http://app:3000/api/cron/net-worth-snapshot \
+            || echo "net worth snapshot failed"
+          sleep 3600
+        done
+    environment:
+      INGESTION_SECRET: ${INGESTION_SECRET:?INGESTION_SECRET is required}
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  orbit-pgdata:
+
+networks:
+  web_proxy:
+    external: true

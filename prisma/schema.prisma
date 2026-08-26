@@ -1,0 +1,648 @@
+// Orbit — personal & couple finance hub.
+// Reporting currency is CZK. Money is always Decimal(18, 4) — never Float.
+
+// Prisma 7: the connection URL lives in prisma.config.ts, not here.
+// The generated client is committed-ignored and imported from `@/lib/generated/prisma`.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+  INVESTMENT
+  CREDIT
+}
+
+enum PaidBy {
+  ME
+  PARTNER
+}
+
+/// Where the data for this row came from.
+enum Provider {
+  MONETA
+  REVOLUT
+  TRADING212
+  MANUAL
+}
+
+enum IngestionStatus {
+  PARSED
+  DUPLICATE
+  FAILED
+}
+
+/// What a transaction means for the household's books.
+enum TransactionKind {
+  /// Real income or spending. The only kind that counts towards cash-flow.
+  NORMAL
+  /// Money moved between two accounts that are both ours. Netting to zero, it
+  /// is excluded from income, spending and net worth to avoid double counting.
+  INTERNAL_TRANSFER
+  /// Broker-side deposit or withdrawal awaiting a verified bank counterpart.
+  /// It remains visible and is not treated as a confirmed internal transfer.
+  PENDING_TRANSFER
+  /// Payment of a settlement balance between the partners. Excluded from
+  /// income and spending; it settles a debt rather than creating one.
+  SETTLEMENT
+  /// A transaction that has been split into child rows. Excluded from every
+  /// aggregate — the children carry the money now, so counting the parent too
+  /// would double it.
+  SPLIT_PARENT
+}
+
+/// How a transaction entered Orbit.
+enum TransactionSource {
+  CSV_IMPORT
+  API
+  MANUAL
+}
+
+enum ImportStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+/// Where an account snapshot came from.
+enum SnapshotSource {
+  /// Read from a provider API (Trading 212).
+  PROVIDER
+  /// Typed in by a person from their banking app. A statement export carries no
+  /// running balance, so a cash account needs a periodic human anchor.
+  MANUAL
+  /// Verified closing balance from an imported bank statement.
+  STATEMENT
+}
+
+enum UserRole {
+  OWNER
+  MEMBER
+}
+
+model Account {
+  id       String      @id @default(uuid())
+  name     String // e.g., "Moneta Tom Plus", "Revolut", "T212 Core"
+  type     AccountType
+  provider Provider    @default(MANUAL)
+  currency String      @default("CZK") @db.Char(3)
+
+  /// Bank account number as printed in the CSV export ("111222333/0600"), or the
+  /// T212 account id. A CSV import is refused when this does not match the file.
+  externalId String?
+
+  includeInNetWorth Boolean @default(true)
+  isArchived        Boolean @default(false)
+  /// CREDIT only. Facility capacity, never an asset or net-worth balance.
+  creditLimit Decimal? @db.Decimal(18, 4)
+  /// Display-only card suffix. Never use a PAN or this field for import binding.
+  cardLast4 String? @db.Char(4)
+  /// SAVINGS only. Explicit reserve target in months of fixed costs.
+  emergencyReserveMonths Int?
+  /// SAVINGS only. User-entered nominal annual interest rate, e.g. 0.029.
+  annualInterestRate Decimal? @db.Decimal(8, 6)
+  /// User-entered withholding tax rate, e.g. 0.15.
+  interestTaxRate Decimal? @default(0.15) @db.Decimal(5, 4)
+
+  transactions  Transaction[]
+  importBatches ImportBatch[]
+  snapshots     AccountSnapshot[]
+  recurringExpenses RecurringExpense[] @relation("RecurringExpensePaymentAccount")
+  recurringExpenseAliases RecurringExpenseAlias[]
+  incomeSourceRules IncomeSourceRule[]
+  dcaSourcePlans RecurringInvestmentPlan[] @relation("DcaSourceAccount")
+  dcaBrokerPlans RecurringInvestmentPlan[] @relation("DcaBrokerAccount")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, externalId])
+}
+
+model Category {
+  id       String  @id @default(uuid())
+  /// Stable technical identifier used by provider mappings. Never derive logic from `name`.
+  key      String  @unique // e.g., "groceries", "dividends", "interest"
+  name     String  @unique // Czech display name, editable by the household
+  icon     String?
+  isActive Boolean @default(true)
+
+  /// Applied when a transaction is auto-categorized by the parser.
+  defaultIsShared Boolean @default(false)
+
+  transactions      Transaction[]
+  recurringExpenses RecurringExpense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  id       String   @id @default(uuid())
+  date     DateTime
+  /// Signed amount in `currency`: negative for expenses, positive for income / transfers in.
+  amount   Decimal  @db.Decimal(18, 4)
+  currency String   @default("CZK") @db.Char(3)
+  merchant String? // Counterparty or merchant, resolved by the parser (e.g., "KAUFLAND", "ČEZ, A. S.")
+
+  /// Amount converted to the CZK reporting currency. Equals `amount` when currency is CZK.
+  amountCzk Decimal? @db.Decimal(18, 4)
+  fxRate    Decimal? @db.Decimal(18, 8)
+
+  /// SHA-256 of the provider, the account and the source's own transaction
+  /// reference when there is one, falling back to the normalized attributes.
+  /// Built by lib/finance/idempotency.ts. Rows are inserted with
+  /// `createMany({ skipDuplicates: true })`, so a re-imported file is a no-op.
+  idempotencyKey String @unique
+
+  /// The source's own identifier, kept verbatim for auditing and re-import.
+  /// Moneta CSV: "Bankovní reference", unique per transaction.
+  externalId String?
+
+  source TransactionSource @default(CSV_IMPORT)
+  kind   TransactionKind   @default(NORMAL)
+
+  /// Set on a child row created by splitting a transaction. The parent's own
+  /// kind flips to SPLIT_PARENT and is excluded from every aggregate; only the
+  /// children count. Cascades: deleting a parent deletes its children, because
+  /// a child has no meaning without the split it belongs to.
+  parentId String?
+  parent   Transaction?  @relation("TransactionSplits", fields: [parentId], references: [id], onDelete: Cascade)
+  splits   Transaction[] @relation("TransactionSplits")
+
+  importBatchId String?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id])
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  bucketId String?
+  bucket   Bucket? @relation(fields: [bucketId], references: [id], onDelete: SetNull)
+
+  /// Tags this transaction as an instance of a fixed monthly cost (rent,
+  /// electricity, a subscription), for `lib/finance/burn-rate.ts`. Assigned by
+  /// hand in the ledger — the same "never guess silently" rule the rest of the
+  /// app follows, since a wrong auto-tag would quietly distort the burn rate.
+  recurringExpenseId String?
+  recurringExpense   RecurringExpense? @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+
+  // Shared finances logic
+  isShared Boolean @default(false)
+  paidBy   PaidBy  @default(ME)
+
+  /// The ratio of my personal share in this transaction.
+  /// 0.5  = 50:50 split
+  /// 0.6  = I pay 60%, partner pays 40%
+  /// 1.0  = I pay 100% (essentially isShared: false)
+  /// Null = transaction is not shared
+  myShareRatio Decimal? @db.Decimal(5, 4)
+
+  /// Set once this transaction has been included in a closed settlement period.
+  settlementId String?
+  settlement   Settlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
+
+  /// Set once this leg has been matched with its counterpart on another
+  /// account. `kind: INTERNAL_TRANSFER` alone is only a one-sided guess from
+  /// the counterparty account number; this is proof the other leg was found
+  /// and the amounts actually cancel. See lib/finance/transfer-matching.ts.
+  transferId String?
+  transfer   Transfer? @relation(fields: [transferId], references: [id], onDelete: SetNull)
+
+  /// Secondary label from the source: standing order name, payment message or
+  /// transaction type. Complements `merchant`, which names the counterparty.
+  description String?
+
+  /// Free-form note written by a person in the ledger. Never touched by an import.
+  notes String?
+
+  // System fields
+  /// Raw source payload (the CSV row as parsed), kept so an export format change
+  /// can be debugged and replayed without re-downloading the statement.
+  rawData   Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, externalId])
+  @@index([accountId, date])
+  @@index([importBatchId])
+  @@index([date])
+  @@index([isShared, date])
+  @@index([kind, date])
+  @@index([categoryId])
+  @@index([settlementId])
+  @@index([parentId])
+  @@index([transferId])
+  @@index([recurringExpenseId])
+}
+
+/// A verified pair: one outgoing and one incoming leg of money moving between
+/// two of our own accounts. Exactly two `Transaction` rows carry this id —
+/// enforced by the matcher (`lib/import/transfer-sync.ts`), not by the schema,
+/// because Postgres has no "exactly N children" constraint.
+model Transfer {
+  id        String   @id @default(uuid())
+  matchedAt DateTime @default(now())
+
+  legs Transaction[]
+}
+
+/// Envelope reserve / sinking fund. Reduces free cash-flow.
+model Bucket {
+  id            String   @id @default(uuid())
+  name          String // e.g., "Honda VFR750F Maintenance", "Mallorca Trip"
+  targetAmount  Decimal? @db.Decimal(18, 4) // Optional target goal
+  currentAmount Decimal  @default(0) @db.Decimal(18, 4)
+
+  /// Planned monthly contribution. Subtracted from free cash-flow.
+  monthlyContribution Decimal?  @db.Decimal(18, 4)
+  targetDate          DateTime?
+
+  isShared Boolean @default(false)
+  isActive Boolean @default(true)
+
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// A fixed monthly cost — rent, electricity, a subscription — the household
+/// pays regardless of how much else it spends that month. Distinct from
+/// `Bucket`: a bucket is a savings envelope accumulating toward a goal, this
+/// is a tag on recurring spending that already happened. Conflating the two
+/// would make neither concept mean one thing.
+model RecurringExpense {
+  id   String @id @default(uuid())
+  name String // e.g., "Nájem", "ČEZ elektřina", "Spotify"
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  /// Expected monthly amount, always positive — the sign convention on
+  /// `Transaction.amount` is a ledger concern, not a budget-line concern.
+  expectedAmount Decimal @db.Decimal(18, 4)
+  currency       String  @default("CZK") @db.Char(3)
+
+  isShared     Boolean  @default(false)
+  myShareRatio Decimal? @db.Decimal(5, 4)
+  isActive     Boolean  @default(true)
+  /// Optional explicit schedule. Without it dashboard reports tagged actuals only.
+  dueDay       Int?
+  graceDays    Int      @default(3)
+  startsOn     DateTime?
+  endsOn       DateTime?
+  paymentAccountId String?
+  paymentAccount Account? @relation("RecurringExpensePaymentAccount", fields: [paymentAccountId], references: [id], onDelete: SetNull)
+  aliases RecurringExpenseAlias[]
+
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// One exact normalized merchant alias learned from a manually tagged expense.
+/// Account scope prevents a generic statement description leaking across cards/accounts.
+model RecurringExpenseAlias {
+  id String @id @default(uuid())
+  recurringExpenseId String
+  recurringExpense RecurringExpense @relation(fields: [recurringExpenseId], references: [id], onDelete: Cascade)
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  merchantKey String
+  learnedFromTransactionId String?
+  createdAt DateTime @default(now())
+
+  @@unique([accountId, merchantKey])
+  @@index([recurringExpenseId])
+}
+
+enum PaymentFrequency {
+  ANNUAL
+  SEMI_ANNUAL
+  MONTHLY
+}
+
+/// Lifecycle of one insurance contract. `PENDING_RENEWAL` is still in force
+/// and still costs money (an insurer doesn't stop covering a car the day
+/// before renewal) — treated identically to `ACTIVE` everywhere. `PAID`
+/// means this specific contract's obligation is already settled; like
+/// `RecurringExpense.isActive === false`, it is a closed line, not a
+/// forward-looking projection input. `TERMINATED` has no future cost at all.
+enum PolicyStatus {
+  ACTIVE
+  PAID
+  PENDING_RENEWAL
+  TERMINATED
+}
+
+/// A vehicle insurance premium: a scheduled annual/semi-annual/monthly cost
+/// tied to one specific policy number and vehicle. Distinct from
+/// `RecurringExpense` (which tags actual ledger transactions after the fact,
+/// with no policy number, cadence, or vehicle) and from `Bucket` (a savings
+/// envelope accumulating toward a goal, not a scheduled external bill).
+/// `annualCost` is always the full yearly premium regardless of
+/// `paymentFrequency` — the frequency only changes how often that same
+/// yearly total is split into installments, never the total itself.
+model InsurancePolicy {
+  id String @id @default(uuid())
+
+  vehicleName  String
+  licensePlate String
+  policyNumber String @unique
+  policyHolder String
+
+  /// Always the full yearly premium, regardless of `paymentFrequency`.
+  annualCost       Decimal          @db.Decimal(18, 4)
+  paymentFrequency PaymentFrequency @default(ANNUAL)
+
+  /// Anniversary/reference date the payment cadence is computed from.
+  startDate DateTime
+
+  status PolicyStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// One household-wide planning row. Explicit targets must never be inferred.
+model PlanningSettings {
+  id String @id @default("household")
+  monthlySpendingTarget Decimal? @db.Decimal(18, 4)
+  currency String @default("CZK") @db.Char(3)
+  /// Optional explicit start of reliable bank history for broker transfer matching.
+  transferHistoryFrom DateTime?
+  updatedAt DateTime @updatedAt
+}
+
+/// Funding plan for a recurring bank -> broker DCA transfer. Deposit confirmation
+/// proves funding, not a securities fill.
+model RecurringInvestmentPlan {
+  id String @id @default(uuid())
+  name String
+  sourceAccountId String?
+  sourceAccount Account? @relation("DcaSourceAccount", fields: [sourceAccountId], references: [id], onDelete: SetNull)
+  brokerAccountId String
+  brokerAccount Account @relation("DcaBrokerAccount", fields: [brokerAccountId], references: [id], onDelete: Cascade)
+  expectedAmount Decimal @db.Decimal(18, 4)
+  currency String @default("CZK") @db.Char(3)
+  dueDay Int
+  graceDays Int @default(3)
+  startsOn DateTime?
+  endsOn DateTime?
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([brokerAccountId, isActive])
+}
+
+/// Explicit recurring/known income source. Merchant key is normalized once and
+/// only marks positive normal ledger rows; it never reclassifies refunds blindly.
+model IncomeSourceRule {
+  id String @id @default(uuid())
+  name String
+  merchantKey String
+  accountId String?
+  account Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([merchantKey, accountId])
+  @@index([isActive, merchantKey])
+}
+
+/// Point-in-time net worth rollup in CZK. Append-only; never updated in place.
+model NetWorthSnapshot {
+  id   String   @id @default(uuid())
+  date DateTime @default(now())
+
+  totalWorth      Decimal @db.Decimal(18, 4) // Calculated total net worth
+  cashValue       Decimal @db.Decimal(18, 4) // Sum of checking & savings accounts
+  investmentValue Decimal @db.Decimal(18, 4) // Pulled from T212 API
+  liabilityValue  Decimal @default(0) @db.Decimal(18, 4) // Credit accounts, as a positive number
+
+  /// Per-account breakdown + raw T212 positions, for charts and auditability.
+  breakdown Json?
+
+  @@unique([date])
+  @@index([date])
+}
+
+/// Point-in-time value of one account. Append-only.
+///
+/// Investment accounts cannot be derived from transactions: their value moves
+/// with the market, so it is sampled instead. Cash accounts get a row too, so
+/// a net worth chart has one consistent source.
+model AccountSnapshot {
+  id String @id @default(uuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  source SnapshotSource @default(PROVIDER)
+  importBatchId String?
+  importBatch ImportBatch? @relation("StatementCheckpoints", fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  /// The instant the balance is true as of. A manual checkpoint stores the end
+  /// of its calendar day, so the whole day's transactions are already included.
+  capturedAt DateTime
+  currency   String   @db.Char(3)
+
+  /// Total value of the account in `currency`: cash plus positions.
+  balance Decimal @db.Decimal(18, 4)
+
+  /// Brokerage only. Null on cash accounts.
+  cashBalance   Decimal? @db.Decimal(18, 4)
+  investedValue Decimal? @db.Decimal(18, 4)
+  unrealizedPnl Decimal? @db.Decimal(18, 4)
+
+  /// Value converted to the CZK reporting currency.
+  balanceCzk Decimal? @db.Decimal(18, 4)
+  fxRate     Decimal? @db.Decimal(18, 8)
+
+  /// What the balance was expected to be from the previous anchor plus the
+  /// transactions since. Null on the first checkpoint, where there is nothing to
+  /// compare against. `balance - expectedBalance` is the unexplained difference:
+  /// zero proves the imports are complete.
+  expectedBalance Decimal? @db.Decimal(18, 4)
+
+  note String?
+
+  /// Raw provider response, so a schema change can be diagnosed after the fact.
+  rawData Json?
+
+  createdAt DateTime @default(now())
+  /// When this row was last written. `capturedAt` is truncated to the hour for
+  /// history bucketing and does not move on a refresh within the same hour;
+  /// this is the real "as of" time the UI shows, and it updates every time.
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, capturedAt])
+  @@index([capturedAt])
+  @@index([importBatchId])
+}
+
+/// Closed monthly settlement between the two partners.
+model Settlement {
+  id         String   @id @default(uuid())
+  periodFrom DateTime
+  periodTo   DateTime
+
+  paidByMe      Decimal @db.Decimal(18, 4)
+  paidByPartner Decimal @db.Decimal(18, 4)
+
+  /// Positive = PARTNER owes ME. Negative = ME owes PARTNER.
+  balance Decimal @db.Decimal(18, 4)
+
+  settledAt DateTime?
+  notes     String?
+
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([periodFrom, periodTo])
+}
+
+/// One CSV upload. Holds the counters shown to the user after an import and
+/// the file hash, so re-uploading an identical file is detected before parsing.
+model ImportBatch {
+  id       String       @id @default(uuid())
+  provider Provider
+  status   ImportStatus @default(PENDING)
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  filename String
+  /// SHA-256 of the uploaded bytes.
+  fileHash String @unique
+
+  /// Sequence number of the monthly statement this batch came from, when the
+  /// upload was a statement rather than a movement export. Consecutive
+  /// statements chain by it, which detects a missing one exactly.
+  statementNumber String?
+
+  rowCount      Int @default(0)
+  insertedCount Int @default(0)
+  skippedCount  Int @default(0)
+  failedCount   Int @default(0)
+
+  /// Booking dates of the first and last transaction in the file. Display only:
+  /// an account with no movements produces a narrow range that says nothing
+  /// about what the file actually covered.
+  periodFrom DateTime?
+  periodTo   DateTime?
+
+  /// The period the document itself declares it covers. Only a statement knows
+  /// this; a movement export does not state its range, so these stay null and
+  /// the batch is excluded from gap detection rather than guessed at.
+  coverageFrom DateTime?
+  coverageTo   DateTime?
+
+  errorMessage String?
+
+  transactions    Transaction[]
+  ingestionEvents IngestionEvent[]
+  statementCheckpoints AccountSnapshot[] @relation("StatementCheckpoints")
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([accountId, createdAt])
+}
+
+/// Rebuilt monthly household evidence: bank statement checkpoints plus nearest
+/// provider valuation. Daily NetWorthSnapshot remains a separate short-term rollup.
+model MonthlyNetWorthSnapshot {
+  id String @id @default(uuid())
+  /// UTC first day of the represented calendar month.
+  month DateTime @unique
+  totalWorth Decimal @db.Decimal(18, 4)
+  cashValue Decimal @db.Decimal(18, 4)
+  investmentValue Decimal @db.Decimal(18, 4)
+  liabilityValue Decimal @db.Decimal(18, 4)
+  breakdown Json
+  isComplete Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([month])
+}
+
+/// A person who can sign in. Financial data is shared by everyone: Orbit is a
+/// two-person hub, not a multi-tenant app. `Transaction.paidBy` stays the
+/// ME / PARTNER axis and is deliberately not tied to a user row.
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String?
+  /// scrypt hash produced by lib/auth/password.ts. Never a plaintext password.
+  passwordHash String
+  role         UserRole @default(MEMBER)
+  isActive     Boolean  @default(true)
+
+  invitesSent Invite[] @relation("InviteCreatedBy")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  lastLogin DateTime?
+}
+
+/// A single-use invitation link. Only the hash of the token is stored, so a
+/// database leak does not hand out working invitations.
+model Invite {
+  id        String   @id @default(uuid())
+  email     String
+  role      UserRole @default(MEMBER)
+  tokenHash String   @unique
+  expiresAt DateTime
+
+  acceptedAt DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
+/// Audit log of every inbound webhook / API pull, including failures.
+/// Guarantees no ingested payload is lost even when a bank changes its e-mail template.
+model IngestionEvent {
+  id       String          @id @default(uuid())
+  provider Provider
+  status   IngestionStatus
+
+  /// Idempotency key of the resulting transaction, when parsing succeeded.
+  idempotencyKey String?
+
+  rawPayload   Json
+  errorMessage String?
+
+  /// Set for CSV imports: which batch and which line of the file.
+  importBatchId String?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  rowNumber     Int?
+
+  receivedAt DateTime @default(now())
+
+  @@index([importBatchId])
+  @@index([provider, status, receivedAt])
+  @@index([idempotencyKey])
+}
