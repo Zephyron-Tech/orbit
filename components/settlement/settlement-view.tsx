@@ -16,6 +16,7 @@ import { useState, useTransition } from 'react';
 import { closeSettlement, markSettled, reopenSettlement } from '@/app/(dashboard)/settlement/actions';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Metric } from '@/components/ui/metric';
+import { MoneyValue } from '@/components/ui/money-value';
 import { MonthSelect } from '@/components/ui/month-select';
 import { SectionHeader } from '@/components/ui/page-container';
 import { Badge, StatusNotice } from '@/components/ui/status';
@@ -214,12 +215,14 @@ export function SettlementView({
             {directionLabel}
           </div>
           <p className={`tabular mt-3 text-4xl font-semibold tracking-[-0.05em] md:text-5xl ${directionTone === 'critical' ? 'text-critical' : directionTone === 'positive' ? 'text-positive' : 'text-ink'}`}>
-            {absoluteMoney(summary.balance)}
+            <MoneyValue>{absoluteMoney(summary.balance)}</MoneyValue>
           </p>
           <p className="mt-3 text-sm text-ink-muted">
-            {summary.exactBalance !== null
-              ? `Přesně ${formatMoney(summary.exactBalance)} před zaokrouhlením bankovního převodu.`
-              : 'Přesná nezaokrouhlená částka se v uzavřené historii neukládá.'}
+            {summary.exactBalance !== null ? (
+              <>Přesně <MoneyValue>{formatMoney(summary.exactBalance)}</MoneyValue> před zaokrouhlením bankovního převodu.</>
+            ) : (
+              'Přesná nezaokrouhlená částka se v uzavřené historii neukládá.'
+            )}
           </p>
         </div>
 
@@ -245,12 +248,12 @@ export function SettlementView({
           description={isClosed ? 'Částky uložené při uzavření období.' : 'Průběžný stav podle aktuálních transakcí.'}
         />
         <div className={`grid gap-3 ${isClosed ? 'sm:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-3'}`}>
-          <Metric label="Zaplaceno mnou" value={formatMoney(summary.paidByMe)} />
-          <Metric label="Zaplaceno partnerem" value={formatMoney(summary.paidByPartner)} />
-          {summary.dueFromMe !== null ? <Metric label="Můj podíl" value={formatMoney(summary.dueFromMe)} /> : null}
-          {summary.dueFromPartner !== null ? <Metric label="Podíl partnera" value={formatMoney(summary.dueFromPartner)} /> : null}
-          {summary.settlementReceived !== null ? <Metric label="Přijaté vyrovnání" value={formatMoney(summary.settlementReceived)} /> : null}
-          {summary.settlementSent !== null ? <Metric label="Odeslané vyrovnání" value={formatMoney(summary.settlementSent)} /> : null}
+          <Metric label="Zaplaceno mnou" value={formatMoney(summary.paidByMe)} sensitive />
+          <Metric label="Zaplaceno partnerem" value={formatMoney(summary.paidByPartner)} sensitive />
+          {summary.dueFromMe !== null ? <Metric label="Můj podíl" value={formatMoney(summary.dueFromMe)} sensitive /> : null}
+          {summary.dueFromPartner !== null ? <Metric label="Podíl partnera" value={formatMoney(summary.dueFromPartner)} sensitive /> : null}
+          {summary.settlementReceived !== null ? <Metric label="Přijaté vyrovnání" value={formatMoney(summary.settlementReceived)} sensitive /> : null}
+          {summary.settlementSent !== null ? <Metric label="Odeslané vyrovnání" value={formatMoney(summary.settlementSent)} sensitive /> : null}
         </div>
       </section>
 
@@ -283,9 +286,9 @@ export function SettlementView({
                         {line.kind === 'UNCONVERTED' ? <span className="ml-2 text-xs font-normal text-warning">bez CZK přepočtu</span> : null}
                       </td>
                       <td className="px-4 py-3 text-ink-muted">{line.paidBy === 'ME' ? 'já' : 'partner'}</td>
-                       <td className="px-4 py-3 text-right tabular-nums">{formatLineMoney(line.total, line.currency)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-ink-muted">{line.myShare ? formatMoney(line.myShare) : '—'}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-ink-muted">{line.partnerShare ? formatMoney(line.partnerShare) : '—'}</td>
+                       <td className="px-4 py-3 text-right tabular-nums"><MoneyValue>{formatLineMoney(line.total, line.currency)}</MoneyValue></td>
+                      <td className="px-4 py-3 text-right tabular-nums text-ink-muted">{line.myShare ? <MoneyValue>{formatMoney(line.myShare)}</MoneyValue> : '—'}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-ink-muted">{line.partnerShare ? <MoneyValue>{formatMoney(line.partnerShare)}</MoneyValue> : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -300,17 +303,17 @@ export function SettlementView({
                       <p className="break-words font-semibold" title={line.merchant}>{line.merchant}</p>
                       <p className="mt-1 text-xs text-ink-muted">{formatDate(line.date)} · platil {line.paidBy === 'ME' ? 'já' : 'partner'}</p>
                     </div>
-                     <p className="money-value font-semibold sm:text-right">{formatLineMoney(line.total, line.currency)}</p>
+                     <p className="money-value font-semibold sm:text-right"><MoneyValue>{formatLineMoney(line.total, line.currency)}</MoneyValue></p>
                   </div>
                   {line.kind === 'EXPENSE' ? (
                     <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-3 text-sm">
                       <div>
                         <dt className="text-xs text-ink-muted">Můj podíl</dt>
-                        <dd className="mt-1 tabular-nums">{line.myShare ? formatMoney(line.myShare) : '—'}</dd>
+                        <dd className="mt-1 tabular-nums">{line.myShare ? <MoneyValue>{formatMoney(line.myShare)}</MoneyValue> : '—'}</dd>
                       </div>
                       <div className="text-right">
                         <dt className="text-xs text-ink-muted">Podíl partnera</dt>
-                        <dd className="mt-1 tabular-nums">{line.partnerShare ? formatMoney(line.partnerShare) : '—'}</dd>
+                        <dd className="mt-1 tabular-nums">{line.partnerShare ? <MoneyValue>{formatMoney(line.partnerShare)}</MoneyValue> : '—'}</dd>
                       </div>
                     </dl>
                   ) : line.kind === 'SETTLEMENT' ? (
@@ -465,7 +468,7 @@ export function SettlementView({
                  <span className="font-medium">{formatPeriod(entry.period)}</span>
                 <span className="flex items-center gap-3 text-right">
                   <span className="hidden text-xs text-ink-muted sm:inline">{entry.settledAt ? 'zaplaceno' : 'nezaplaceno'}</span>
-                  <span className="font-semibold tabular-nums">{formatMoney(entry.balance)}</span>
+                  <span className="font-semibold tabular-nums"><MoneyValue>{formatMoney(entry.balance)}</MoneyValue></span>
                 </span>
               </Link>
             ))}

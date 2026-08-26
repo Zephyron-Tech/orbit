@@ -328,9 +328,10 @@ export default async function TransactionsPage({
           value={CZK.format(balance.toNumber())}
           tone={balance.greaterThanOrEqualTo(0) ? 'positive' : 'critical'}
           detail="Příjmy minus výdaje. Převody mezi účty ani vyrovnání sem nevstupují."
+          sensitive
         />
-        <Metric label="Příjmy" value={CZK.format(income.toNumber())} tone="positive" detail="běžné příjmy v aktuálním filtru" />
-        <Metric label="Výdaje" value={CZK.format(expenses.toNumber())} detail="běžné výdaje v aktuálním filtru" />
+        <Metric label="Příjmy" value={CZK.format(income.toNumber())} tone="positive" detail="běžné příjmy v aktuálním filtru" sensitive />
+        <Metric label="Výdaje" value={CZK.format(expenses.toNumber())} detail="běžné výdaje v aktuálním filtru" sensitive />
       </section>
 
       {missingConversions > 0 ? (

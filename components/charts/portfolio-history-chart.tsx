@@ -4,8 +4,37 @@ import { useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { useChartPalette } from '@/components/charts/use-chart-palette';
+import { MoneyValue } from '@/components/ui/money-value';
 import { SelectField } from '@/components/ui/select-field';
 import { StatusNotice } from '@/components/ui/status';
+import { usePrivacyMode } from '@/lib/ui/privacy-mode';
+
+const AXIS_MASK = '••••';
+
+/** Recharts renders axis ticks as SVG <text>, unreachable by wrapping JSX text — this reads privacy state directly. */
+function MoneyTick({
+  x,
+  y,
+  fill,
+  payload,
+  format,
+}: {
+  x?: number;
+  y?: number;
+  fill?: string;
+  payload?: { value: number };
+  format: (value: number) => string;
+}): React.JSX.Element | null {
+  const hidden = usePrivacyMode();
+
+  if (x === undefined || y === undefined || !payload) return null;
+
+  return (
+    <text x={x} y={y} dy={4} textAnchor="end" fill={fill} fontSize={11}>
+      {hidden ? AXIS_MASK : format(payload.value)}
+    </text>
+  );
+}
 
 export interface PortfolioHistoryPoint {
   capturedAt: string;
@@ -202,7 +231,7 @@ function HistoryChart({
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 text-sm">
         <span className="text-ink-muted">{data.length} uložených bodů</span>
         <span className={`money-value font-semibold ${difference < 0 ? 'text-critical' : difference > 0 ? 'text-positive' : 'text-ink-muted'}`}>
-          {difference > 0 ? '+' : ''}{money.format(difference)}
+          <MoneyValue>{difference > 0 ? '+' : ''}{money.format(difference)}</MoneyValue>
         </span>
       </div>
       <div className="h-64 w-full min-w-0" role="img" aria-label={`Vývoj hodnoty, změna ${money.format(difference)}`}>
@@ -218,15 +247,14 @@ function HistoryChart({
             />
             <YAxis
               stroke={palette.axis}
-              tick={{ fill: palette.muted, fontSize: 11 }}
-              tickFormatter={formatAxisTick}
+              tick={<MoneyTick fill={palette.muted} format={formatAxisTick} />}
               width={54}
               domain={['auto', 'auto']}
             />
             <Tooltip
               contentStyle={{ background: palette.surface, border: `1px solid ${palette.grid}`, borderRadius: 12 }}
               labelFormatter={(value) => new Intl.DateTimeFormat('cs-CZ', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(String(value)))}
-              formatter={(value) => [money.format(Number(value)), 'Hodnota']}
+              formatter={(value) => [<MoneyValue key="value">{money.format(Number(value))}</MoneyValue>, 'Hodnota']}
             />
             <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
           </LineChart>

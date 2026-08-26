@@ -23,6 +23,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { signOut } from 'next-auth/react';
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { PrivacyToggle } from '@/components/ui/privacy-toggle';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { isPeriod, PERIOD_EVENT } from '@/lib/ui/period';
 
@@ -162,6 +163,9 @@ export function AppShell({ children, userLabel, preferredPeriod }: { children: R
           <div className="mt-1">
             <ThemeToggle />
           </div>
+          <div className="mt-1">
+            <PrivacyToggle />
+          </div>
           <button
             type="button"
             onClick={() => setSignOutConfirmOpen(true)}
@@ -198,6 +202,9 @@ export function AppShell({ children, userLabel, preferredPeriod }: { children: R
             <p className="px-3 text-xs text-ink-muted">{userLabel}</p>
             <div className="mt-2">
               <ThemeToggle />
+            </div>
+            <div className="mt-1">
+              <PrivacyToggle />
             </div>
             <button
               type="button"

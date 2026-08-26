@@ -2,8 +2,26 @@
 
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
+import { MoneyValue } from '@/components/ui/money-value';
+import { usePrivacyMode } from '@/lib/ui/privacy-mode';
+
 import { czk, czkCompact } from './chart-theme';
 import { useChartPalette } from './use-chart-palette';
+
+const AXIS_MASK = '••••';
+
+/** Recharts renders axis ticks as SVG <text>, unreachable by wrapping JSX text — this reads privacy state directly. */
+function MoneyTick({ x, y, fill, payload }: { x?: number; y?: number; fill?: string; payload?: { value: number } }): React.JSX.Element | null {
+  const hidden = usePrivacyMode();
+
+  if (x === undefined || y === undefined || !payload) return null;
+
+  return (
+    <text x={x} y={y} dy={4} textAnchor="end" fill={fill} fontSize={12}>
+      {hidden ? AXIS_MASK : czkCompact.format(payload.value)}
+    </text>
+  );
+}
 
 export interface NetWorthPoint {
   month: string;
@@ -51,15 +69,27 @@ export function NetWorthChart({ data }: { data: NetWorthPoint[] }): React.JSX.El
   const latest = data[data.length - 1];
   const change = latest.totalWorth - first.totalWorth;
   const singlePoint = data.length === 1;
-  const changeText = singlePoint
+  // Plain-text version for the (non-visual) chart aria-label — screen-reader
+  // text isn't reachable by a shoulder-surfer, so it stays unmasked regardless
+  // of privacy mode, same as it always has been.
+  const changeSummaryText = singlePoint
     ? 'Zatím je dostupná jedna měsíční hodnota.'
     : change === 0
       ? 'Za zobrazené období beze změny.'
       : `${change > 0 ? 'Nárůst' : 'Pokles'} za období: ${czk.format(Math.abs(change))}.`;
+  const changeText = singlePoint ? (
+    'Zatím je dostupná jedna měsíční hodnota.'
+  ) : change === 0 ? (
+    'Za zobrazené období beze změny.'
+  ) : (
+    <>
+      {change > 0 ? 'Nárůst' : 'Pokles'} za období: <MoneyValue>{czk.format(Math.abs(change))}</MoneyValue>.
+    </>
+  );
   const chartSummary = singlePoint
     ? `Čisté jmění ke konci ${formatFullDate(latest.month)} bylo ${czk.format(latest.totalWorth)}.`
     : `Vývoj čistého jmění od konce ${formatFullDate(first.month)} do konce ${formatFullDate(latest.month)}. ` +
-      `Počáteční hodnota ${czk.format(first.totalWorth)}, poslední hodnota ${czk.format(latest.totalWorth)}. ${changeText}`;
+      `Počáteční hodnota ${czk.format(first.totalWorth)}, poslední hodnota ${czk.format(latest.totalWorth)}. ${changeSummaryText}`;
 
   return (
     <figure className="surface overflow-hidden">
@@ -94,9 +124,8 @@ export function NetWorthChart({ data }: { data: NetWorthPoint[] }): React.JSX.El
                 minTickGap={28}
               />
               <YAxis
-                tickFormatter={(value: number) => czkCompact.format(value)}
                 stroke={palette.axis}
-                tick={{ fill: palette.muted, fontSize: 12 }}
+                tick={<MoneyTick fill={palette.muted} />}
                 tickLine={false}
                 tickMargin={8}
                 axisLine={false}
@@ -142,16 +171,16 @@ function NetWorthTooltip({ active, payload }: TooltipRenderProps): React.JSX.Ele
     <div className="min-w-52 rounded-xl border border-line-strong bg-[var(--surface-raised)] p-3 text-xs shadow-[var(--shadow-sm)]">
       <p className="font-medium text-ink-muted">Konec {formatFullDate(point.month)}</p>
       <p className="tabular mt-0.5 text-lg font-semibold tracking-[-0.025em] text-ink">
-        {czk.format(point.totalWorth)}
+        <MoneyValue>{czk.format(point.totalWorth)}</MoneyValue>
       </p>
       <div className="my-2 border-t border-line" />
       <dl className="grid grid-cols-[auto_auto] gap-x-5 gap-y-1 text-ink-muted">
         <dt>Hotovost</dt>
-        <dd className="tabular text-right text-ink">{czk.format(point.cashValue)}</dd>
+        <dd className="tabular text-right text-ink"><MoneyValue>{czk.format(point.cashValue)}</MoneyValue></dd>
         <dt>+ Investice</dt>
-        <dd className="tabular text-right text-ink">{czk.format(point.investmentValue)}</dd>
+        <dd className="tabular text-right text-ink"><MoneyValue>{czk.format(point.investmentValue)}</MoneyValue></dd>
         <dt>− Závazky</dt>
-        <dd className="tabular text-right text-ink">{czk.format(point.liabilityValue)}</dd>
+        <dd className="tabular text-right text-ink"><MoneyValue>{czk.format(point.liabilityValue)}</MoneyValue></dd>
         {!point.isComplete ? <><dt>Podklad</dt><dd className="text-right text-warning">Částečný</dd></> : null}
       </dl>
     </div>

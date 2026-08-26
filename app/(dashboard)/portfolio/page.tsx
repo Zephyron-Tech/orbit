@@ -6,6 +6,7 @@ import { PortfolioHistoryChart, type PortfolioHistoryPoint } from '@/components/
 import { PortfolioChart, type PortfolioPosition } from '@/components/charts/portfolio-chart';
 import { RefreshPortfolioButton } from '@/components/charts/refresh-portfolio-button';
 import { Metric } from '@/components/ui/metric';
+import { MoneyValue } from '@/components/ui/money-value';
 import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { StatusNotice } from '@/components/ui/status';
 import { prisma } from '@/lib/db/prisma';
@@ -174,21 +175,22 @@ export default async function PortfolioPage(): Promise<React.JSX.Element> {
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className={`inline-flex items-center gap-1 ${pnlTone === 'critical' ? 'text-critical' : pnlTone === 'positive' ? 'text-positive' : ''}`}>
                 {unrealized < 0 ? <TrendDown aria-hidden size={16} /> : <TrendUp aria-hidden size={16} />}
-                {moneyPrecise.format(unrealized)} zatím neprodaný zisk / ztráta ({PERCENT.format(changePercent)} %)
+                <MoneyValue>{moneyPrecise.format(unrealized)}</MoneyValue> zatím neprodaný zisk / ztráta ({PERCENT.format(changePercent)} %)
               </span>
-              <span>Pořizovací cena pozic {money.format(cost)}</span>
+              <span>Pořizovací cena pozic <MoneyValue>{money.format(cost)}</MoneyValue></span>
             </span>
           }
           tone={pnlTone}
           featured
+          sensitive
         />
-        <Metric label="Hodnota otevřených pozic" value={money.format(invested)} detail={`Nativní měna ${currency}`} />
-        <Metric label="Hotovost" value={money.format(snapshot.cashBalance?.toNumber() ?? 0)} detail="Mimo otevřené pozice" />
+        <Metric label="Hodnota otevřených pozic" value={money.format(invested)} detail={`Nativní měna ${currency}`} sensitive />
+        <Metric label="Hotovost" value={money.format(snapshot.cashBalance?.toNumber() ?? 0)} detail="Mimo otevřené pozice" sensitive />
       </section>
 
       {balanceCzk !== null && currency !== 'CZK' ? (
         <section aria-label="Podrobné metriky portfolia" className="grid gap-3 sm:grid-cols-2">
-          <Metric label="Hodnota pro CZK přehledy" value={moneyFormatter('CZK').format(balanceCzk)} detail="Uložený přepočet" />
+          <Metric label="Hodnota pro CZK přehledy" value={moneyFormatter('CZK').format(balanceCzk)} detail="Uložený přepočet" sensitive />
         </section>
       ) : null}
 

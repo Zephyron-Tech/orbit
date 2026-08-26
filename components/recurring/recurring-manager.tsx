@@ -12,6 +12,7 @@ import {
   type RecurringExpenseInput,
 } from '@/app/(dashboard)/settings/recurring/actions';
 import { EmptyState } from '@/components/ui/empty-state';
+import { MoneyValue } from '@/components/ui/money-value';
 import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
 import { Badge, StatusNotice } from '@/components/ui/status';
@@ -164,7 +165,7 @@ export function RecurringExpenseManager({
               {!expense.isActive ? <Badge>Neaktivní</Badge> : null}
             </div>
             <p className="mt-2 tabular text-base font-semibold">
-              {formatAmount(expense.expectedAmount)} {expense.currency}
+              <MoneyValue>{formatAmount(expense.expectedAmount)} {expense.currency}</MoneyValue>
               <span className="ml-1 text-xs font-normal text-ink-muted">měsíčně</span>
             </p>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">

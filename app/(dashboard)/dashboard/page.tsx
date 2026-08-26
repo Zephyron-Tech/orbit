@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 
 import { MonthPicker } from '@/components/dashboard/month-picker';
+import { MoneyValue } from '@/components/ui/money-value';
 import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { Badge, StatusNotice } from '@/components/ui/status';
 import { prisma } from '@/lib/db/prisma';
@@ -289,7 +290,7 @@ export default async function DashboardPage({
         <div className="surface overflow-hidden lg:col-span-8">
           <div className="p-5 md:p-7">
             <div className="flex items-start justify-between gap-4"><p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">Čisté jmění k {asOf.toLocaleDateString('cs-CZ')}</p><span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-accent"><Wallet size={20} weight="duotone" aria-hidden="true" /></span></div>
-            <p className="money-value mt-3 text-[clamp(2.1rem,5vw,3.35rem)] font-semibold tracking-[-0.05em]">{formatMoney(currentWorth.totalWorth)}</p>
+            <p className="money-value mt-3 text-[clamp(2.1rem,5vw,3.35rem)] font-semibold tracking-[-0.05em]"><MoneyValue>{formatMoney(currentWorth.totalWorth)}</MoneyValue></p>
             <p className="mt-2 text-sm text-ink-muted">{incompleteWorthAccounts.length > 0 ? `${incompleteWorthAccounts.length} účtů má neúplný podklad; hodnota nemusí být úplná.` : 'Součet hotovosti, investic a evidovaných závazků.'}</p>
           </div>
           <div className="border-t border-line bg-surface-subtle px-5 py-4 md:px-7">
@@ -298,26 +299,56 @@ export default async function DashboardPage({
               {investmentShare > 0 ? <span className="bg-positive" style={{ width: `${investmentShare}%` }} /> : null}
               {liabilityShare > 0 ? <span className="bg-critical" style={{ width: `${liabilityShare}%` }} /> : null}
             </div>
-            <div className="mt-3 grid gap-x-8 gap-y-2 text-xs sm:grid-cols-3"><span className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-ink-muted"><i className="size-2 rounded-full bg-accent" /><span>Hotovost</span><strong className="font-semibold text-ink">{formatMoney(currentWorth.cashValue)}</strong></span><span className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-ink-muted"><i className="size-2 rounded-full bg-positive" /><span>Investice</span><strong className="font-semibold text-ink">{formatMoney(currentWorth.investmentValue)}</strong></span><span className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-ink-muted"><i className="size-2 rounded-full bg-critical" /><span>Závazky</span><strong className="font-semibold text-ink">{formatMoney(currentWorth.liabilityValue)}</strong></span></div>
+            <div className="mt-3 grid gap-x-8 gap-y-2 text-xs sm:grid-cols-3"><span className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-ink-muted"><i className="size-2 rounded-full bg-accent" /><span>Hotovost</span><strong className="font-semibold text-ink"><MoneyValue>{formatMoney(currentWorth.cashValue)}</MoneyValue></strong></span><span className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-ink-muted"><i className="size-2 rounded-full bg-positive" /><span>Investice</span><strong className="font-semibold text-ink"><MoneyValue>{formatMoney(currentWorth.investmentValue)}</MoneyValue></strong></span><span className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-ink-muted"><i className="size-2 rounded-full bg-critical" /><span>Závazky</span><strong className="font-semibold text-ink"><MoneyValue>{formatMoney(currentWorth.liabilityValue)}</MoneyValue></strong></span></div>
           </div>
         </div>
-        <div className="grid gap-3 lg:col-span-4"><Link href="/net-worth" className="surface block p-5 transition-colors hover:bg-surface-subtle"><div className="flex items-start justify-between gap-3"><p className="text-sm font-medium text-ink-muted">Změna proti minulému měsíci</p>{worthDelta.isNegative() ? <TrendDown size={20} weight="duotone" className="text-critical" aria-hidden="true" /> : <TrendUp size={20} weight="duotone" className="text-positive" aria-hidden="true" />}</div><p className={`money-value mt-3 text-2xl font-semibold tracking-[-0.04em] ${worthDelta.isNegative() ? 'text-critical' : 'text-positive'}`}>{worthDelta.isPositive() ? '+' : ''}{formatMoney(worthDelta)}</p><p className="mt-2 text-xs leading-relaxed text-ink-muted">{worthDeltaPercent === null ? 'Procento nelze spočítat z nulového minulého základu.' : `${worthDeltaPercent.isPositive() ? '+' : ''}${worthDeltaPercent.toFixed(1)} % proti ${previousAsOf.toLocaleDateString('cs-CZ')}`}</p></Link><Link href="/net-worth" className="surface block p-5 transition-colors hover:bg-surface-subtle"><div className="flex items-start justify-between gap-3"><p className="text-sm font-medium text-ink-muted">Hotovost : investice</p><ChartPieSlice size={20} weight="duotone" className="text-accent" aria-hidden="true" /></div><p className="money-value mt-3 text-2xl font-semibold tracking-[-0.04em]">{cashInvestmentRatio === null ? 'Bez investic' : `${cashInvestmentRatio.toFixed(2)} : 1`}</p><p className="mt-2 text-xs leading-relaxed text-ink-muted">Kreditní limity nejsou závazek ani součást hotovosti.</p></Link></div>
+        <div className="grid gap-3 lg:col-span-4"><Link href="/net-worth" className="surface block p-5 transition-colors hover:bg-surface-subtle"><div className="flex items-start justify-between gap-3"><p className="text-sm font-medium text-ink-muted">Změna proti minulému měsíci</p>{worthDelta.isNegative() ? <TrendDown size={20} weight="duotone" className="text-critical" aria-hidden="true" /> : <TrendUp size={20} weight="duotone" className="text-positive" aria-hidden="true" />}</div><p className={`money-value mt-3 text-2xl font-semibold tracking-[-0.04em] ${worthDelta.isNegative() ? 'text-critical' : 'text-positive'}`}><MoneyValue>{worthDelta.isPositive() ? '+' : ''}{formatMoney(worthDelta)}</MoneyValue></p><p className="mt-2 text-xs leading-relaxed text-ink-muted">{worthDeltaPercent === null ? 'Procento nelze spočítat z nulového minulého základu.' : `${worthDeltaPercent.isPositive() ? '+' : ''}${worthDeltaPercent.toFixed(1)} % proti ${previousAsOf.toLocaleDateString('cs-CZ')}`}</p></Link><Link href="/net-worth" className="surface block p-5 transition-colors hover:bg-surface-subtle"><div className="flex items-start justify-between gap-3"><p className="text-sm font-medium text-ink-muted">Hotovost : investice</p><ChartPieSlice size={20} weight="duotone" className="text-accent" aria-hidden="true" /></div><p className="money-value mt-3 text-2xl font-semibold tracking-[-0.04em]">{cashInvestmentRatio === null ? 'Bez investic' : `${cashInvestmentRatio.toFixed(2)} : 1`}</p><p className="mt-2 text-xs leading-relaxed text-ink-muted">Kreditní limity nejsou závazek ani součást hotovosti.</p></Link></div>
       </section>
 
       <section aria-labelledby="operations" className="flex flex-col gap-3">
         <SectionHeader title="Rezervy a krytí" description="Zdroje příjmů, dostupné rezervy a závazky mimo běžné fixní výdaje." />
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <DashboardMetric href="/settings/planning" icon={<TrendUp size={19} weight="duotone" />} iconClass="bg-[var(--accent-soft)] text-accent" label="Označené příjmy" value={formatMoney(fixedIncome)} detail="Platby ručně nebo pravidlem označené kategorií Příjmy." />
-          <DashboardMetric href="/settings/accounts" icon={<CreditCard size={19} weight="duotone" />} iconClass="bg-[var(--accent-soft)] text-accent" label="Využití kreditních limitů" value={creditUtilization === null ? 'Bez podkladu' : `${creditUtilization.toFixed(1)} %`} progress={creditUtilization?.toNumber() ?? null} progressGradient detail={creditAccounts.length === 0 ? 'Není nastaven CZK kreditní účet s limitem.' : `${formatMoney(creditUsed)} z ${formatMoney(creditLimit)}.`} />
+          <DashboardMetric href="/settings/planning" icon={<TrendUp size={19} weight="duotone" />} iconClass="bg-[var(--accent-soft)] text-accent" label="Označené příjmy" value={<MoneyValue>{formatMoney(fixedIncome)}</MoneyValue>} detail="Platby ručně nebo pravidlem označené kategorií Příjmy." />
+          <DashboardMetric
+            href="/settings/accounts"
+            icon={<CreditCard size={19} weight="duotone" />}
+            iconClass="bg-[var(--accent-soft)] text-accent"
+            label="Využití kreditních limitů"
+            value={creditUtilization === null ? 'Bez podkladu' : `${creditUtilization.toFixed(1)} %`}
+            progress={creditUtilization?.toNumber() ?? null}
+            progressGradient
+            detail={
+              creditAccounts.length === 0 ? (
+                'Není nastaven CZK kreditní účet s limitem.'
+              ) : (
+                <>
+                  <MoneyValue>{formatMoney(creditUsed)}</MoneyValue> z <MoneyValue>{formatMoney(creditLimit)}</MoneyValue>.
+                </>
+              )
+            }
+          />
           <DashboardMetric href="/settings/planning" icon={<Bank size={19} weight="duotone" />} iconClass="bg-[var(--accent-soft)] text-accent" label="DCA financování" value={investmentPlans.length === 0 ? 'Bez plánů' : `${investmentPlans.length - unmatchedDcaPlans.length}/${investmentPlans.length}`} progress={investmentPlans.length ? ((investmentPlans.length - unmatchedDcaPlans.length) / investmentPlans.length) * 100 : null} progressClass={dcaOverduePlans.length > 0 ? 'bg-critical' : 'bg-positive'} detail={investmentPlans.length === 0 ? 'Aktivní pravidelný vklad není nastaven.' : unmatchedDcaPlans.length === 0 ? 'Financování všech aktivních plánů má spárovaný převod.' : dcaOverduePlans.length > 0 ? `${dcaOverduePlans.length} plánů je po toleranci bez spárovaného převodu na brokera.` : `${dcaPendingPlans.length} plánů čeká na splatnost nebo doplnění financování; vklad není potvrzený nákup investice.`} />
           <DashboardMetric
             href="/settings/insurance"
             icon={<Car size={19} weight="duotone" />}
             iconClass="bg-[var(--accent-soft)] text-accent"
             label="Pojistky vozidel"
-            value={formatMoney(new Prisma.Decimal(insuranceOverview.annualCostTotal))}
-            valueCaption={`ročně · ${formatMoney(new Prisma.Decimal(insuranceOverview.monthlyAccrualCost))}/měsíc · ${insuranceOverview.upcomingRenewals.length > 0 ? `${insuranceOverview.upcomingRenewals.length} obnova do 30 dnů` : 'žádná obnova do 30 dnů'}`}
-            detail={insuranceOverview.sinkingFundCovered ? 'Rezerva na spořáku pokrývá cíl k dnešku.' : `Rezerva na spořáku nestačí — chybí ${formatMoney(new Prisma.Decimal(insuranceOverview.sinkingFundShortfall))} do cíle k dnešku.`}
+            value={<MoneyValue>{formatMoney(new Prisma.Decimal(insuranceOverview.annualCostTotal))}</MoneyValue>}
+            valueCaption={
+              <>
+                ročně · <MoneyValue>{formatMoney(new Prisma.Decimal(insuranceOverview.monthlyAccrualCost))}</MoneyValue>/měsíc ·{' '}
+                {insuranceOverview.upcomingRenewals.length > 0 ? `${insuranceOverview.upcomingRenewals.length} obnova do 30 dnů` : 'žádná obnova do 30 dnů'}
+              </>
+            }
+            detail={
+              insuranceOverview.sinkingFundCovered ? (
+                'Rezerva na spořáku pokrývá cíl k dnešku.'
+              ) : (
+                <>
+                  Rezerva na spořáku nestačí — chybí <MoneyValue>{formatMoney(new Prisma.Decimal(insuranceOverview.sinkingFundShortfall))}</MoneyValue> do cíle k dnešku.
+                </>
+              )
+            }
             detailTone={insuranceOverview.sinkingFundCovered ? 'positive' : 'warning'}
           />
         </div>
@@ -353,10 +384,18 @@ export default async function DashboardPage({
             icon={<Receipt size={19} weight="duotone" />}
             iconClass="bg-[var(--accent-soft)] text-accent"
             label="Celkem tento měsíc"
-            value={formatMoney(burnRate.total)}
+            value={<MoneyValue>{formatMoney(burnRate.total)}</MoneyValue>}
             progress={spendingTargetProgress}
             progressClass={targetDifference?.isPositive() ? 'bg-warning' : 'bg-accent'}
-            detail={target ? `${targetDifference?.isPositive() ? '+' : ''}${formatMoney(targetDifference ?? zero)} proti cíli ${formatMoney(target)}.` : 'Měsíční cíl fixních výdajů není nastaven.'}
+            detail={
+              target ? (
+                <>
+                  <MoneyValue>{targetDifference?.isPositive() ? '+' : ''}{formatMoney(targetDifference ?? zero)}</MoneyValue> proti cíli <MoneyValue>{formatMoney(target)}</MoneyValue>.
+                </>
+              ) : (
+                'Měsíční cíl fixních výdajů není nastaven.'
+              )
+            }
           />
           {recurringExpenses.length > 0 ? (
             <>
@@ -368,9 +407,9 @@ export default async function DashboardPage({
                   const isMissing = !taggedIds.has(expense.id);
                   const difference = expense.currency === 'CZK' && actual ? actual.actual.minus(expense.expectedAmount) : null;
                   return <li key={expense.id} className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-6">
-                    <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{expense.name}</p><Badge tone={isMissing ? recurringStateTone(expense.dueDay, expense.graceDays, todayDay, periodEndDay) : 'success'}>{isMissing ? recurringStateLabel(expense.dueDay, expense.graceDays, todayDay, periodEndDay) : 'Zaplaceno'}</Badge></div>{difference ? <p className={`tabular mt-1 text-xs ${difference.isZero() ? 'text-ink' : difference.isPositive() ? 'text-critical' : 'text-positive'}`}>{difference.isPositive() ? '+' : ''}{formatMoney(difference)} proti očekávání</p> : null}</div>
-                    <div className="flex items-baseline justify-between gap-3 sm:block sm:text-right"><span className="text-xs text-ink-muted sm:hidden">Očekáváno</span><span className="tabular text-sm font-medium">{formatMoney(expense.expectedAmount, expense.currency)}</span></div>
-                    <div className="flex items-baseline justify-between gap-3 sm:w-36 sm:block sm:text-right"><span className="text-xs text-ink-muted sm:hidden">Zaplaceno</span>{actual ? <span className="tabular text-sm font-semibold">{formatMoney(actual.actual)}</span> : <Link href={`/transactions?period=${transactionPeriod}`} className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline">Najít platbu <ArrowRight size={14} /></Link>}</div>
+                    <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{expense.name}</p><Badge tone={isMissing ? recurringStateTone(expense.dueDay, expense.graceDays, todayDay, periodEndDay) : 'success'}>{isMissing ? recurringStateLabel(expense.dueDay, expense.graceDays, todayDay, periodEndDay) : 'Zaplaceno'}</Badge></div>{difference ? <p className={`tabular mt-1 text-xs ${difference.isZero() ? 'text-ink' : difference.isPositive() ? 'text-critical' : 'text-positive'}`}><MoneyValue>{difference.isPositive() ? '+' : ''}{formatMoney(difference)}</MoneyValue> proti očekávání</p> : null}</div>
+                    <div className="flex items-baseline justify-between gap-3 sm:block sm:text-right"><span className="text-xs text-ink-muted sm:hidden">Očekáváno</span><span className="tabular text-sm font-medium"><MoneyValue>{formatMoney(expense.expectedAmount, expense.currency)}</MoneyValue></span></div>
+                    <div className="flex items-baseline justify-between gap-3 sm:w-36 sm:block sm:text-right"><span className="text-xs text-ink-muted sm:hidden">Zaplaceno</span>{actual ? <span className="tabular text-sm font-semibold"><MoneyValue>{formatMoney(actual.actual)}</MoneyValue></span> : <Link href={`/transactions?period=${transactionPeriod}`} className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline">Najít platbu <ArrowRight size={14} /></Link>}</div>
                   </li>;
                 })}
               </ol>
@@ -404,10 +443,11 @@ function DashboardMetric({
   icon: React.ReactNode;
   iconClass: string;
   label: string;
-  value: string;
+  /** Pre-composed content — wrap any money amounts in <MoneyValue> at the call site. */
+  value: React.ReactNode;
   /** Small clarifying text right under the value, e.g. "ročně". */
-  valueCaption?: string;
-  detail: string;
+  valueCaption?: React.ReactNode;
+  detail: React.ReactNode;
   detailTone?: 'warning' | 'positive';
   progress?: number | null;
   progressClass?: string;

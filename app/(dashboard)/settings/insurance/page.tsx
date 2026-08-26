@@ -1,5 +1,6 @@
 import { FileTextIcon as FileText, UserIcon as User } from '@phosphor-icons/react/dist/ssr';
 
+import { MoneyValue } from '@/components/ui/money-value';
 import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { Badge } from '@/components/ui/status';
 import { prisma } from '@/lib/db/prisma';
@@ -51,12 +52,12 @@ export default async function InsurancePage(): Promise<React.JSX.Element> {
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="surface p-5">
           <p className="text-sm font-medium text-ink-muted">Měsíční náklad</p>
-          <p className="money-value mt-3 text-2xl font-semibold tracking-[-0.04em]">{CZK.format(Number(overview.monthlyAccrualCost))}</p>
+          <p className="money-value mt-3 text-2xl font-semibold tracking-[-0.04em]"><MoneyValue>{CZK.format(Number(overview.monthlyAccrualCost))}</MoneyValue></p>
           <p className="mt-2 text-xs leading-relaxed text-ink-muted">Součet ročního pojistného / 12, jen aktivní smlouvy.</p>
         </div>
         <div className="surface p-5">
           <p className="text-sm font-medium text-ink-muted">Cíl k dnešku</p>
-          <p className="money-value mt-3 text-2xl font-semibold tracking-[-0.04em]">{CZK.format(Number(overview.sinkingFundRequirement))}</p>
+          <p className="money-value mt-3 text-2xl font-semibold tracking-[-0.04em]"><MoneyValue>{CZK.format(Number(overview.sinkingFundRequirement))}</MoneyValue></p>
           <p className="mt-2 text-xs leading-relaxed text-ink-muted">
             Časová projekce, ne skutečný zůstatek — kolik dní od posledního výročí uplynulo, tomu odpovídající podíl příští platby. Rozpis u smluv níže.
           </p>
@@ -67,12 +68,14 @@ export default async function InsurancePage(): Promise<React.JSX.Element> {
             <Badge tone={overview.sinkingFundCovered ? 'success' : 'warning'}>{overview.sinkingFundCovered ? 'Ano' : 'Chybí'}</Badge>
           </div>
           <p className="money-value mt-3 text-2xl font-semibold tracking-[-0.04em]">
-            {overview.sinkingFundCovered ? CZK.format(Number(overview.savingsSurplus)) : CZK.format(Number(overview.sinkingFundShortfall))}
+            <MoneyValue>{overview.sinkingFundCovered ? CZK.format(Number(overview.savingsSurplus)) : CZK.format(Number(overview.sinkingFundShortfall))}</MoneyValue>
           </p>
           <p className="mt-2 text-xs leading-relaxed text-ink-muted">
-            {overview.sinkingFundCovered
-              ? `Přebytek na spořicím účtu nad rámec železné rezervy (celkem ${CZK.format(Number(overview.savingsSurplus))}).`
-              : `Přebytek nad železnou rezervou je jen ${CZK.format(Number(overview.savingsSurplus))} — o tolik méně, než je cíl k dnešku.`}
+            {overview.sinkingFundCovered ? (
+              <>Přebytek na spořicím účtu nad rámec železné rezervy (celkem <MoneyValue>{CZK.format(Number(overview.savingsSurplus))}</MoneyValue>).</>
+            ) : (
+              <>Přebytek nad železnou rezervou je jen <MoneyValue>{CZK.format(Number(overview.savingsSurplus))}</MoneyValue> — o tolik méně, než je cíl k dnešku.</>
+            )}
           </p>
         </div>
         <div className="surface p-5">
@@ -115,7 +118,7 @@ export default async function InsurancePage(): Promise<React.JSX.Element> {
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="money-value text-xl font-semibold">{CZK.format(Number(policy.annualCost))}</p>
+                    <p className="money-value text-xl font-semibold"><MoneyValue>{CZK.format(Number(policy.annualCost))}</MoneyValue></p>
                     <p className="text-xs text-ink-muted">{FREQUENCY_LABEL[policy.paymentFrequency]}</p>
                   </div>
                 </div>
@@ -123,10 +126,10 @@ export default async function InsurancePage(): Promise<React.JSX.Element> {
                 <div className="mt-4 flex flex-col gap-1.5 border-t border-line pt-3">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-ink-muted">
-                      Kryto přebytkem na příští platbu ({CZK.format(dueAmount)} do {nextDue.toLocaleDateString('cs-CZ', { timeZone: 'UTC' })})
+                      Kryto přebytkem na příští platbu (<MoneyValue>{CZK.format(dueAmount)}</MoneyValue> do {nextDue.toLocaleDateString('cs-CZ', { timeZone: 'UTC' })})
                     </span>
                     <span className="font-semibold text-ink">
-                      {CZK.format(backedAmount)} <span className="font-normal text-ink-muted">({backedPercent.toFixed(0)} %)</span>
+                      <MoneyValue>{CZK.format(backedAmount)}</MoneyValue> <span className="font-normal text-ink-muted">({backedPercent.toFixed(0)} %)</span>
                     </span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-line">
