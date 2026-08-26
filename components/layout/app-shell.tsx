@@ -152,7 +152,7 @@ export function AppShell({ children, userLabel, preferredPeriod }: { children: R
         Přeskočit na obsah
       </a>
 
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-line bg-surface px-3 py-4 lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col overflow-y-auto overscroll-contain border-r border-line bg-surface px-3 py-4 lg:flex">
         <Link href="/dashboard" className="mb-7 flex items-center gap-3 px-2 py-1" aria-label="Orbit, přehled">
           <span className="flex size-9 items-center justify-center rounded-xl bg-accent text-[var(--accent-foreground)]">
             <Planet size={21} weight="fill" aria-hidden="true" />
@@ -198,7 +198,7 @@ export function AppShell({ children, userLabel, preferredPeriod }: { children: R
       </header>
 
       {menuOpen ? (
-        <div className="fixed inset-0 z-20 overflow-y-auto bg-canvas px-4 pb-8 pt-20 lg:hidden">
+        <div className="fixed inset-0 z-20 overflow-y-auto overscroll-contain bg-canvas px-4 pb-8 pt-20 lg:hidden">
           <Navigation preferredPeriod={activePeriod} onNavigate={() => setMenuOpen(false)} />
           <div className="mt-5 border-t border-line pt-4">
             <p className="px-3 text-xs text-ink-muted">{userLabel}</p>

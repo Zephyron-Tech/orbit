@@ -17,6 +17,15 @@ import { Prisma } from '@/lib/generated/prisma/client';
 
 const ZERO = new Prisma.Decimal(0);
 
+/**
+ * Fuel tracking only covers August 2026 onward — the user doesn't want older
+ * tankkarta.cz history (back to 2020) imported or reported. Applied at
+ * import time (`lib/import/process-fuel-xls.ts` skips earlier rows before
+ * they ever reach the database), not as a display-time filter, so the
+ * scope decision is enforced in one place.
+ */
+export const FUEL_DATA_CUTOFF = new Date('2026-08-01T00:00:00.000Z');
+
 export interface FuelPurchaseAmount {
   purchasedAt: Date;
   amountCzk: Prisma.Decimal;

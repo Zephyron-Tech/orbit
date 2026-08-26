@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
+import { FUEL_DATA_CUTOFF } from '@/lib/finance/fuel';
 import { buildFuelPurchaseKey } from '@/lib/finance/idempotency';
 import { parseOrlenSales, XlsStructureError, type ParsedFuelPurchase } from '@/lib/parsers/xls/orlen-sales';
 
@@ -33,6 +34,8 @@ export interface FuelImportSummary {
   rowCount: number;
   inserted: number;
   skipped: number;
+  /** Rows before FUEL_DATA_CUTOFF, in scope for the export but not for Orbit. */
+  excludedBeforeCutoff: number;
   failed: number;
   preview: FuelPurchasePreview[];
   failures: { rowNumber: number; reason: string }[];
@@ -70,7 +73,13 @@ export async function processFuelXlsImport(options: ProcessFuelXlsOptions): Prom
     throw new FuelImportError(reason, 'BAD_FORMAT');
   }
 
-  const keyed = parsed.purchases.map((purchase) => ({
+  // Fuel tracking only covers FUEL_DATA_CUTOFF onward — older rows in the
+  // export (tankkarta.cz history goes back years) are out of scope and never
+  // stored, not just hidden from a report.
+  const inScope = parsed.purchases.filter((purchase) => purchase.purchasedAt >= FUEL_DATA_CUTOFF);
+  const excludedBeforeCutoff = parsed.purchases.length - inScope.length;
+
+  const keyed = inScope.map((purchase) => ({
     purchase,
     key: buildFuelPurchaseKey({
       cardLast4: purchase.cardLast4,
@@ -117,6 +126,7 @@ export async function processFuelXlsImport(options: ProcessFuelXlsOptions): Prom
     rowCount: parsed.purchases.length + parsed.failures.length,
     inserted: fresh.length,
     skipped,
+    excludedBeforeCutoff,
     failed: parsed.failures.length,
     preview,
     failures: parsed.failures.map((failure) => ({ rowNumber: failure.rowNumber, reason: failure.reason })),

@@ -37,6 +37,7 @@ interface FuelImportSummary {
   rowCount: number;
   inserted: number;
   skipped: number;
+  excludedBeforeCutoff: number;
   failed: number;
   preview: FuelPurchasePreview[];
   failures: { rowNumber: number; reason: string }[];
@@ -63,11 +64,13 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
   const [xlsPending, setXlsPending] = useState(false);
   const [xlsError, setXlsError] = useState<string | null>(null);
   const [xlsPreview, setXlsPreview] = useState<FuelImportSummary | null>(null);
+  const [xlsFileName, setXlsFileName] = useState<string | null>(null);
   const xlsInputRef = useRef<HTMLInputElement>(null);
 
   const [receiptPending, setReceiptPending] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [receiptMessage, setReceiptMessage] = useState<React.ReactNode>(null);
+  const [receiptFileName, setReceiptFileName] = useState<string | null>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
 
   async function uploadXls(dryRun: boolean): Promise<void> {
@@ -107,6 +110,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
       } else {
         setXlsPreview(null);
         if (xlsInputRef.current) xlsInputRef.current.value = '';
+        setXlsFileName(null);
         router.refresh();
       }
     } catch {
@@ -155,6 +159,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
         ),
       );
       if (receiptInputRef.current) receiptInputRef.current.value = '';
+      setReceiptFileName(null);
       router.refresh();
     } catch {
       setReceiptError('Nahrání se teď nezdařilo. Zkontrolujte připojení a zkuste to znovu.');
@@ -214,9 +219,25 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
           <GasPump size={19} aria-hidden="true" />
           <h2 className="font-semibold">Import z tankkarta.cz (Sales.xls)</h2>
         </div>
-        <p className="text-sm text-ink-muted">Export historie nákupů z uživatelského účtu na tankkarta.cz. Import je bezpečné opakovat — duplicity se přeskočí.</p>
+        <p className="text-sm text-ink-muted">Export historie nákupů z uživatelského účtu na tankkarta.cz. Import je bezpečné opakovat — duplicity se přeskočí. Sledujeme jen srpen 2026 a novější, starší řádky se neukládají.</p>
         <div className="flex flex-wrap items-center gap-3">
-          <input ref={xlsInputRef} type="file" accept=".xls" disabled={xlsPending} className="text-sm" />
+          <button
+            type="button"
+            onClick={() => xlsInputRef.current?.click()}
+            disabled={xlsPending}
+            className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
+          >
+            Vybrat soubor
+          </button>
+          <input
+            ref={xlsInputRef}
+            type="file"
+            accept=".xls"
+            disabled={xlsPending}
+            className="sr-only"
+            onChange={(event) => setXlsFileName(event.target.files?.[0]?.name ?? null)}
+          />
+          {xlsFileName ? <p title={xlsFileName} className="max-w-full break-words text-xs font-medium text-ink-muted [overflow-wrap:anywhere]">{xlsFileName}</p> : null}
           <button
             type="button"
             onClick={() => void uploadXls(true)}
@@ -230,7 +251,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
         {xlsPreview ? (
           <div className="rounded-xl border border-line bg-surface-subtle p-4">
             <p className="text-sm">
-              {xlsPreview.rowCount} řádků · {xlsPreview.inserted} nových · {xlsPreview.skipped} duplicitních · {xlsPreview.failed} chybných
+              {xlsPreview.rowCount} řádků · {xlsPreview.inserted} nových · {xlsPreview.skipped} duplicitních · {xlsPreview.excludedBeforeCutoff} mimo sledované období · {xlsPreview.failed} chybných
             </p>
             {xlsPreview.preview.length > 0 ? (
               <div className="mt-3 max-h-64 overflow-y-auto rounded-lg border border-line">
@@ -281,7 +302,23 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
         </div>
         <p className="text-sm text-ink-muted">Účtenka obsahuje slevu Tankkarty, kterou export historie neuvádí. Po nahrání se automaticky spáruje s odpovídajícím nákupem.</p>
         <div className="flex flex-wrap items-center gap-3">
-          <input ref={receiptInputRef} type="file" accept=".pdf" disabled={receiptPending} className="text-sm" />
+          <button
+            type="button"
+            onClick={() => receiptInputRef.current?.click()}
+            disabled={receiptPending}
+            className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
+          >
+            Vybrat soubor
+          </button>
+          <input
+            ref={receiptInputRef}
+            type="file"
+            accept=".pdf"
+            disabled={receiptPending}
+            className="sr-only"
+            onChange={(event) => setReceiptFileName(event.target.files?.[0]?.name ?? null)}
+          />
+          {receiptFileName ? <p title={receiptFileName} className="max-w-full break-words text-xs font-medium text-ink-muted [overflow-wrap:anywhere]">{receiptFileName}</p> : null}
           <button
             type="button"
             onClick={() => void uploadReceipt()}
