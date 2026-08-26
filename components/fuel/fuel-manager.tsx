@@ -44,6 +44,21 @@ interface FuelImportSummary {
   failures: { rowNumber: number; reason: string }[];
 }
 
+type ReceiptUploadResult =
+  | {
+      ok: true;
+      filename: string;
+      dryRun: boolean;
+      receiptId: string | null;
+      docNumber: string;
+      purchasedAt: string;
+      stationName: string;
+      matchedPurchaseId: string | null;
+      totalAfterDiscount: string;
+      discountAmount: string;
+    }
+  | { ok: false; filename: string; error: string; code: string };
+
 interface Props {
   monthly: MonthlyRow[];
   walletBalanceCzk: string;
@@ -64,6 +79,17 @@ function formatMonth(month: string): string {
 
 export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCount, totalDiscountCzk, receiptCount, receipts }: Props): React.JSX.Element {
   const unmatchedCount = receipts.filter((receipt) => !receipt.matched).length;
+
+  // "You have a purchase but no receipt for it" signal: compare the xls
+  // purchase total for the latest month against however much of that month
+  // is actually backed by an uploaded receipt. A real gap (not rounding
+  // noise) means receipts are still missing for that month.
+  const latestMonth = monthly.length > 0 ? monthly[monthly.length - 1] : null;
+  const latestMonthReceiptsTotal = latestMonth
+    ? receipts.filter((receipt) => receipt.purchasedAt.slice(0, 7) === latestMonth.month).reduce((sum, receipt) => sum + Number(receipt.totalAfterDiscount), 0)
+    : 0;
+  const latestMonthGapCzk = latestMonth ? Math.max(0, Number(latestMonth.totalCzk) - latestMonthReceiptsTotal) : 0;
+
   const router = useRouter();
   const [xlsPending, setXlsPending] = useState(false);
   const [xlsError, setXlsError] = useState<string | null>(null);
@@ -73,8 +99,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
 
   const [receiptPending, setReceiptPending] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
-  const [receiptMessage, setReceiptMessage] = useState<React.ReactNode>(null);
-  const [receiptFileName, setReceiptFileName] = useState<string | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<ReceiptUploadResult[] | null>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
 
   async function uploadXls(dryRun: boolean): Promise<void> {
@@ -124,21 +149,21 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
     }
   }
 
-  async function uploadReceipt(): Promise<void> {
-    const file = receiptInputRef.current?.files?.[0];
+  async function uploadReceipts(dryRun: boolean): Promise<void> {
+    const files = receiptInputRef.current?.files;
 
-    if (!file) {
-      setReceiptError('Vyberte prosím soubor účtenky (PDF)');
+    if (!files || files.length === 0) {
+      setReceiptError('Vyberte prosím alespoň jednu účtenku (PDF)');
       return;
     }
 
     setReceiptPending(true);
     setReceiptError(null);
-    setReceiptMessage(null);
 
     try {
       const formData = new FormData();
-      formData.set('file', file);
+      for (const file of files) formData.append('file', file);
+      formData.set('dryRun', String(dryRun));
 
       const response = await fetch('/api/import/fuel-receipt', { method: 'POST', body: formData });
       const payload: unknown = await response.json().catch(() => null);
@@ -150,21 +175,19 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
             : 'Nahrání účtenky se nezdařilo.';
 
         setReceiptError(message);
+        setReceiptPreview(null);
         return;
       }
 
-      const summary = payload as { matchedPurchaseId: string | null; discountAmount: string };
+      const { results } = payload as { results: ReceiptUploadResult[] };
 
-      setReceiptMessage(
-        summary.matchedPurchaseId ? (
-          <>Účtenka spárována. Sleva: <MoneyValue>{CZK.format(Number(summary.discountAmount))}</MoneyValue>.</>
-        ) : (
-          'Účtenka nahrána, ale nenašel se odpovídající nákup — zkontrolujte seznam níže.'
-        ),
-      );
-      if (receiptInputRef.current) receiptInputRef.current.value = '';
-      setReceiptFileName(null);
-      router.refresh();
+      if (dryRun) {
+        setReceiptPreview(results);
+      } else {
+        setReceiptPreview(null);
+        if (receiptInputRef.current) receiptInputRef.current.value = '';
+        router.refresh();
+      }
     } catch {
       setReceiptError('Nahrání se teď nezdařilo. Zkontrolujte připojení a zkuste to znovu.');
     } finally {
@@ -183,7 +206,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
           sensitive
         />
         <Metric
-          label="Sleva díky Tankkartě"
+          label="Sleva díky Tankartě"
           value={CZK.format(Number(totalDiscountCzk))}
           detail={`${receiptCount} ${receiptCount === 1 ? 'nahraná účtenka' : 'nahraných účtenek'}`}
           tone="positive"
@@ -196,6 +219,22 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
           tone={unmatchedCount > 0 ? 'critical' : 'default'}
         />
       </section>
+
+      {latestMonth && latestMonthGapCzk > 1 ? (
+        <StatusNotice
+          title="Chybí účtenky"
+          tone="warning"
+          actions={
+            <button type="button" onClick={() => receiptInputRef.current?.click()} className="ui-button ui-button-secondary">
+              Nahrát chybějící účtenky
+            </button>
+          }
+        >
+          Za {formatMonth(latestMonth.month)} je z tankarta.cz útrata <MoneyValue>{CZK.format(Number(latestMonth.totalCzk))}</MoneyValue>, ale nahrané
+          účtenky pokrývají jen <MoneyValue>{CZK.format(latestMonthReceiptsTotal)}</MoneyValue>. Chybí tedy přibližně <MoneyValue>{CZK.format(latestMonthGapCzk)}</MoneyValue> v
+          nenahraných účtenkách.
+        </StatusNotice>
+      ) : null}
 
       <section className="flex flex-col gap-3">
         <h2 className="font-semibold">Skutečná spotřeba podle měsíce</h2>
@@ -228,9 +267,9 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
       <section className="surface flex flex-col gap-4 p-4 sm:p-5">
         <div className="flex items-center gap-2">
           <GasPump size={19} aria-hidden="true" />
-          <h2 className="font-semibold">Import z tankkarta.cz (.xls)</h2>
+          <h2 className="font-semibold">Import z tankarta.cz (.xls)</h2>
         </div>
-        <p className="text-sm text-ink-muted">Export historie nákupů z uživatelského účtu na tankkarta.cz. Import je bezpečné opakovat — duplicity se přeskočí. Sledujeme jen srpen 2026 a novější, starší řádky se neukládají.</p>
+        <p className="text-sm text-ink-muted">Export historie nákupů z uživatelského účtu na tankarta.cz. Import je bezpečné opakovat — duplicity se přeskočí. Sledujeme jen srpen 2026 a novější, starší řádky se neukládají.</p>
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -309,9 +348,9 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
       <section className="surface flex flex-col gap-4 p-4 sm:p-5">
         <div className="flex items-center gap-2">
           <Receipt size={19} aria-hidden="true" />
-          <h2 className="font-semibold">Nahrát účtenku (PDF)</h2>
+          <h2 className="font-semibold">Nahrát účtenky (PDF)</h2>
         </div>
-        <p className="text-sm text-ink-muted">Účtenka obsahuje slevu Tankkarty, kterou export historie neuvádí. Po nahrání se automaticky spáruje s odpovídajícím nákupem.</p>
+        <p className="text-sm text-ink-muted">Účtenka obsahuje slevu Tankarty, kterou export historie neuvádí. Po nahrání se automaticky spáruje s odpovídajícím nákupem. Lze nahrát víc účtenek najednou.</p>
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -320,23 +359,71 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
             className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
           >
             <UploadSimple size={16} aria-hidden="true" />
-            {receiptPending ? 'Nahrávám…' : 'Nahrát účtenku'}
+            Vybrat účtenky
           </button>
           <input
             ref={receiptInputRef}
             type="file"
             accept=".pdf"
+            multiple
             disabled={receiptPending}
             className="sr-only"
             onChange={(event) => {
-              setReceiptFileName(event.target.files?.[0]?.name ?? null);
-              if (event.target.files?.[0]) void uploadReceipt();
+              if (event.target.files && event.target.files.length > 0) void uploadReceipts(true);
+              else setReceiptPreview(null);
             }}
           />
-          {receiptFileName ? <p title={receiptFileName} className="max-w-full break-words text-xs font-medium text-ink-muted [overflow-wrap:anywhere]">{receiptFileName}</p> : null}
+          {receiptPending ? <span className="text-xs text-ink-muted">Načítám…</span> : null}
         </div>
         {receiptError ? <StatusNotice tone="danger">{receiptError}</StatusNotice> : null}
-        {receiptMessage ? <StatusNotice tone="success">{receiptMessage}</StatusNotice> : null}
+        {receiptPreview ? (
+          <div className="rounded-xl border border-line bg-surface-subtle p-4">
+            <div className="max-h-64 overflow-y-auto rounded-lg border border-line">
+              <table className="w-full min-w-[32rem] text-left text-xs">
+                <thead className="border-b border-line bg-surface text-ink-muted">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Soubor</th>
+                    <th className="px-3 py-2 font-medium">Stanice</th>
+                    <th className="px-3 py-2 text-right font-medium">Částka</th>
+                    <th className="px-3 py-2 text-right font-medium">Sleva</th>
+                    <th className="px-3 py-2 font-medium">Stav</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {receiptPreview.map((result) => (
+                    <tr key={result.filename}>
+                      <td className="max-w-40 truncate px-3 py-2" title={result.filename}>{result.filename}</td>
+                      {result.ok ? (
+                        <>
+                          <td className="px-3 py-2">{result.stationName}</td>
+                          <td className="money-value whitespace-nowrap px-3 py-2 text-right tabular-nums"><MoneyValue>{CZK.format(Number(result.totalAfterDiscount))}</MoneyValue></td>
+                          <td className="money-value whitespace-nowrap px-3 py-2 text-right tabular-nums text-positive"><MoneyValue>{CZK.format(Number(result.discountAmount))}</MoneyValue></td>
+                          <td className="px-3 py-2">
+                            {result.matchedPurchaseId ? <span className="text-positive">spárováno</span> : <span className="text-warning">nespárováno</span>}
+                          </td>
+                        </>
+                      ) : (
+                        <td className="px-3 py-2 text-critical" colSpan={4}>{result.error}</td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {receiptPreview.some((result) => result.ok) ? (
+              <button
+                type="button"
+                onClick={() => void uploadReceipts(false)}
+                disabled={receiptPending}
+                className="ui-button ui-button-primary mt-3 min-h-9 px-3 py-2 text-xs"
+              >
+                {receiptPending ? 'Ukládám…' : `Uložit ${receiptPreview.filter((result) => result.ok).length} účtenek`}
+              </button>
+            ) : (
+              <p className="mt-2 text-xs text-ink-muted">Nic k uložení.</p>
+            )}
+          </div>
+        ) : null}
       </section>
 
       <section className="flex flex-col gap-3">

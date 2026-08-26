@@ -1,5 +1,5 @@
 /**
- * Turns a real tankkarta.cz `Sales.xls` export into a committable test fixture.
+ * Turns a real tankarta.cz `Sales.xls` export into a committable test fixture.
  *
  * Only the fuel card number (column B) is a direct identifier; it is replaced
  * with a deterministic pseudonym per distinct real card number, so relationships

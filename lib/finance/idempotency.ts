@@ -147,7 +147,7 @@ export function buildIdempotencyKey(input: IdempotencyInput): string {
  * Dedup key for a `FuelPurchase` row. Not part of `buildIdempotencyKey`
  * above: that function is Account/Provider-shaped (every bank/broker
  * transaction belongs to an Orbit `Account`), and a fuel-card purchase from
- * the tankkarta.cz export isn't a bank movement and has no `accountId`.
+ * the tankarta.cz export isn't a bank movement and has no `accountId`.
  *
  * Unlike the bank ATTRIBUTES fallback, the export supplies a full
  * second-precision timestamp rather than just a calendar day, so that full

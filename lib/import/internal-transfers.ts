@@ -72,7 +72,7 @@ export function isTrading212Funding(merchant: string | null, description: string
 }
 
 /**
- * Flags a Moneta transaction as an Orlen Tankkarta wallet top-up \u2014 purely a
+ * Flags a Moneta transaction as an Orlen Tankarta wallet top-up \u2014 purely a
  * display-time heuristic for the fuel wallet-balance estimate
  * (`lib/finance/fuel.ts`), never used to change `Transaction.kind`. The
  * top-up itself still counts as a normal `fuel`-category expense in

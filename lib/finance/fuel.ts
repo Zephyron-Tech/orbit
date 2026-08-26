@@ -1,13 +1,13 @@
 import { Prisma } from '@/lib/generated/prisma/client';
 
 /**
- * Actual monthly fuel spend from Orlen Tankkarta purchase records. Pure:
+ * Actual monthly fuel spend from Orlen Tankarta purchase records. Pure:
  * inputs in, numbers out. No Prisma, no clock.
  *
  * The Moneta wallet top-up transaction is attributed to whichever month the
  * top-up happened, not the month the fuel was actually bought — a July
  * top-up can fund driving into August. `FuelPurchase` rows (from the
- * tankkarta.cz export) are the ground truth for when the money was actually
+ * tankarta.cz export) are the ground truth for when the money was actually
  * spent, so this groups by purchase date directly instead of top-up date.
  * `walletBalance` is a simple running total (all top-ups minus all
  * purchases), not a FIFO ledger matching individual top-ups to individual
@@ -19,7 +19,7 @@ const ZERO = new Prisma.Decimal(0);
 
 /**
  * Fuel tracking only covers August 2026 onward — the user doesn't want older
- * tankkarta.cz history (back to 2020) imported or reported. Applied at
+ * tankarta.cz history (back to 2020) imported or reported. Applied at
  * import time (`lib/import/process-fuel-xls.ts` skips earlier rows before
  * they ever reach the database), not as a display-time filter, so the
  * scope decision is enforced in one place.

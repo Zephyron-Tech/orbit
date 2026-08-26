@@ -74,7 +74,7 @@ export async function processFuelXlsImport(options: ProcessFuelXlsOptions): Prom
   }
 
   // Fuel tracking only covers FUEL_DATA_CUTOFF onward — older rows in the
-  // export (tankkarta.cz history goes back years) are out of scope and never
+  // export (tankarta.cz history goes back years) are out of scope and never
   // stored, not just hidden from a report.
   const inScope = parsed.purchases.filter((purchase) => purchase.purchasedAt >= FUEL_DATA_CUTOFF);
   const excludedBeforeCutoff = parsed.purchases.length - inScope.length;

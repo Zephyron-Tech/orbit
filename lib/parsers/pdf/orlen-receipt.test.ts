@@ -26,7 +26,7 @@ describe('parseOrlenReceipt', () => {
     expect(receipt.pricePerLiter).toBe('46.90');
   });
 
-  it('parses the pre-discount gross and the Tankkarta discount', () => {
+  it('parses the pre-discount gross and the Tankarta discount', () => {
     expect(receipt.grossBeforeDiscount).toBe('1462.30');
     expect(receipt.discountLabel).toBe('Karta EASY');
     expect(receipt.discountAmount).toBe('62.36');

@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
 import { isOrlenTopUp } from '@/lib/import/internal-transfers';
 
-import { monthlyFuelSpend, walletBalance, type MonthlyFuelSpend } from './fuel';
+import { FUEL_DATA_CUTOFF, monthlyFuelSpend, walletBalance, type MonthlyFuelSpend } from './fuel';
 
 export interface FuelOverview {
   monthly: MonthlyFuelSpend[];
@@ -26,8 +26,11 @@ export async function loadFuelOverview(): Promise<FuelOverview> {
       select: { purchasedAt: true, amountCzk: true, quantityLiters: true },
       orderBy: { purchasedAt: 'asc' },
     }),
+    // Scoped to the same FUEL_DATA_CUTOFF window as FuelPurchase — a top-up
+    // from before fuel tracking even started would inflate the balance
+    // against purchases that were never counted in the first place.
     prisma.transaction.findMany({
-      where: { kind: 'NORMAL', amount: { lt: 0 } },
+      where: { kind: 'NORMAL', amount: { lt: 0 }, date: { gte: FUEL_DATA_CUTOFF } },
       select: { merchant: true, description: true, amount: true, amountCzk: true, currency: true },
     }),
     prisma.fuelReceipt.findMany({ select: { discountAmount: true } }),

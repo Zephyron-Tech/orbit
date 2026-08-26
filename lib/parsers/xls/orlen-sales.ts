@@ -4,7 +4,7 @@ import { parseCzechAmount } from '@/lib/parsers/csv/numbers';
 import type { ParseFailure } from '@/lib/parsers/csv/types';
 
 /**
- * tankkarta.cz's own export headers, verbatim. A structural check, not a
+ * tankarta.cz's own export headers, verbatim. A structural check, not a
  * cosmetic one: if Orlen changes the export shape, importing must fail loud
  * rather than silently misreading columns.
  */
@@ -49,7 +49,7 @@ export interface ParsedFuelPurchase {
   product: string;
   /** Decimal string, e.g. "31.18". */
   quantityLiters: string;
-  /** Decimal string, already net of any Tankkarta discount. */
+  /** Decimal string, already net of any Tankarta discount. */
   amountCzk: string;
   raw: Record<string, string>;
 }
@@ -87,7 +87,7 @@ function isBlankRow(row: readonly unknown[]): boolean {
 }
 
 /**
- * Parses a tankkarta.cz `Sales.xls` export (legacy binary BIFF8 format) into
+ * Parses a tankarta.cz `Sales.xls` export (legacy binary BIFF8 format) into
  * fuel purchase rows. Pure: no database, no network, no clock — same
  * contract as the CSV parsers, just reading bytes instead of decoded text
  * since XLS is a binary format.

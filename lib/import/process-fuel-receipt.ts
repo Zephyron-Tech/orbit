@@ -40,8 +40,12 @@ export class FuelReceiptError extends Error {
 }
 
 export interface FuelReceiptSummary {
-  receiptId: string;
+  dryRun: boolean;
+  /** Null in a dry run — nothing was written. */
+  receiptId: string | null;
   docNumber: string;
+  purchasedAt: string;
+  stationName: string;
   matchedPurchaseId: string | null;
   totalAfterDiscount: string;
   discountAmount: string;
@@ -49,14 +53,23 @@ export interface FuelReceiptSummary {
 
 const MATCH_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+export interface ProcessFuelReceiptOptions {
+  bytes: Uint8Array;
+  /** When true nothing is written; the caller shows the preview for confirmation. */
+  dryRun: boolean;
+}
+
 /**
- * Uploads and parses one Orlen receipt PDF, then attempts to match it to an
+ * Parses one Orlen receipt PDF and attempts to match it to an
  * already-imported `FuelPurchase` row (station + amount + close timestamp —
  * see `lib/finance/fuel-matching.ts`). Left unmatched when ambiguous or when
- * the purchase hasn't been imported yet; the "receipts needing review" list
- * in the UI surfaces those.
+ * the purchase hasn't been imported yet; the receipts list in the UI
+ * surfaces those. Dry-run/commit shape mirrors `processFuelXlsImport` — the
+ * "already uploaded" checks still run during a dry run (so a duplicate
+ * shows up in the preview instead of only failing on commit), only the
+ * final write is skipped.
  */
-export async function processFuelReceiptUpload(bytes: Uint8Array): Promise<FuelReceiptSummary> {
+export async function processFuelReceiptUpload({ bytes, dryRun }: ProcessFuelReceiptOptions): Promise<FuelReceiptSummary> {
   ensureWorkerConfigured();
 
   const fileHash = createHash('sha256').update(bytes).digest('hex');
@@ -118,6 +131,19 @@ export async function processFuelReceiptUpload(bytes: Uint8Array): Promise<FuelR
     candidates,
   );
 
+  if (dryRun) {
+    return {
+      dryRun: true,
+      receiptId: null,
+      docNumber: parsed.docNumber,
+      purchasedAt: parsed.purchasedAt.toISOString(),
+      stationName: parsed.stationName,
+      matchedPurchaseId,
+      totalAfterDiscount: parsed.totalAfterDiscount,
+      discountAmount: parsed.discountAmount,
+    };
+  }
+
   const receipt = await prisma.fuelReceipt.create({
     data: {
       purchaseId: matchedPurchaseId,
@@ -139,8 +165,11 @@ export async function processFuelReceiptUpload(bytes: Uint8Array): Promise<FuelR
   });
 
   return {
+    dryRun: false,
     receiptId: receipt.id,
     docNumber: receipt.docNumber,
+    purchasedAt: receipt.purchasedAt.toISOString(),
+    stationName: receipt.stationName,
     matchedPurchaseId,
     totalAfterDiscount: receipt.totalAfterDiscount.toFixed(2),
     discountAmount: receipt.discountAmount.toFixed(2),

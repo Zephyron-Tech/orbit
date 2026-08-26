@@ -11,7 +11,7 @@ export default async function FuelPage(): Promise<React.JSX.Element> {
     <PageShell>
       <PageHeader
         title="Palivo"
-        description="Skutečná měsíční spotřeba PHM podle nákupů z Orlen Tankkarty, ne podle toho, kdy jste si dobili kredit."
+        description="Skutečná měsíční spotřeba PHM podle nákupů z Orlen Tankarty, ne podle toho, kdy jste si dobili kredit."
       />
       <FuelManager
         monthly={overview.monthly.map((row) => ({ month: row.month, totalCzk: row.totalCzk.toFixed(2), liters: row.liters.toFixed(3) }))}
