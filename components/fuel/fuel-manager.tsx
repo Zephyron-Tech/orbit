@@ -341,7 +341,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
             <div className="flex items-center gap-2">
               <GasPump size={18} aria-hidden="true" className="shrink-0 text-ink-muted" />
               <div>
-                <h2 className="text-sm font-semibold">Import z tankarta.cz</h2>
+                <h2 className="text-sm font-semibold">Import čerpaného kreditu</h2>
                 <p className="text-xs text-ink-muted">Historie nákupů (.xls)</p>
               </div>
             </div>
@@ -352,6 +352,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                 disabled={xlsPending}
                 className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
               >
+                <UploadSimple size={16} aria-hidden="true" />
                 Vybrat soubor
               </button>
               <input
@@ -366,14 +367,18 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
               <button
                 type="button"
                 onClick={() => void uploadXls(true)}
-                disabled={xlsPending}
+                disabled={xlsPending || !xlsFileName}
                 className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
               >
                 {xlsPending ? 'Načítám…' : 'Náhled'}
               </button>
             </div>
           </div>
-          {xlsError ? <StatusNotice tone="danger">{xlsError}</StatusNotice> : null}
+          {xlsError ? (
+            <StatusNotice tone="danger" onDismiss={() => setXlsError(null)} autoDismissMs={8000}>
+              {xlsError}
+            </StatusNotice>
+          ) : null}
         {xlsPreview ? (
           <div className="rounded-xl border border-line bg-surface-subtle p-4">
             <p className="text-sm">
@@ -388,7 +393,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                       <th className="px-3 py-2 font-medium">Stanice</th>
                       <th className="px-3 py-2 text-right font-medium">Množství</th>
                       <th className="px-3 py-2 text-right font-medium">Částka</th>
-                      <th className="px-3 py-2 font-medium">Stav</th>
+                      <th className="px-3 py-2 text-right font-medium">Stav</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
@@ -398,7 +403,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                         <td className="px-3 py-2">{row.stationName}</td>
                         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{LITERS.format(Number(row.quantityLiters))} l</td>
                         <td className="money-value whitespace-nowrap px-3 py-2 text-right tabular-nums"><MoneyValue>{CZK.format(Number(row.amountCzk))}</MoneyValue></td>
-                        <td className="px-3 py-2">{row.duplicate ? <span className="text-ink-muted">duplicita</span> : <span className="text-positive">nové</span>}</td>
+                        <td className="px-3 py-2 text-right">{row.duplicate ? <span className="text-ink-muted">duplicita</span> : <span className="text-positive">nové</span>}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -437,6 +442,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                 disabled={topUpsPending}
                 className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
               >
+                <UploadSimple size={16} aria-hidden="true" />
                 Vybrat soubor
               </button>
               <input
@@ -451,14 +457,18 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
               <button
                 type="button"
                 onClick={() => void uploadTopUps(true)}
-                disabled={topUpsPending}
+                disabled={topUpsPending || !topUpsFileName}
                 className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
               >
                 {topUpsPending ? 'Načítám…' : 'Náhled'}
               </button>
             </div>
           </div>
-          {topUpsError ? <StatusNotice tone="danger">{topUpsError}</StatusNotice> : null}
+          {topUpsError ? (
+            <StatusNotice tone="danger" onDismiss={() => setTopUpsError(null)} autoDismissMs={8000}>
+              {topUpsError}
+            </StatusNotice>
+          ) : null}
         {topUpsPreview ? (
           <div className="rounded-xl border border-line bg-surface-subtle p-4">
             <p className="text-sm">
@@ -472,7 +482,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                       <th className="px-3 py-2 font-medium">Datum</th>
                       <th className="px-3 py-2 font-medium">Způsob</th>
                       <th className="px-3 py-2 text-right font-medium">Částka</th>
-                      <th className="px-3 py-2 font-medium">Stav</th>
+                      <th className="px-3 py-2 text-right font-medium">Stav</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
@@ -481,7 +491,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                         <td className="whitespace-nowrap px-3 py-2 tabular-nums">{new Date(row.toppedUpAt).toLocaleString('cs-CZ', { timeZone: 'UTC' })}</td>
                         <td className="px-3 py-2">{row.method}</td>
                         <td className="money-value whitespace-nowrap px-3 py-2 text-right tabular-nums"><MoneyValue>{CZK.format(Number(row.amountCzk))}</MoneyValue></td>
-                        <td className="px-3 py-2">{row.duplicate ? <span className="text-ink-muted">duplicita</span> : <span className="text-positive">nové</span>}</td>
+                        <td className="px-3 py-2 text-right">{row.duplicate ? <span className="text-ink-muted">duplicita</span> : <span className="text-positive">nové</span>}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -510,7 +520,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
               <Receipt size={18} aria-hidden="true" className="shrink-0 text-ink-muted" />
               <div>
                 <h2 className="text-sm font-semibold">Nahrát účtenky</h2>
-                <p className="text-xs text-ink-muted">Sleva Tankarty (.pdf), auto-spárování s nákupem</p>
+                <p className="text-xs text-ink-muted">Účtenky (.pdf) obsahují slevu z Tankarty</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -521,7 +531,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                 className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs"
               >
                 <UploadSimple size={16} aria-hidden="true" />
-                Vybrat účtenky
+                Vybrat soubory
               </button>
               <input
                 ref={receiptInputRef}
@@ -538,7 +548,11 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
               {receiptPending ? <span className="text-xs text-ink-muted">Načítám…</span> : null}
             </div>
           </div>
-          {receiptError ? <StatusNotice tone="danger">{receiptError}</StatusNotice> : null}
+          {receiptError ? (
+            <StatusNotice tone="danger" onDismiss={() => setReceiptError(null)} autoDismissMs={8000}>
+              {receiptError}
+            </StatusNotice>
+          ) : null}
         {receiptPreview ? (
           <div className="rounded-xl border border-line bg-surface-subtle p-4">
             <div className="max-h-64 overflow-y-auto rounded-lg border border-line">
@@ -549,7 +563,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                     <th className="px-3 py-2 font-medium">Stanice</th>
                     <th className="px-3 py-2 text-right font-medium">Částka</th>
                     <th className="px-3 py-2 text-right font-medium">Sleva</th>
-                    <th className="px-3 py-2 font-medium">Stav</th>
+                    <th className="px-3 py-2 text-right font-medium">Stav</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -561,7 +575,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                           <td className="px-3 py-2">{result.stationName}</td>
                           <td className="money-value whitespace-nowrap px-3 py-2 text-right tabular-nums"><MoneyValue>{CZK.format(Number(result.totalAfterDiscount))}</MoneyValue></td>
                           <td className="money-value whitespace-nowrap px-3 py-2 text-right tabular-nums text-positive"><MoneyValue>{CZK.format(Number(result.discountAmount))}</MoneyValue></td>
-                          <td className="px-3 py-2">
+                          <td className="px-3 py-2 text-right">
                             {result.matchedPurchaseId ? <span className="text-positive">spárováno</span> : <span className="text-warning">nespárováno</span>}
                           </td>
                         </>
@@ -603,7 +617,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                   <th className="px-4 py-2.5 font-medium">Stanice</th>
                   <th className="px-4 py-2.5 text-right font-medium">Částka</th>
                   <th className="px-4 py-2.5 text-right font-medium">Sleva</th>
-                  <th className="px-4 py-2.5 font-medium">Stav</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Stav</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -615,7 +629,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                     <td className="max-w-40 truncate px-4 py-2.5" title={receipt.stationName}>{receipt.stationName}</td>
                     <td className="money-value whitespace-nowrap px-4 py-2.5 text-right font-medium tabular-nums"><MoneyValue>{CZK.format(Number(receipt.totalAfterDiscount))}</MoneyValue></td>
                     <td className="money-value whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-positive"><MoneyValue>{CZK.format(Number(receipt.discountAmount))}</MoneyValue></td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2.5 text-right">
                       {receipt.matched ? <Badge tone="success">Spárováno</Badge> : <Badge tone="warning">Čeká</Badge>}
                     </td>
                   </tr>

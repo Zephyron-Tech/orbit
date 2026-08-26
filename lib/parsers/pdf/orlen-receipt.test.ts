@@ -17,7 +17,7 @@ describe('parseOrlenReceipt', () => {
   it('parses the doc number, station and totals', () => {
     expect(receipt.docNumber).not.toHaveLength(0);
     expect(receipt.stationCode).toBe('190');
-    expect(receipt.stationName).toBe('Prachatice,Nebahovská');
+    expect(receipt.stationName).toBe('Prachatice, Nebahovská');
     expect(receipt.totalAfterDiscount).toBe('1399.94');
   });
 

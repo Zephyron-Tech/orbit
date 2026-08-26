@@ -163,7 +163,8 @@ export function parseOrlenSales(buffer: Buffer): XlsParseResult {
         purchasedAt,
         cardLast4: cardNumber.slice(-4),
         stationCode: stationMatch[1],
-        stationName: stationMatch[2].trim(),
+        // Same "Prachatice,Nebahovská" no-space-after-comma quirk as the receipt parser.
+        stationName: stationMatch[2].trim().replace(/,\s*/g, ', '),
         product: productMatch[2].trim(),
         quantityLiters: parseCzechAmount(quantityMatch[1]),
         amountCzk: amountRaw.toFixed(2),

@@ -90,7 +90,9 @@ export function parseOrlenReceipt(text: string): ParsedFuelReceipt {
     purchasedAt,
     docNumber,
     stationCode: stationMatch[1] ?? '',
-    stationName: (stationMatch[2] ?? '').trim(),
+    // The source text prints "Prachatice,Nebahovská" with no space after the
+    // comma; a station name is for display, so add it back.
+    stationName: (stationMatch[2] ?? '').trim().replace(/,\s*/g, ', '),
     product: (productMatch[1] ?? '').trim(),
     quantityLiters: parseCzechAmount(quantityPriceMatch[1] ?? ''),
     pricePerLiter: parseCzechAmount(quantityPriceMatch[2] ?? ''),
