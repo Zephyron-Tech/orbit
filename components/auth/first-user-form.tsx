@@ -1,6 +1,7 @@
 'use client';
 
 import { Eye, EyeSlash } from '@phosphor-icons/react';
+import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
@@ -21,6 +22,7 @@ export function FirstUserForm({ minPasswordLength }: { minPasswordLength: number
     setPasswordsInvalid(false);
 
     const form = new FormData(event.currentTarget);
+    const email = String(form.get('email') ?? '');
     const password = String(form.get('password') ?? '');
 
     try {
@@ -34,7 +36,7 @@ export function FirstUserForm({ minPasswordLength }: { minPasswordLength: number
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          email: String(form.get('email') ?? ''),
+          email,
           name: String(form.get('name') ?? ''),
           password,
         }),
@@ -51,7 +53,15 @@ export function FirstUserForm({ minPasswordLength }: { minPasswordLength: number
         return;
       }
 
-      router.push('/signin');
+      const result = await signIn('credentials', { email, password, redirect: false });
+
+      if (result?.error) {
+        router.push('/signin');
+        return;
+      }
+
+      router.push('/dashboard');
+      router.refresh();
     } catch {
       setError('Účet se teď nepodařilo vytvořit. Zkontrolujte připojení a zkuste to znovu.');
     } finally {

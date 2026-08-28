@@ -10,6 +10,13 @@ const envSchema = z.object({
   /// Shared secret for machine-to-machine routes (cron, provider pulls).
   INGESTION_SECRET: z.string().min(32),
 
+  /// Shared secret for the Tankarta automation bot's file uploads.
+  /// Deliberately separate from INGESTION_SECRET: the bot calls over the
+  /// public internet from a machine Orbit doesn't control, unlike cron's
+  /// docker-internal traffic — a compromised bot secret must not also grant
+  /// the ability to trigger the Trading 212 sync or net-worth snapshot cron.
+  FUEL_INGESTION_SECRET: z.string().min(32),
+
   /// Auth.js signing secret.
   AUTH_SECRET: z.string().min(32),
 

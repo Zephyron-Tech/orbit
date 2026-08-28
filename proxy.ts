@@ -21,6 +21,7 @@ const PUBLIC_PREFIXES = [
   '/api/invites/accept',
   '/api/health',
   '/api/cron',
+  '/api/ingest',
 ];
 
 // Next.js 16 renamed the `middleware` convention to `proxy`; the default export

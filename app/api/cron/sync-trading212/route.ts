@@ -4,42 +4,18 @@ import { syncTrading212Income } from '@/lib/providers/trading212/income-sync';
 import { syncTrading212, Trading212SyncError } from '@/lib/providers/trading212/sync';
 import { matchPendingTransfers } from '@/lib/import/transfer-sync';
 import { rebuildMonthlyNetWorth } from '@/lib/finance/monthly-net-worth-service';
+import { isIngestionAuthorized } from '@/lib/auth/ingestion-secret';
 import { getEnv } from '@/lib/validation/env';
 
 // Prisma and the provider client need the Node.js runtime.
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/**
- * Constant-time comparison, so the shared secret cannot be recovered by timing
- * repeated requests.
- */
-function secretMatches(provided: string, expected: string): boolean {
-  if (provided.length !== expected.length) {
-    return false;
-  }
-
-  let mismatch = 0;
-
-  for (let index = 0; index < provided.length; index += 1) {
-    mismatch |= provided.charCodeAt(index) ^ expected.charCodeAt(index);
-  }
-
-  return mismatch === 0;
-}
-
-function isAuthorized(request: Request, expected: string): boolean {
-  const header = request.headers.get('authorization') ?? '';
-  const provided = header.startsWith('Bearer ') ? header.slice('Bearer '.length) : header;
-
-  return secretMatches(provided, expected);
-}
-
 async function handle(request: Request): Promise<NextResponse> {
   const env = getEnv();
 
   // Checked before anything else happens: this route has no session.
-  if (!isAuthorized(request, env.INGESTION_SECRET)) {
+  if (!isIngestionAuthorized(request, env.INGESTION_SECRET)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -6,6 +6,7 @@ import { czk } from '@/components/charts/chart-theme';
 import { NetWorthChart } from '@/components/charts/net-worth-chart';
 import { AccountCards, type AccountCardData } from '@/components/net-worth/account-cards';
 import { EmptyState } from '@/components/ui/empty-state';
+import { MoneyValue } from '@/components/ui/money-value';
 import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { Badge } from '@/components/ui/status';
 import { prisma } from '@/lib/db/prisma';
@@ -157,16 +158,16 @@ export default async function NetWorthPage(): Promise<React.JSX.Element> {
         <div className="min-w-0 p-5 md:p-8">
           <p id="net-worth-total" className="text-sm font-medium text-ink-muted">Čisté jmění celkem</p>
           <p className="money-value mt-2 text-[clamp(2rem,8vw,3.75rem)] font-semibold tracking-[-0.055em] text-ink">
-            {czk.format(current.totalWorth.toNumber())}
+            <MoneyValue>{czk.format(current.totalWorth.toNumber())}</MoneyValue>
           </p>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-muted">
             Hotovost a investice po odečtení závazků. Přesnost závisí na kontrolních zůstatcích a čerstvosti investičních snímků.
           </p>
         </div>
         <dl className="grid min-w-0 divide-y divide-line rounded-b-[0.875rem] border-t border-line bg-surface-subtle/60 lg:rounded-b-none lg:rounded-r-[0.875rem] lg:border-l lg:border-t-0" aria-label="Výpočet čistého jmění">
-          <FormulaItem label="Hotovost" operator="" value={czk.format(current.cashValue.toNumber())} />
-          <FormulaItem label="Investice" operator="+" value={czk.format(current.investmentValue.toNumber())} />
-          <FormulaItem label="Závazky" operator="−" value={czk.format(current.liabilityValue.toNumber())} />
+          <FormulaItem label="Hotovost" operator="" value={<MoneyValue>{czk.format(current.cashValue.toNumber())}</MoneyValue>} />
+          <FormulaItem label="Investice" operator="+" value={<MoneyValue>{czk.format(current.investmentValue.toNumber())}</MoneyValue>} />
+          <FormulaItem label="Závazky" operator="−" value={<MoneyValue>{czk.format(current.liabilityValue.toNumber())}</MoneyValue>} />
         </dl>
       </section>
 
@@ -197,7 +198,7 @@ export default async function NetWorthPage(): Promise<React.JSX.Element> {
   );
 }
 
-function FormulaItem({ label, operator, value }: { label: string; operator: string; value: string }): React.JSX.Element {
+function FormulaItem({ label, operator, value }: { label: string; operator: string; value: ReactNode }): React.JSX.Element {
   return (
     <div className="relative min-w-0 p-4 md:px-5 md:py-4">
       {operator ? (
@@ -463,7 +464,7 @@ function TransferRow({ transaction }: { transaction: TransferDiagnostic }): Reac
       {' · '}
       {transaction.merchant ?? 'Bez popisu'}
       {' · '}
-      <span className="tabular text-ink">{formatter.format(amount)}</span>
+      <span className="tabular text-ink"><MoneyValue>{formatter.format(amount)}</MoneyValue></span>
     </li>
   );
 }

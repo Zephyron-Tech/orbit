@@ -1,3 +1,4 @@
+import { MoneyValue } from '@/components/ui/money-value';
 import { StatusNotice } from '@/components/ui/status';
 
 export interface PortfolioPosition {
@@ -44,7 +45,7 @@ export function PortfolioChart({
                 <span className="ml-2 hidden truncate text-ink-muted sm:inline">{position.name}</span>
               </div>
               <span className="tabular shrink-0 text-right font-medium">
-                {money.format(position.value)} <span className="text-ink-muted">· {PERCENT.format(share)} %</span>
+                <MoneyValue>{money.format(position.value)}</MoneyValue> <span className="text-ink-muted">· {PERCENT.format(share)} %</span>
               </span>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-surface-subtle" aria-hidden="true">

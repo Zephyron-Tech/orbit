@@ -16,6 +16,7 @@ import { useCallback, useMemo, useState, useTransition } from 'react';
 import { bulkCategorize, runTransferMatching, updateTransaction } from '@/app/(dashboard)/transactions/actions';
 import { applyMerchantCategory, countMerchantCategoryTargets } from '@/app/(dashboard)/transactions/category-actions';
 import { mergeSplit, splitTransaction } from '@/app/(dashboard)/transactions/split-actions';
+import { MoneyValue } from '@/components/ui/money-value';
 import { SelectField, type SelectOption } from '@/components/ui/select-field';
 import { Badge } from '@/components/ui/status';
 import type { TransactionKind } from '@/lib/generated/prisma/enums';
@@ -943,7 +944,7 @@ function TransactionRowView({
                   <p title={merchant} className="break-words font-semibold text-ink">{merchant}</p>
                   <p title={draft.accountName} className="mt-0.5 break-words text-xs text-ink-muted">{formatDate(draft.date)} · {draft.accountName}</p>
                 </div>
-                <p className={`tabular max-w-full break-words font-semibold sm:shrink-0 sm:text-right ${isExpense ? 'text-ink' : 'text-positive'}`}>{formatTransactionAmount(draft.amount, draft.currency)}</p>
+                <p className={`tabular max-w-full break-words font-semibold sm:shrink-0 sm:text-right ${isExpense ? 'text-ink' : 'text-positive'}`}><MoneyValue>{formatTransactionAmount(draft.amount, draft.currency)}</MoneyValue></p>
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Badge tone={draft.kind === 'NORMAL' ? (draft.isShared ? 'info' : 'neutral') : 'warning'}>{status}</Badge>
@@ -1002,7 +1003,7 @@ function TransactionRowView({
         </td>
         <td className="px-3 py-3"><Badge tone={draft.kind === 'NORMAL' ? (draft.isShared ? 'info' : 'neutral') : 'warning'}>{status}</Badge></td>
         <td className="px-4 py-3 text-right">
-          <p className={`tabular whitespace-nowrap font-semibold ${isExpense ? 'text-ink' : 'text-positive'}`}>{formatTransactionAmount(draft.amount, draft.currency)}</p>
+          <p className={`tabular whitespace-nowrap font-semibold ${isExpense ? 'text-ink' : 'text-positive'}`}><MoneyValue>{formatTransactionAmount(draft.amount, draft.currency)}</MoneyValue></p>
           <button type="button" onClick={onToggleExpanded} aria-expanded={expanded} aria-controls={editorId} className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline">
             {expanded ? 'Skrýt' : 'Podrobnosti'}
             {expanded ? <CaretUp size={13} aria-hidden="true" /> : <CaretDown size={13} aria-hidden="true" />}

@@ -16,6 +16,7 @@ import {
   type AccountInput,
 } from '@/app/(dashboard)/settings/accounts/actions';
 import { EmptyState } from '@/components/ui/empty-state';
+import { MoneyValue } from '@/components/ui/money-value';
 import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
 import { Badge, StatusNotice } from '@/components/ui/status';
@@ -164,9 +165,9 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
              </div>
               {account.creditDetails ? (
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-muted">
-                 <span>Limit: {formatMoney(account.creditDetails.limit, account.currency)}</span>
-                 <span>Dluh: {formatMoney(account.creditDetails.debt, account.currency)}</span>
-                  <span>Volná kapacita: {formatMoney(account.creditDetails.capacity, account.currency)}</span>
+                 <span>Limit: <MoneyValue>{formatMoney(account.creditDetails.limit, account.currency)}</MoneyValue></span>
+                 <span>Dluh: <MoneyValue>{formatMoney(account.creditDetails.debt, account.currency)}</MoneyValue></span>
+                  <span>Volná kapacita: <MoneyValue>{formatMoney(account.creditDetails.capacity, account.currency)}</MoneyValue></span>
                 </div>
               ) : null}
                {account.creditDetails?.invalidCapacitySnapshot ? (
@@ -237,7 +238,16 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
               >
                 Smazat
               </button>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                disabled
+                title="Účet má transakce — smazání není možné, použijte archivaci."
+                className="ui-button ui-button-ghost min-h-9 px-3 py-2 text-xs text-ink-muted"
+              >
+                Smazat
+              </button>
+            )}
           </div>
         </div>
 
@@ -395,7 +405,7 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
           <div className="mt-4 flex flex-col gap-3">
             {repaymentCandidates.map((candidate) => (
               <div key={candidate.creditTransactionId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-[var(--surface-raised)] p-3">
-                <p className="text-sm text-ink-muted">{candidate.date} · {candidate.sourceAccountName} → kreditní karta · <span className="font-semibold text-ink">{formatMoney(candidate.amount, 'CZK')}</span></p>
+                <p className="text-sm text-ink-muted">{candidate.date} · {candidate.sourceAccountName} → kreditní karta · <span className="font-semibold text-ink"><MoneyValue>{formatMoney(candidate.amount, 'CZK')}</MoneyValue></span></p>
                 <button type="button" disabled={isPending} onClick={() => run(() => confirmCreditRepayment(candidate.creditTransactionId, candidate.sourceTransactionId), 'Splacení kreditky bylo potvrzeno jako interní převod.')} className="ui-button ui-button-primary">Potvrdit splacení</button>
               </div>
             ))}

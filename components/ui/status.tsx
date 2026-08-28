@@ -1,4 +1,7 @@
-import type { ReactNode } from 'react';
+'use client';
+
+import { X } from '@phosphor-icons/react';
+import { useEffect, type ReactNode } from 'react';
 
 type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
@@ -16,13 +19,26 @@ export function StatusNotice({
   tone = 'neutral',
   actions,
   live,
+  onDismiss,
+  autoDismissMs,
 }: {
   title?: string;
   children: ReactNode;
   tone?: Tone;
   actions?: ReactNode;
   live?: 'polite' | 'assertive';
+  /** Shows a manual close button. */
+  onDismiss?: () => void;
+  /** Calls `onDismiss` on its own after this many ms — only takes effect when `onDismiss` is set. */
+  autoDismissMs?: number;
 }): React.JSX.Element {
+  useEffect(() => {
+    if (!onDismiss || !autoDismissMs) return;
+
+    const timer = setTimeout(onDismiss, autoDismissMs);
+    return () => clearTimeout(timer);
+  }, [onDismiss, autoDismissMs]);
+
   return (
     <div
       className={`flex flex-wrap items-start justify-between gap-3 rounded-xl border p-4 text-sm ${TONES[tone]}`}
@@ -33,7 +49,16 @@ export function StatusNotice({
         {title ? <p className="font-semibold">{title}</p> : null}
         <div className={`${title ? 'mt-1 ' : ''}text-sm leading-relaxed text-ink-muted`}>{children}</div>
       </div>
-      {actions ? <div className="flex max-w-full flex-wrap gap-2">{actions}</div> : null}
+      {actions || onDismiss ? (
+        <div className="flex max-w-full flex-wrap items-start gap-2">
+          {actions}
+          {onDismiss ? (
+            <button type="button" onClick={onDismiss} aria-label="Zavřít" className="shrink-0 rounded-md p-1 text-ink-muted hover:bg-black/5 hover:text-ink">
+              <X size={16} aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
