@@ -129,5 +129,9 @@ jobs:
             echo "$GHCR_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             cd ${{ env.PROJECT_DIR }}
             docker compose pull
-            docker compose up -d --force-recreate
+            docker compose up -d --force-recreate --remove-orphans
             docker logout ghcr.io
+            # Every pull leaves the previous image digest dangling — prune only
+            # dangling images, never touching anything still tagged or in use
+            # (safe alongside the other compose project running on this host).
+            docker image prune -f
