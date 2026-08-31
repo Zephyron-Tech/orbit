@@ -129,7 +129,7 @@ export default async function DashboardPage({
       orderBy: { name: 'asc' },
       select: { id: true, name: true, sourceAccountId: true, brokerAccountId: true, expectedAmount: true, currency: true, dueDay: true, graceDays: true },
     }),
-    prisma.planningSettings.findUnique({ where: { id: 'household' }, select: { monthlySpendingTarget: true, transferHistoryFrom: true } }),
+    prisma.planningSettings.findUnique({ where: { id: 'household' }, select: { monthlySpendingTarget: true, transferHistoryFrom: true, reportingStartMonth: true } }),
     prisma.category.findUnique({ where: { key: 'income' }, select: { id: true } }),
     prisma.$queryRaw<{ month: string }[]>`
       SELECT DISTINCT to_char("date", 'YYYY-MM') AS month
@@ -267,7 +267,15 @@ export default async function DashboardPage({
   const failedImports = importBatches.filter((batch) => batch.status === 'FAILED' || batch.failedCount > 0).length;
   const dataGapCount = coverageGapCount + checkpointIssues + incompleteWorthAccounts.length;
   const historyBaseline = settings?.transferHistoryFrom ?? firstBankBatch?.periodFrom ?? null;
-  const visibleMonths = months.filter((row) => !historyBaseline || row.month >= historyBaseline.toISOString().slice(0, 7));
+  // Two independent floors: `historyBaseline` hides months where transfer
+  // data isn't trustworthy yet, `reportingStartMonth` is the user's explicit
+  // "don't show anything before this" — whichever is later wins.
+  const floorMonth = [historyBaseline, settings?.reportingStartMonth]
+    .filter((date): date is Date => date !== null && date !== undefined)
+    .map((date) => date.toISOString().slice(0, 7))
+    .sort()
+    .at(-1) ?? null;
+  const visibleMonths = months.filter((row) => !floorMonth || row.month >= floorMonth);
   const actions = [
     { title: 'Nezařazené výdaje', count: uncategorizedExpenses, detail: 'Výdaje bez kategorie zkreslují pohled podle účelu.', href: `/transactions?period=${transactionPeriod}&uncategorized=1`, icon: <Receipt size={19} weight="duotone" /> },
     { title: 'Nespárované převody v období', count: unmatchedTransfers, detail: unmatchedTransfers ? 'Bankovní nebo brokerové přesuny z vybraného měsíce čekají na protistranu.' : 'V tomto měsíci nezůstaly žádné jednostranné převody.', href: `/transactions?period=${transactionPeriod}&transfer=unmatched`, icon: <LinkBreak size={19} weight="duotone" /> },
