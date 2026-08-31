@@ -88,6 +88,37 @@ services:
       app:
         condition: service_healthy
 
+  # Nightly pg_dump, kept 30 days. A host bind mount (not the named pgdata
+  # volume) so scripts/backup/pull-from-vps.sh has a plain directory to rsync
+  # off the VPS from another machine.
+  backup:
+    image: postgres:17-alpine
+    container_name: orbit-backup
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+    volumes:
+      - ./backups:/backups
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        while true; do
+          stamp=$$(date +%Y%m%d-%H%M%S)
+          if pg_dump -Fc -f "/backups/orbit-$$stamp.dump"; then
+            echo "backup ok: orbit-$$stamp.dump"
+          else
+            echo "backup FAILED at $$stamp"
+          fi
+          find /backups -name 'orbit-*.dump' -mtime +30 -delete
+          sleep 86400
+        done
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   orbit-pgdata:
 
