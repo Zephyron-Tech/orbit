@@ -310,7 +310,7 @@ export function CsvDropzone({ accounts }: { accounts: AccountOption[] }): React.
         tone="warning"
         title="Nejdřív přidejte účet"
         actions={
-          <Link href="/settings/accounts" className="ui-button ui-button-primary">
+          <Link href="/accounts" className="ui-button ui-button-primary">
             Nastavit účty
           </Link>
         }

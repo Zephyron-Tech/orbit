@@ -72,7 +72,13 @@ export function RefreshPortfolioButton({ capturedAt }: { capturedAt?: string }):
       </button>
       {status ? (
         <div className="fixed inset-x-4 bottom-20 z-50 text-left sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-96">
-          <StatusNotice tone={status.tone} title={status.title} live={status.tone === 'danger' ? 'assertive' : 'polite'}>
+          <StatusNotice
+            tone={status.tone}
+            title={status.title}
+            live={status.tone === 'danger' ? 'assertive' : 'polite'}
+            onDismiss={() => setStatus(null)}
+            autoDismissMs={5000}
+          >
             {status.message}
           </StatusNotice>
         </div>

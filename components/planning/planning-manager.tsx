@@ -4,7 +4,7 @@ import { Plus, TrendUp, X } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { createIncomeSourceRule, createInvestmentPlan, deleteIncomeSourceRule, deleteInvestmentPlan, saveSpendingTarget, setIncomeSourceRuleActive, setInvestmentPlanActive, updateIncomeSourceRule, updateInvestmentPlan, type IncomeSourceRuleInput, type InvestmentPlanInput } from '@/app/(dashboard)/settings/planning/actions';
+import { createIncomeSourceRule, createInvestmentPlan, deleteIncomeSourceRule, deleteInvestmentPlan, saveSpendingTarget, setIncomeSourceRuleActive, setInvestmentPlanActive, updateIncomeSourceRule, updateInvestmentPlan, type IncomeSourceRuleInput, type InvestmentPlanInput } from '@/app/(dashboard)/planning/actions';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MoneyValue } from '@/components/ui/money-value';
 import { SectionHeader } from '@/components/ui/page-container';

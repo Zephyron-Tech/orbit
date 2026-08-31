@@ -8,6 +8,7 @@ import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
 import { rebuildMonthlyNetWorth } from '@/lib/finance/monthly-net-worth-service';
 import { recordBalanceCheckpoint } from '@/lib/import/checkpoints';
+import { moveItem } from '@/lib/ui/reorder';
 
 const ACCOUNT_TYPES = ['CHECKING', 'SAVINGS', 'INVESTMENT', 'CREDIT'] as const;
 const PROVIDERS = ['MONETA', 'REVOLUT', 'TRADING212', 'MANUAL'] as const;
@@ -94,7 +95,7 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 function revalidateAccountViews(): void {
-  revalidatePath('/settings/accounts');
+  revalidatePath('/accounts');
   revalidatePath('/net-worth');
   revalidatePath('/dashboard');
 }
@@ -355,6 +356,43 @@ export async function clearCreditCapacitySnapshot(accountId: string): Promise<Ac
   await prisma.accountSnapshot.delete({ where: { id: snapshot.id } });
   revalidateAccountViews();
   void rebuildMonthlyNetWorth(new Date(Date.UTC(snapshot.capturedAt.getUTCFullYear(), snapshot.capturedAt.getUTCMonth(), 1)), new Date()).catch((error: unknown) => console.error('Monthly net-worth rebuild failed after credit correction', error));
+  return { ok: true };
+}
+
+/** Swaps an account's display position with its neighbor, among non-archived accounts. */
+export async function reorderAccount(id: string, direction: -1 | 1): Promise<ActionResult> {
+  const user = await getActiveUser();
+
+  if (!user) {
+    return { ok: false, error: 'Přihlaste se prosím' };
+  }
+
+  const parsedId = z.uuid().safeParse(id);
+
+  if (!parsedId.success) {
+    return { ok: false, error: 'Neplatný účet' };
+  }
+
+  const accounts = await prisma.account.findMany({
+    where: { isArchived: false },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    select: { id: true },
+  });
+
+  const index = accounts.findIndex((account) => account.id === parsedId.data);
+
+  if (index === -1) {
+    return { ok: false, error: 'Neplatný účet' };
+  }
+
+  const reordered = moveItem(accounts, index, direction);
+
+  await prisma.$transaction(
+    reordered.map((account, position) => prisma.account.update({ where: { id: account.id }, data: { sortOrder: position } })),
+  );
+
+  revalidateAccountViews();
+
   return { ok: true };
 }
 

@@ -103,7 +103,7 @@ export async function createRecurringExpense(input: RecurringExpenseInput): Prom
   await prisma.recurringExpense.create({ data: toPrismaData(parsed.data) });
   await learnRecurringExpenseAliases();
 
-  revalidatePath('/settings/recurring');
+  revalidatePath('/planning');
   revalidatePath('/dashboard');
   revalidatePath('/transactions');
 
@@ -143,7 +143,7 @@ export async function updateRecurringExpense(id: string, input: RecurringExpense
   ]);
   await learnRecurringExpenseAliases();
 
-  revalidatePath('/settings/recurring');
+  revalidatePath('/planning');
   revalidatePath('/dashboard');
   revalidatePath('/transactions');
   revalidatePath('/settlement');
@@ -167,7 +167,7 @@ export async function setRecurringExpenseActive(id: string, isActive: boolean): 
 
   await prisma.recurringExpense.update({ where: { id: parsedId.data }, data: { isActive } });
 
-  revalidatePath('/settings/recurring');
+  revalidatePath('/planning');
   revalidatePath('/dashboard');
   revalidatePath('/transactions');
 
@@ -203,7 +203,7 @@ export async function deleteRecurringExpense(id: string): Promise<ActionResult> 
 
   await prisma.recurringExpense.delete({ where: { id: parsedId.data } });
 
-  revalidatePath('/settings/recurring');
+  revalidatePath('/planning');
   revalidatePath('/dashboard');
 
   return { ok: true };

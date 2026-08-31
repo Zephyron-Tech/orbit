@@ -38,7 +38,7 @@ export async function changeMyEmail(email: string): Promise<ActionResult> {
     throw error;
   }
 
-  revalidatePath('/settings/account');
+  revalidatePath('/settings');
 
   return { ok: true };
 }
@@ -102,7 +102,7 @@ export async function updateReportingStartMonth(month: string | null): Promise<A
     update: { reportingStartMonth },
   });
 
-  revalidatePath('/settings/account');
+  revalidatePath('/settings');
   revalidatePath('/transactions');
   revalidatePath('/dashboard');
 

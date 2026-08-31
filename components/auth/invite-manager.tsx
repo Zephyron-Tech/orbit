@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState, type FormEvent } from 'react';
 
 import { EmptyState } from '@/components/ui/empty-state';
-import { revokeInvite } from '@/app/(dashboard)/settings/users/actions';
+import { revokeInvite } from '@/app/(dashboard)/users/actions';
 import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
 import { Badge, StatusNotice } from '@/components/ui/status';

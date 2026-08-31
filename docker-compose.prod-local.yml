@@ -1,0 +1,17 @@
+# Override for running the local `app` container against PRODUCTION data via
+# scripts/prod-db-tunnel.sh, instead of the local `postgres`/`migrate`
+# services. See docs/prod-db-access.md for the full walkthrough — do not use
+# this file on its own without reading that first.
+services:
+  app:
+    # Clears the local postgres/migrate dependency entirely — this container
+    # must never trigger `prisma migrate deploy` against production, and it
+    # has no reason to wait for a local postgres it isn't using. Compose
+    # merges a mapping-typed `depends_on` key-by-key by default, so a plain
+    # `depends_on: []` here does NOT clear it — `!reset` forces a full wipe.
+    depends_on: !reset []
+    environment:
+      # host.docker.internal reaches the tunnel bound on the host machine's
+      # localhost:5432 (see scripts/prod-db-tunnel.sh) — the container itself
+      # never talks to the internet or to production directly.
+      DATABASE_URL: postgresql://orbit:${PROD_DB_PASSWORD:?Set PROD_DB_PASSWORD to the real production postgres password}@host.docker.internal:5432/orbit?schema=public

@@ -59,7 +59,7 @@ export async function updateHouseholdUser(input: z.input<typeof userSchema>): Pr
     return { ok: false, error: 'Účet se nepodařilo uložit.' };
   }
 
-  revalidatePath('/settings/users');
+  revalidatePath('/users');
   return { ok: true };
 }
 
@@ -72,6 +72,6 @@ export async function revokeInvite(id: string): Promise<UserActionResult> {
   if (!parsed.success) return { ok: false, error: 'Neplatná pozvánka.' };
 
   await prisma.invite.deleteMany({ where: { id: parsed.data, acceptedAt: null } });
-  revalidatePath('/settings/users');
+  revalidatePath('/users');
   return { ok: true };
 }

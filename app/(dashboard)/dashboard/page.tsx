@@ -281,9 +281,9 @@ export default async function DashboardPage({
     { title: 'Nespárované převody v období', count: unmatchedTransfers, detail: unmatchedTransfers ? 'Bankovní nebo brokerové přesuny z vybraného měsíce čekají na protistranu.' : 'V tomto měsíci nezůstaly žádné jednostranné převody.', href: `/transactions?period=${transactionPeriod}&transfer=unmatched`, icon: <LinkBreak size={19} weight="duotone" /> },
     { title: 'Chyby importu', count: failedImports, detail: 'Import selhal nebo obsahoval řádky, které se nepodařilo zpracovat.', href: '/import', icon: <WarningCircle size={19} weight="duotone" /> },
     { title: 'Mezery v podkladech', count: dataGapCount, detail: 'Chybí kontrolní bod, navazující výpis nebo úplná historie účtu.', href: '/net-worth', icon: <Bank size={19} weight="duotone" /> },
-    { title: 'DCA po termínu bez financování', count: dcaOverduePlans.length, detail: dcaOverduePlans.length ? 'Splatnost a tolerance DCA plánu uplynula bez spárovaného převodu na brokera.' : 'Žádný DCA plán není po termínu bez financování.', href: '/settings/planning', icon: <ClockCounterClockwise size={19} weight="duotone" /> },
+    { title: 'DCA po termínu bez financování', count: dcaOverduePlans.length, detail: dcaOverduePlans.length ? 'Splatnost a tolerance DCA plánu uplynula bez spárovaného převodu na brokera.' : 'Žádný DCA plán není po termínu bez financování.', href: '/planning', icon: <ClockCounterClockwise size={19} weight="duotone" /> },
     { title: 'Fixní výdaje po termínu', count: overdueRecurring.length, detail: overdueRecurring.length ? 'Splatnost a tolerance uplynula bez ručně přiřazené platby.' : 'Žádná naplánovaná fixní platba není po toleranci.', href: `/transactions?period=${transactionPeriod}`, icon: <WarningCircle size={19} weight="duotone" /> },
-    { title: 'Krytí fixních plateb', count: cashBufferIssues.length, detail: cashBufferIssues.length ? 'Známý zůstatek platebního účtu nepokrývá součet nadcházejících CZK plateb.' : 'Známé platební účty kryjí nadcházející CZK platby.', href: '/settings/recurring', icon: <Bank size={19} weight="duotone" /> },
+    { title: 'Krytí fixních plateb', count: cashBufferIssues.length, detail: cashBufferIssues.length ? 'Známý zůstatek platebního účtu nepokrývá součet nadcházejících CZK plateb.' : 'Známé platební účty kryjí nadcházející CZK platby.', href: '/planning', icon: <Bank size={19} weight="duotone" /> },
   ];
 
   return (
@@ -316,9 +316,9 @@ export default async function DashboardPage({
       <section aria-labelledby="operations" className="flex flex-col gap-3">
         <SectionHeader title="Rezervy a krytí" description="Zdroje příjmů, dostupné rezervy a závazky mimo běžné fixní výdaje." />
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <DashboardMetric href="/settings/planning" icon={<TrendUp size={19} weight="duotone" />} iconClass="bg-[var(--accent-soft)] text-accent" label="Označené příjmy" value={<MoneyValue>{formatMoney(fixedIncome)}</MoneyValue>} detail="Platby ručně nebo pravidlem označené kategorií Příjmy." />
+          <DashboardMetric href="/planning" icon={<TrendUp size={19} weight="duotone" />} iconClass="bg-[var(--accent-soft)] text-accent" label="Označené příjmy" value={<MoneyValue>{formatMoney(fixedIncome)}</MoneyValue>} detail="Platby ručně nebo pravidlem označené kategorií Příjmy." />
           <DashboardMetric
-            href="/settings/accounts"
+            href="/accounts"
             icon={<CreditCard size={19} weight="duotone" />}
             iconClass="bg-[var(--accent-soft)] text-accent"
             label="Využití kreditních limitů"
@@ -335,9 +335,9 @@ export default async function DashboardPage({
               )
             }
           />
-          <DashboardMetric href="/settings/planning" icon={<Bank size={19} weight="duotone" />} iconClass="bg-[var(--accent-soft)] text-accent" label="DCA financování" value={investmentPlans.length === 0 ? 'Bez plánů' : `${investmentPlans.length - unmatchedDcaPlans.length}/${investmentPlans.length}`} progress={investmentPlans.length ? ((investmentPlans.length - unmatchedDcaPlans.length) / investmentPlans.length) * 100 : null} progressClass={dcaOverduePlans.length > 0 ? 'bg-critical' : 'bg-positive'} detail={investmentPlans.length === 0 ? 'Aktivní pravidelný vklad není nastaven.' : unmatchedDcaPlans.length === 0 ? 'Financování všech aktivních plánů má spárovaný převod.' : dcaOverduePlans.length > 0 ? `${dcaOverduePlans.length} plánů je po toleranci bez spárovaného převodu na brokera.` : `${dcaPendingPlans.length} plánů čeká na splatnost nebo doplnění financování; vklad není potvrzený nákup investice.`} />
+          <DashboardMetric href="/planning" icon={<Bank size={19} weight="duotone" />} iconClass="bg-[var(--accent-soft)] text-accent" label="DCA financování" value={investmentPlans.length === 0 ? 'Bez plánů' : `${investmentPlans.length - unmatchedDcaPlans.length}/${investmentPlans.length}`} progress={investmentPlans.length ? ((investmentPlans.length - unmatchedDcaPlans.length) / investmentPlans.length) * 100 : null} progressClass={dcaOverduePlans.length > 0 ? 'bg-critical' : 'bg-positive'} detail={investmentPlans.length === 0 ? 'Aktivní pravidelný vklad není nastaven.' : unmatchedDcaPlans.length === 0 ? 'Financování všech aktivních plánů má spárovaný převod.' : dcaOverduePlans.length > 0 ? `${dcaOverduePlans.length} plánů je po toleranci bez spárovaného převodu na brokera.` : `${dcaPendingPlans.length} plánů čeká na splatnost nebo doplnění financování; vklad není potvrzený nákup investice.`} />
           <DashboardMetric
-            href="/settings/insurance"
+            href="/insurance"
             icon={<Car size={19} weight="duotone" />}
             iconClass="bg-[var(--accent-soft)] text-accent"
             label="Pojistky vozidel"
@@ -388,7 +388,7 @@ export default async function DashboardPage({
             description="Celkový měsíční náklad a přiřazené platby vůči očekávání."
           />
           <DashboardMetric
-            href="/settings/planning"
+            href="/planning"
             icon={<Receipt size={19} weight="duotone" />}
             iconClass="bg-[var(--accent-soft)] text-accent"
             label="Celkem tento měsíc"
@@ -422,9 +422,9 @@ export default async function DashboardPage({
                 })}
               </ol>
             </div>
-            <Link href="/settings/planning" className="ui-button ui-button-ghost self-start">Nastavení fixních výdajů <ArrowRight size={16} /></Link>
+            <Link href="/planning" className="ui-button ui-button-ghost self-start">Nastavení fixních výdajů <ArrowRight size={16} /></Link>
             </>
-          ) : <StatusNotice title="Fixní výdaje nejsou nastavené" tone="info" actions={<Link href="/settings/recurring" className="ui-button ui-button-secondary">Přidat položky</Link>}>Bez očekávaných položek nelze kontrolovat označení pravidelných plateb.</StatusNotice>}
+          ) : <StatusNotice title="Fixní výdaje nejsou nastavené" tone="info" actions={<Link href="/planning" className="ui-button ui-button-secondary">Přidat položky</Link>}>Bez očekávaných položek nelze kontrolovat označení pravidelných plateb.</StatusNotice>}
         </section>
       </div>
     </PageShell>

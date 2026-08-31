@@ -43,14 +43,27 @@ export async function refreshPortfolio(): Promise<RefreshResult> {
     revalidatePath('/portfolio');
     revalidatePath('/net-worth');
 
-    await syncTrading212Income({
-      keyId: env.TRADING212_API_KEY_ID,
-      secret: env.TRADING212_API_SECRET,
-      baseUrl: env.TRADING212_API_BASE_URL,
-    });
-    await matchPendingTransfers();
-    revalidatePath('/transactions');
-    void rebuildMonthlyNetWorth(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)), new Date()).catch((error: unknown) => console.error('Monthly net-worth rebuild failed after portfolio sync', error));
+    // Best-effort, same as after every CSV import: the button's spinner must
+    // clear as soon as the portfolio numbers the user is watching are done,
+    // not stay stuck through income sync + transfer matching too — those
+    // keep happening the same way in the background regardless.
+    void (async () => {
+      try {
+        await syncTrading212Income({
+          keyId: env.TRADING212_API_KEY_ID,
+          secret: env.TRADING212_API_SECRET,
+          baseUrl: env.TRADING212_API_BASE_URL,
+        });
+        await matchPendingTransfers();
+        revalidatePath('/transactions');
+      } catch (error: unknown) {
+        console.error('Trading 212 income sync/transfer matching failed after portfolio sync', error);
+      }
+
+      await rebuildMonthlyNetWorth(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)), new Date()).catch(
+        (error: unknown) => console.error('Monthly net-worth rebuild failed after portfolio sync', error),
+      );
+    })();
 
     return { ok: true, capturedAt: result.capturedAt };
   } catch (error: unknown) {

@@ -279,11 +279,12 @@ app/
   signin/ setup/ invite/[token]/      # unauthenticated pages
   (dashboard)/
     import/                # CSV dropzone + import history
-    settings/users/        # who has access, invitations
-    settings/accounts/     # account CRUD
-    settings/recurring/    # recurring-expense CRUD (tags for burn rate)
-    settings/insurance/    # insurance policy tracking
-    settings/planning/     # planning inputs
+    settings/               # my account: email, password, reporting-start-month
+    users/                  # who has access, invitations
+    accounts/               # account CRUD
+    planning/               # planning inputs + recurring-expense CRUD (tags for burn rate)
+    insurance/              # insurance policy CRUD
+    fuel/                   # Orlen Tankarta purchase/top-up/receipt tracking
     dashboard/             # home route: burn rate, expected vs. actual, missing-this-month
     transactions/          # ledger, categorization, isShared toggle, split/merge, transfer matching
     portfolio/             # T212 portfolio view
@@ -402,6 +403,11 @@ Two ways in, both requiring SSH access to the VPS — no separate credentials to
 against production, with no confirmation step. Migrations only ever happen through
 the real deploy pipeline. A one-off script or `npm run dev` is safe (neither migrates);
 `docker compose up` is not.
+
+For the rare case where you need the actual containerized `app` (not `npm run dev`)
+pointed at production — see `docs/prod-db-access.md` for the full walkthrough
+(`docker-compose.prod-local.yml` overrides `DATABASE_URL` and drops the local
+`postgres`/`migrate` dependency, so a plain `docker compose up` still can't reach it).
 
 ### Local dev against the containerised database
 

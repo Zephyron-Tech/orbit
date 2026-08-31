@@ -1,6 +1,6 @@
 'use client';
 
-import { Archive, Bank, Plus, X } from '@phosphor-icons/react';
+import { Archive, ArrowDown, ArrowUp, Bank, Plus, X } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
@@ -11,10 +11,11 @@ import {
   confirmCreditZeroStart,
   clearCreditCapacitySnapshot,
   confirmCreditRepayment,
+  reorderAccount,
   setAccountArchived,
   updateAccount,
   type AccountInput,
-} from '@/app/(dashboard)/settings/accounts/actions';
+} from '@/app/(dashboard)/accounts/actions';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MoneyValue } from '@/components/ui/money-value';
 import { SectionHeader } from '@/components/ui/page-container';
@@ -102,7 +103,7 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
     });
   }
 
-  function renderAccount(account: AccountRow): React.JSX.Element {
+  function renderAccount(account: AccountRow, isFirst: boolean, isLast: boolean): React.JSX.Element {
     const pendingConfirmation = confirmation?.id === account.id ? confirmation.action : null;
 
     if (editingId === account.id) {
@@ -182,6 +183,30 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
                ) : null}
           </div>
           <div className="flex w-full min-w-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
+            {!account.isArchived ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => run(() => reorderAccount(account.id, -1), 'Pořadí bylo změněno.')}
+                  disabled={isPending || isFirst}
+                  aria-label="Posunout výš"
+                  title="Posunout výš"
+                  className="ui-button ui-button-ghost size-9 p-0"
+                >
+                  <ArrowUp size={15} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => run(() => reorderAccount(account.id, 1), 'Pořadí bylo změněno.')}
+                  disabled={isPending || isLast}
+                  aria-label="Posunout níž"
+                  title="Posunout níž"
+                  className="ui-button ui-button-ghost size-9 p-0"
+                >
+                  <ArrowDown size={15} aria-hidden="true" />
+                </button>
+              </>
+            ) : null}
             <button
               type="button"
               onClick={() => {
@@ -383,7 +408,9 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
         ) : null}
 
         {activeAccounts.length > 0 ? (
-          <ul className="flex flex-col gap-3">{activeAccounts.map(renderAccount)}</ul>
+          <ul className="flex flex-col gap-3">
+            {activeAccounts.map((account, index) => renderAccount(account, index === 0, index === activeAccounts.length - 1))}
+          </ul>
         ) : !creating ? (
           <EmptyState
             icon={<Bank size={21} aria-hidden="true" />}
@@ -419,7 +446,7 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
             title="Archivované účty"
             description="Nezobrazují se v importu, jejich historie ale zůstává zachována."
           />
-          <ul className="flex flex-col gap-3">{archivedAccounts.map(renderAccount)}</ul>
+          <ul className="flex flex-col gap-3">{archivedAccounts.map((account) => renderAccount(account, true, true))}</ul>
         </section>
       ) : (
         <div className="flex items-center gap-2 border-t border-line pt-5 text-sm text-ink-muted">
