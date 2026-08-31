@@ -20,7 +20,37 @@ dependency on the local `postgres`/`migrate` services, so `docker compose
 up` never touches your local database or applies a migration against
 production.
 
-## Steps
+## One command
+
+`scripts/prod-local.sh` opens the tunnel in the background, waits for it,
+then starts `app` with the override. Stop your normal local stack first —
+same port (3000), and `down` (below) stops the whole `orbit` compose
+project, local or prod-pointed, whichever is currently up.
+
+```bash
+docker compose down   # if the normal local stack is running
+
+DEPLOY_HOST=<vps-ip> PROD_DB_PASSWORD=<real prod postgres password> ./scripts/prod-local.sh up
+
+# ...work...
+
+./scripts/prod-local.sh down     # stops app, closes the tunnel
+docker compose up -d             # bring your normal local stack back
+```
+
+**Verify it's actually pointed at production** before doing anything else —
+`curl localhost:3000/api/health` should say `"database":"up"`, and the
+login screen should accept your real production credentials.
+
+`down` tears down *every* container in the `orbit` compose project, not
+just the one this script started — it's the same project name either way,
+so a plain `docker compose down` would do the same. If you ran `up` without
+ever running `down`, the tunnel is still open in the background: check
+`cat /tmp/orbit-prod-db-tunnel.pid` and `kill` it by hand.
+
+## Steps, by hand
+
+What the script above actually does, if you need to run a piece separately:
 
 1. **Open the tunnel** (separate terminal, stays running):
    ```bash
@@ -29,19 +59,13 @@ production.
    Forwards production Postgres (bound loopback-only on the VPS —
    `docker-compose.prod.yml`) to `localhost:5432` on your machine.
 
-2. **Stop your normal local stack first**, if it's running — same port
-   (3000) and you don't want the two confused for each other:
-   ```bash
-   docker compose down
-   ```
-
-3. **Set the production DB password** for this shell only (never write it to
+2. **Set the production DB password** for this shell only (never write it to
    a tracked file):
    ```bash
    export PROD_DB_PASSWORD="<the real POSTGRES_PASSWORD from prod secrets>"
    ```
 
-4. **Start only `app`, with the override, skipping local dependencies:**
+3. **Start only `app`, with the override, skipping local dependencies:**
    ```bash
    docker compose -f docker-compose.yml -f docker-compose.prod-local.yml up -d --no-deps --build app
    ```
@@ -49,11 +73,7 @@ production.
    to start `postgres`/`migrate` even though the override cleared `app`'s
    `depends_on`.
 
-5. **Verify it's actually pointed at production** before doing anything
-   else — `curl localhost:3000/api/health` should say `"database":"up"`,
-   and the login screen should accept your real production credentials.
-
-6. **Tear down when done:**
+4. **Tear down when done:**
    ```bash
    docker compose -f docker-compose.yml -f docker-compose.prod-local.yml down
    unset PROD_DB_PASSWORD
