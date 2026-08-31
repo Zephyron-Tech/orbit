@@ -43,11 +43,26 @@ DEST="${1:-$HOME/orbit-backups}"
 KEY="${ORBIT_BACKUP_KEY:-$HOME/.ssh/orbit_backup_pull}"
 RSYNC_BIN="${ORBIT_RSYNC_BIN:-rsync}"
 
-notify_discord() {
-  local title="$1" description="$2" color="$3"
+notify_discord_success() {
+  local count="$1" dest="$2"
   [ -n "${DISCORD_BOT_TOKEN:-}" ] && [ -n "${ORBIT_DISCORD_CHANNEL_ID:-}" ] || return 0
-  local payload
-  payload=$(printf '{"embeds":[{"title":"%s","description":"%s","color":%s}]}' "$title" "$description" "$color")
+  local ts payload
+  ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  payload=$(printf '{"embeds":[{"author":{"name":"💻 Orbit Mac Mini"},"title":"✅ Pull complete","description":"Mirrored %s file(s)","color":3066993,"fields":[{"name":"Files","value":"%s","inline":true},{"name":"Destination","value":"%s","inline":true}],"footer":{"text":"Orbit backups · Mac Mini"},"timestamp":"%s"}]}' "$count" "$count" "$dest" "$ts")
+  curl -fsS \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bot ${DISCORD_BOT_TOKEN}" \
+    -d "$payload" \
+    "https://discord.com/api/v10/channels/${ORBIT_DISCORD_CHANNEL_ID}/messages" >/dev/null \
+    || echo "discord notify failed"
+}
+
+notify_discord_failure() {
+  local rc="$1"
+  [ -n "${DISCORD_BOT_TOKEN:-}" ] && [ -n "${ORBIT_DISCORD_CHANNEL_ID:-}" ] || return 0
+  local ts payload
+  ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  payload=$(printf '{"embeds":[{"author":{"name":"💻 Orbit Mac Mini"},"title":"❌ Pull failed","description":"rsync/prune failed (exit %s) — check /tmp/orbit-backup-pull.log.","color":15158332,"footer":{"text":"Orbit backups · Mac Mini"},"timestamp":"%s"}]}' "$rc" "$ts")
   curl -fsS \
     -H "Content-Type: application/json" \
     -H "Authorization: Bot ${DISCORD_BOT_TOKEN}" \
@@ -79,10 +94,10 @@ main() {
 if main; then
   count=$(find "$DEST" -name 'orbit-*.dump' | wc -l | tr -d ' ')
   echo "Backups mirrored to ${DEST} (${count} files)."
-  notify_discord "✅ Orbit Mac Mini backup pull" "Mirrored ${count} file(s) to ${DEST}." 3066993
+  notify_discord_success "$count" "$DEST"
 else
   rc=$?
   echo "Pull FAILED (exit ${rc})"
-  notify_discord "❌ Orbit Mac Mini backup pull FAILED" "rsync/prune failed (exit ${rc}) — check /tmp/orbit-backup-pull.log." 15158332
+  notify_discord_failure "$rc"
   exit "$rc"
 fi
