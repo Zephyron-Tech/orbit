@@ -1,10 +1,10 @@
 name: GHCR cleanup
 
-# Nothing ever deletes a package version once pushed — deploy.yml/deploy-dev.yml
-# tag every single commit with its SHA (in addition to `latest`/`dev`), so the
-# registry grows by two versions per package on every push, forever, unless
-# something prunes it. This is separate from the VPS-side dangling-image prune
-# in the deploy workflows: this only touches the GHCR registry, not the VPS.
+# Nothing ever deletes a package version once pushed — deploy.yml tags every
+# single commit with its SHA (in addition to `latest`), so the registry grows
+# by two versions per package on every push, forever, unless something prunes
+# it. This is separate from the VPS-side dangling-image prune in deploy.yml:
+# this only touches the GHCR registry, not the VPS.
 on:
   schedule:
     - cron: '0 4 * * 0' # weekly, Sunday 04:00 UTC
@@ -18,19 +18,19 @@ jobs:
         package: [orbit-app, orbit-migrate]
     steps:
       # GITHUB_TOKEN cannot be used here: the `!`/`*` filtering syntax on
-      # image-tags (needed to protect `latest`/`dev`) only works with a
-      # personal access token or GitHub App token — see snok/container-
-      # retention-policy's README. GHCR_CLEANUP_TOKEN must be a classic PAT
-      # with the `packages:delete` scope.
+      # image-tags (needed to protect `latest`) only works with a personal
+      # access token or GitHub App token — see snok/container-retention-
+      # policy's README. GHCR_CLEANUP_TOKEN must be a classic PAT with the
+      # `packages:delete` scope.
       - name: Delete old versions of ${{ matrix.package }}
         uses: snok/container-retention-policy@v3.1.0
         with:
           account: zephyron-tech
           token: ${{ secrets.GHCR_CLEANUP_TOKEN }}
           image-names: ${{ matrix.package }}
-          # `latest` and `dev` are the tags compose actually pulls — never eligible.
-          # Everything else is a per-commit SHA tag (plain or "dev-" prefixed).
-          image-tags: '!latest !dev'
+          # `latest` is the tag compose actually pulls — never eligible.
+          # Everything else is a per-commit SHA tag.
+          image-tags: '!latest'
           tag-selection: both
           cut-off: 2w
           keep-n-most-recent: 20

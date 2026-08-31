@@ -16,10 +16,7 @@ file is a safe no-op, and a file with new rows only inserts the new ones.
 | ChargingPrepaids.xls (top-up history) | `POST /api/ingest/fuel-topups` |
 | Receipt PDFs (batch) | `POST /api/ingest/fuel-receipt` |
 
-| Environment | Base URL |
-| --- | --- |
-| Production | `https://orbit.zephyron.tech` |
-| Dev | `https://dev.orbit.zephyron.tech` |
+Base URL: `https://orbit.zephyron.tech` (production only — there is no dev deployment).
 
 ## Auth
 
@@ -28,11 +25,8 @@ Authorization: Bearer <FUEL_INGESTION_SECRET>
 ```
 
 A dedicated secret, separate from the cron/provider `INGESTION_SECRET` —
-see `lib/validation/env.ts`. Each environment has its own value
-(`FUEL_INGESTION_SECRET` in prod, same var name but a different value in
-dev — provisioned from the `ORBIT_FUEL_INGESTION_SECRET` /
-`DEV_FUEL_INGESTION_SECRET` GitHub Actions secrets respectively). A missing
-or wrong token returns `401`.
+see `lib/validation/env.ts`, provisioned from the `ORBIT_FUEL_INGESTION_SECRET`
+GitHub Actions secret. A missing or wrong token returns `401`.
 
 ## `fuel` / `fuel-topups` request
 

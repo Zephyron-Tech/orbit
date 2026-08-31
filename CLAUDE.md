@@ -383,6 +383,26 @@ The image is built from a multi-stage `Dockerfile` (`deps` → `builder` → `mi
 `npm ci` runs with `--ignore-scripts`; `prisma generate` is invoked explicitly in `builder`
 with a placeholder `DATABASE_URL`, since generation never connects to a database.
 
+There is no dev deployment — `dev` is a git branch only (a PR gate before `main`),
+nothing deploys from a push to it. Every fix happens once, on production.
+
+### Reaching production data from a local machine
+
+Two ways in, both requiring SSH access to the VPS — no separate credentials to manage:
+
+- **Quick SQL, no setup**: `ssh <user>@<host> "docker exec -it orbit-postgres psql -U orbit -d orbit"`.
+  Works through `docker exec`, so it needs nothing published on the host.
+- **Running a repo script** (`scripts/*.ts`) against production: `DEPLOY_HOST=<vps> ./scripts/prod-db-tunnel.sh`
+  in one terminal (tunnels `orbit-postgres`, which is bound loopback-only on the VPS —
+  see `docker-compose.prod.yml` — never reachable from the public internet), then in
+  another terminal `DATABASE_URL="postgresql://orbit:<prod-password>@localhost:5432/orbit?schema=public" npx tsx scripts/whatever.ts`.
+
+**Never run `docker compose up` against a tunneled production `DATABASE_URL`.** The
+`migrate` service unconditionally runs `prisma migrate deploy` before `app` starts —
+against production, with no confirmation step. Migrations only ever happen through
+the real deploy pipeline. A one-off script or `npm run dev` is safe (neither migrates);
+`docker compose up` is not.
+
 ### Local dev against the containerised database
 
 ```bash

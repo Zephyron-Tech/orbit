@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
 import type { Provider } from '@/lib/generated/prisma/enums';
 import { buildIdempotencyKey, dedupStrategyFor, normalizeMerchant, type DedupStrategy } from '@/lib/finance/idempotency';
+import { createFxRateResolver, FxRateError } from '@/lib/providers/fx/rate-lookup';
 import { decodeCsv } from '@/lib/parsers/csv/decode';
 import { classifyByMerchant, mapMonetaCategory } from '@/lib/parsers/csv/moneta-categories';
 import { getCsvParser } from '@/lib/parsers/csv/registry';
@@ -346,6 +347,31 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     return summary;
   }
 
+  // Foreign-currency rows need a real CZK equivalent, or every cash-flow
+  // aggregate silently drops them (a null amountCzk is excluded, not zero).
+  // Resolved outside the DB transaction, cached per (date, currency) so a
+  // statement with many same-day foreign rows makes one HTTP call, not one
+  // per row. A lookup failure never blocks the import or the row itself —
+  // it falls back to today's amountCzk: null (same as before this existed),
+  // but leaves a visible IngestionEvent instead of failing silently.
+  const resolveFxRate = createFxRateResolver();
+  const fxByKey = new Map<string, { amountCzk: Prisma.Decimal; fxRate: Prisma.Decimal }>();
+  const fxFailures: { key: string; transaction: ParsedTransaction; reason: string }[] = [];
+
+  await Promise.all(
+    fresh
+      .filter(({ transaction }) => transaction.currency !== 'CZK')
+      .map(async ({ transaction, key }) => {
+        try {
+          const fxRate = await resolveFxRate(transaction.date, transaction.currency, 'CZK');
+          fxByKey.set(key, { amountCzk: new Prisma.Decimal(transaction.amount).times(fxRate), fxRate });
+        } catch (error: unknown) {
+          const reason = error instanceof FxRateError ? error.message : 'FX rate lookup failed';
+          fxFailures.push({ key, transaction, reason });
+        }
+      }),
+  );
+
   const batch = await prisma.$transaction(async (tx) => {
     const created = await tx.importBatch.upsert({
       where: { fileHash },
@@ -394,7 +420,8 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
           date: transaction.date,
           amount: new Prisma.Decimal(transaction.amount),
           currency: transaction.currency,
-          amountCzk: transaction.currency === 'CZK' ? new Prisma.Decimal(transaction.amount) : null,
+          amountCzk: transaction.currency === 'CZK' ? new Prisma.Decimal(transaction.amount) : (fxByKey.get(key)?.amountCzk ?? null),
+          fxRate: transaction.currency === 'CZK' ? null : (fxByKey.get(key)?.fxRate ?? null),
           merchant: transaction.merchant,
           description: transaction.description,
           rawData: transaction.raw,
@@ -415,6 +442,22 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
           rowNumber: failure.rowNumber,
           rawPayload: failure.raw,
           errorMessage: failure.reason,
+        })),
+      });
+    }
+
+    // The transaction itself still gets inserted (amountCzk stays null, the
+    // same fallback as before FX lookup existed) — a rate-lookup hiccup must
+    // never lose the row, only be visible instead of silent.
+    if (fxFailures.length > 0) {
+      await tx.ingestionEvent.createMany({
+        data: fxFailures.map((failure) => ({
+          provider: parsed.provider,
+          status: 'FAILED' as const,
+          importBatchId: created.id,
+          idempotencyKey: failure.key,
+          rawPayload: failure.transaction.raw,
+          errorMessage: `Přepočet do CZK selhal: ${failure.reason}`,
         })),
       });
     }
