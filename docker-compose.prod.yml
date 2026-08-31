@@ -100,19 +100,39 @@ services:
       PGUSER: ${POSTGRES_USER}
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGDATABASE: ${POSTGRES_DB}
+      # All three optional: unset means "notify step skipped", never "backup fails".
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
+      ORBIT_DISCORD_CHANNEL_ID: ${ORBIT_DISCORD_CHANNEL_ID:-}
+      ORBIT_BACKUP_KUMA_URL: ${ORBIT_BACKUP_KUMA_URL:-}
     volumes:
       - ./backups:/backups
     entrypoint: ['/bin/sh', '-c']
     command:
       - |
+        notify_discord() {
+          title="$$1"; description="$$2"; color="$$3"
+          [ -n "$$DISCORD_BOT_TOKEN" ] && [ -n "$$ORBIT_DISCORD_CHANNEL_ID" ] || return 0
+          payload=$$(printf '{"embeds":[{"title":"%s","description":"%s","color":%s}]}' "$$title" "$$description" "$$color")
+          wget -qO- \
+            --header="Content-Type: application/json" \
+            --header="Authorization: Bot $$DISCORD_BOT_TOKEN" \
+            --post-data="$$payload" \
+            "https://discord.com/api/v10/channels/$$ORBIT_DISCORD_CHANNEL_ID/messages" >/dev/null 2>&1 \
+            || echo "discord notify failed"
+        }
         while true; do
           stamp=$$(date +%Y%m%d-%H%M%S)
           if pg_dump -Fc -f "/backups/orbit-$$stamp.dump"; then
             echo "backup ok: orbit-$$stamp.dump"
+            notify_discord "✅ Orbit VPS backup" "orbit-$$stamp.dump saved." 3066993
           else
             echo "backup FAILED at $$stamp"
+            notify_discord "❌ Orbit VPS backup FAILED" "pg_dump failed at $$stamp — check docker logs orbit-backup." 15158332
           fi
           find /backups -name 'orbit-*.dump' -mtime +30 -delete
+          # Unconditional: proves the loop iteration ran at all, independent of
+          # whether pg_dump succeeded (mirrors mac-automation's heartbeat convention).
+          [ -n "$$ORBIT_BACKUP_KUMA_URL" ] && wget -qO- "$$ORBIT_BACKUP_KUMA_URL" >/dev/null 2>&1
           sleep 86400
         done
     depends_on:

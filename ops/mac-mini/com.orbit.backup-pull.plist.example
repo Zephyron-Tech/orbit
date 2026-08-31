@@ -23,6 +23,20 @@
   <dict>
     <key>DEPLOY_HOST</key>
     <string>REPLACE_WITH_VPS_ADDRESS</string>
+    <!-- launchd jobs don't load your shell's PATH, and macOS's own /usr/bin/rsync
+         (openrsync) doesn't speak the server's rrsync forced-command syntax —
+         point this at the Homebrew rsync explicitly (`brew list rsync`). -->
+    <key>ORBIT_RSYNC_BIN</key>
+    <string>/opt/homebrew/bin/rsync</string>
+    <!-- Discord + Uptime Kuma notifications, both optional — leave any of
+         these three out and that notify/heartbeat step is skipped silently,
+         the pull itself still runs. See docs/db-backup-restore.md. -->
+    <key>DISCORD_BOT_TOKEN</key>
+    <string>REPLACE_WITH_BOT_TOKEN</string>
+    <key>ORBIT_DISCORD_CHANNEL_ID</key>
+    <string>REPLACE_WITH_CHANNEL_ID</string>
+    <key>ORBIT_PULL_KUMA_URL</key>
+    <string>REPLACE_WITH_KUMA_PUSH_URL</string>
   </dict>
 
   <!-- Runs daily at 04:00, after the VPS's own dump (nightly, roughly since deploy time). -->
