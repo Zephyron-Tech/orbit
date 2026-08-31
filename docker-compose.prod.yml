@@ -9,14 +9,15 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
     volumes:
       - orbit-pgdata:/var/lib/postgresql/data
+    # Loopback-only: reachable from the VPS host itself (e.g. `psql` or an SSH
+    # tunnel for scripts/prod-db-tunnel.sh), never from the public internet.
+    ports:
+      - '127.0.0.1:5432:5432'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 5s
       timeout: 5s
       retries: 10
-    networks:
-      - default
-      - orbit-net
 
   # One-shot: applies migrations and seeds, then exits. The app waits for it.
   migrate:
@@ -93,11 +94,3 @@ volumes:
 networks:
   web_proxy:
     external: true
-  # Shared with docker-compose.dev.yml so the dev app can reach this
-  # container's postgres by hostname without a second postgres process.
-  # external:true — created once by hand (docker network create orbit-net);
-  # without this, compose treats the name as one it should own/create itself
-  # and silently never attaches anything to the pre-existing network.
-  orbit-net:
-    external: true
-    name: orbit-net
