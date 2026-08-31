@@ -3,7 +3,7 @@
 Two layers, both `.dump` files (Postgres custom format, `pg_dump -Fc`), both retained 30 days:
 
 1. **VPS** (`docker-compose.prod.yml`'s `backup` service) — dumps nightly into `/opt/docker/orbit/backups/`, deletes anything older than 30 days.
-2. **Mac Mini** (`scripts/backup/pull-from-vps.sh`, run nightly via `launchd`) — pulls that directory down over SSH with `rsync --delete`, mirroring the same 30-day window onto a second machine in a different location.
+2. **Mac Mini** (`scripts/backup/pull-from-vps.sh`, run nightly via `launchd`) — pulls that directory down over SSH with `rsync`, then prunes its own local copy older than 30 days the same way the VPS does. (Not `rsync --delete`: the server-side `rrsync -ro` restriction rejects delete-oriented rsync options outright, so retention is applied locally instead of mirrored by rsync.)
 
 Neither layer replaces the other: the VPS copy is the fast-recovery path (same
 network as the app); the Mac Mini copy is what survives a VPS-provider
