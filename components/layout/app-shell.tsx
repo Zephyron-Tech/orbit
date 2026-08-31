@@ -5,6 +5,7 @@ import {
   CarIcon as Car,
   DownloadSimple,
   GasPump,
+  GearSix,
   Handshake,
   List,
   PlanetIcon as Planet,
@@ -50,6 +51,7 @@ const SETTINGS: NavItem[] = [
   { href: '/settings/insurance', label: 'Pojistky', icon: Car },
   { href: '/settings/fuel', label: 'Palivo', icon: GasPump },
   { href: '/settings/users', label: 'Domácnost', icon: UsersThree },
+  { href: '/settings/account', label: 'Nastavení', icon: GearSix },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -92,13 +94,10 @@ function Navigation({ preferredPeriod, onNavigate }: { preferredPeriod: string |
           <NavLink key={item.href} item={item} preferredPeriod={preferredPeriod} onNavigate={onNavigate} />
         ))}
       </div>
-      <div>
-        <p className="mb-2 px-3 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">Nastavení</p>
-        <div className="flex flex-col gap-1">
-          {SETTINGS.map((item) => (
-            <NavLink key={item.href} item={item} preferredPeriod={preferredPeriod} onNavigate={onNavigate} />
-          ))}
-        </div>
+      <div className="flex flex-col gap-1">
+        {SETTINGS.map((item) => (
+          <NavLink key={item.href} item={item} preferredPeriod={preferredPeriod} onNavigate={onNavigate} />
+        ))}
       </div>
     </nav>
   );

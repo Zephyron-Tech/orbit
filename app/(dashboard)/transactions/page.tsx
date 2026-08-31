@@ -214,6 +214,11 @@ export default async function TransactionsPage({
 
   const historyFrom = range ? new Date(Date.UTC(range.gte.getUTCFullYear(), range.gte.getUTCMonth() - 12, 1)) : null;
 
+  const planningSettings = await prisma.planningSettings.findUnique({
+    where: { id: 'household' },
+    select: { reportingStartMonth: true },
+  });
+
   const [
     unorderedTransactions,
     categories,
@@ -253,6 +258,7 @@ export default async function TransactionsPage({
     prisma.$queryRaw<{ month: string }[]>`
       SELECT DISTINCT to_char("date", 'YYYY-MM') AS month
       FROM "Transaction"
+      ${planningSettings?.reportingStartMonth ? Prisma.sql`WHERE "date" >= ${planningSettings.reportingStartMonth}` : Prisma.empty}
       ORDER BY month DESC
     `,
     prisma.transaction.aggregate({

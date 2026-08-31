@@ -486,6 +486,11 @@ model PlanningSettings {
   currency String @default("CZK") @db.Char(3)
   /// Optional explicit start of reliable bank history for broker transfer matching.
   transferHistoryFrom DateTime?
+  /// Optional app-wide floor on which months are selectable in period pickers
+  /// (transactions, dashboard). Distinct from `transferHistoryFrom`, which only
+  /// bounds Trading 212 historical-transfer classification — conflating them
+  /// would make changing one silently change the other's unrelated behavior.
+  reportingStartMonth DateTime?
   updatedAt DateTime @updatedAt
 }
 
