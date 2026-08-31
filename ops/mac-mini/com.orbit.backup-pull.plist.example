@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template for the Mac Mini's nightly backup pull. Not installed automatically —
+  see docs/db-backup-restore.md for setup. Copy to
+  ~/Library/LaunchAgents/com.orbit.backup-pull.plist, fill in DEPLOY_HOST and
+  the repo path, then:
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.orbit.backup-pull.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.orbit.backup-pull</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>/path/to/Orbit/scripts/backup/pull-from-vps.sh</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>DEPLOY_HOST</key>
+    <string>REPLACE_WITH_VPS_ADDRESS</string>
+  </dict>
+
+  <!-- Runs daily at 04:00, after the VPS's own dump (nightly, roughly since deploy time). -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>4</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/orbit-backup-pull.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/orbit-backup-pull.log</string>
+
+  <!-- launchd itself retries a StartCalendarInterval run shortly after wake if the
+       Mac was asleep at 04:00 — no RunAtLoad needed for that. -->
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
