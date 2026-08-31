@@ -9,23 +9,30 @@
 # of that one directory (see docs/db-backup-restore.md) — this key can never
 # open a shell on the VPS, even if it leaks.
 #
+# macOS ships openrsync as /usr/bin/rsync (Catalina onward), which the
+# server's rrsync forced command (written for classic GPL rsync) rejects
+# with "invalid rsync-command syntax". The client must use classic rsync too
+# — `brew install rsync` and point ORBIT_RSYNC_BIN at it if it's not the
+# first `rsync` on PATH.
+#
 # Retention is applied locally, not via rsync --delete: the server-side
 # `rrsync -ro` restriction rejects delete-oriented rsync options outright
 # (read-only means read-only, including "delete what I don't send you"), so
 # this prunes the same way the VPS's own backup service does instead of
 # relying on rsync to mirror deletions.
 #
-# Usage: DEPLOY_HOST=77.42.45.121 [DEPLOY_USER=vandl] ./scripts/backup/pull-from-vps.sh [dest-dir]
+# Usage: DEPLOY_HOST=77.42.45.121 [DEPLOY_USER=vandl] [ORBIT_RSYNC_BIN=/opt/homebrew/bin/rsync] ./scripts/backup/pull-from-vps.sh [dest-dir]
 set -euo pipefail
 
 : "${DEPLOY_HOST:?Set DEPLOY_HOST to the VPS address}"
 DEPLOY_USER="${DEPLOY_USER:-vandl}"
 DEST="${1:-$HOME/orbit-backups}"
 KEY="${ORBIT_BACKUP_KEY:-$HOME/.ssh/orbit_backup_pull}"
+RSYNC_BIN="${ORBIT_RSYNC_BIN:-rsync}"
 
 mkdir -p "$DEST"
 
-rsync -az \
+"$RSYNC_BIN" -az \
   -e "ssh -i ${KEY} -o StrictHostKeyChecking=accept-new" \
   "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/docker/orbit/backups/" "${DEST}/"
 
