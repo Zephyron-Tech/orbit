@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { AccountSettingsManager } from '@/components/settings/account-settings-manager';
+import { NavOrderManager } from '@/components/settings/nav-order-manager';
 import { PageHeader, PageShell } from '@/components/ui/page-container';
 import { getActiveUser } from '@/lib/auth';
 import { prisma } from '@/lib/db/prisma';
@@ -27,6 +28,14 @@ export default async function AccountSettingsPage(): Promise<React.JSX.Element> 
         reportingStartMonth={settings?.reportingStartMonth?.toISOString().slice(0, 7) ?? null}
         availableMonths={monthsSince(earliest._min.date)}
       />
+
+      <section className="mt-8 space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold">Pořadí navigace</h2>
+          <p className="text-sm text-ink-muted">Vlastní pořadí položek v levém menu. Uloženo jen v tomto prohlížeči.</p>
+        </div>
+        <NavOrderManager />
+      </section>
     </PageShell>
   );
 }

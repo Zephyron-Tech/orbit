@@ -11,7 +11,7 @@ export function PrivacyToggle({ compact = false }: { compact?: boolean }): React
     <button
       type="button"
       onClick={togglePrivacyMode}
-      className={`ui-button ui-button-ghost ${compact ? 'size-10 p-0' : 'w-full justify-start'}`}
+      className={`ui-button ui-button-ghost ${compact ? 'h-9 flex-1 justify-center p-0' : 'w-full justify-start'}`}
       aria-label={hidden ? 'Zobrazit částky' : 'Skrýt částky'}
       title={hidden ? 'Zobrazit částky' : 'Skrýt částky'}
     >

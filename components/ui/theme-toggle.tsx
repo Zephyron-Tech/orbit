@@ -40,7 +40,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }): React.J
     <button
       type="button"
       onClick={toggle}
-      className={`ui-button ui-button-ghost ${compact ? 'size-10 p-0' : 'w-full justify-start'}`}
+      className={`ui-button ui-button-ghost ${compact ? 'h-9 flex-1 justify-center p-0' : 'w-full justify-start'}`}
       aria-label={next === 'dark' ? 'Přepnout na tmavý režim' : 'Přepnout na světlý režim'}
       title={next === 'dark' ? 'Tmavý režim' : 'Světlý režim'}
     >

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AccountsPage(): Promise<React.JSX.Element> {
   const [accounts, netWorth, repaymentCandidates] = await Promise.all([prisma.account.findMany({
-    orderBy: [{ isArchived: 'asc' }, { name: 'asc' }],
+    orderBy: [{ isArchived: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
     include: {
       _count: { select: { transactions: true } },
       snapshots: { orderBy: { capturedAt: 'desc' }, take: 1, select: { balance: true, capturedAt: true, source: true } },

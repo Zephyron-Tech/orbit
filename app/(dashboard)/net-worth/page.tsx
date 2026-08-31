@@ -79,7 +79,7 @@ export default async function NetWorthPage(): Promise<React.JSX.Element> {
           select: { cashBalance: true, investedValue: true, unrealizedPnl: true, updatedAt: true, currency: true },
         },
       },
-      orderBy: { name: 'asc' },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     }),
     prisma.recurringExpense.findMany({
       where: { isActive: true, currency: 'CZK' },

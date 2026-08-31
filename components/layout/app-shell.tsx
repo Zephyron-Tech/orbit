@@ -1,58 +1,16 @@
 'use client';
 
-import {
-  Bank,
-  CarIcon as Car,
-  DownloadSimple,
-  GasPump,
-  GearSix,
-  Handshake,
-  List,
-  PlanetIcon as Planet,
-  Receipt,
-  SignOut,
-  SquaresFour,
-  Target,
-  TrendUp,
-  UsersThree,
-  Wallet,
-  X,
-  type Icon,
-} from '@phosphor-icons/react';
+import { List, PlanetIcon as Planet, SignOut, X } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { signOut } from 'next-auth/react';
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PrivacyToggle } from '@/components/ui/privacy-toggle';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { isPeriod, PERIOD_EVENT } from '@/lib/ui/period';
-
-interface NavItem {
-  href: string;
-  label: string;
-  shortLabel?: string;
-  icon: Icon;
-}
-
-const PRIMARY: NavItem[] = [
-  { href: '/dashboard', label: 'Přehled', icon: SquaresFour },
-  { href: '/transactions', label: 'Transakce', shortLabel: 'Transakce', icon: Receipt },
-  { href: '/net-worth', label: 'Čisté jmění', shortLabel: 'Jmění', icon: Wallet },
-  { href: '/portfolio', label: 'Portfolio', icon: TrendUp },
-  { href: '/settlement', label: 'Vyrovnání', icon: Handshake },
-  { href: '/import', label: 'Import', icon: DownloadSimple },
-];
-
-const SETTINGS: NavItem[] = [
-  { href: '/accounts', label: 'Účty', icon: Bank },
-  { href: '/planning', label: 'Plánování', icon: Target },
-  { href: '/insurance', label: 'Pojistky', icon: Car },
-  { href: '/fuel', label: 'Palivo', icon: GasPump },
-  { href: '/users', label: 'Domácnost', icon: UsersThree },
-  { href: '/settings', label: 'Nastavení', icon: GearSix },
-];
+import { ALL_NAV_ITEMS, getOrderedNavItems, PRIMARY, subscribeNavOrder, type NavItem } from '@/lib/ui/nav-items';
 
 function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -86,12 +44,20 @@ function withPreferredPeriod(href: string, period: string | null): string {
   return href;
 }
 
-const ALL_NAV_ITEMS: NavItem[] = [...PRIMARY, ...SETTINGS];
+function useOrderedNavItems(): NavItem[] {
+  return useSyncExternalStore(
+    subscribeNavOrder,
+    () => getOrderedNavItems(ALL_NAV_ITEMS),
+    () => ALL_NAV_ITEMS,
+  );
+}
 
 function Navigation({ preferredPeriod, onNavigate }: { preferredPeriod: string | null; onNavigate?: () => void }): React.JSX.Element {
+  const items = useOrderedNavItems();
+
   return (
     <nav aria-label="Hlavní navigace" className="flex flex-1 flex-col gap-1">
-      {ALL_NAV_ITEMS.map((item) => (
+      {items.map((item) => (
         <NavLink key={item.href} item={item} preferredPeriod={preferredPeriod} onNavigate={onNavigate} />
       ))}
     </nav>
@@ -156,7 +122,7 @@ export function AppShell({ children, userLabel, preferredPeriod }: { children: R
         <Navigation preferredPeriod={activePeriod} />
         <div className="mt-4 border-t border-line pt-4">
           <p className="truncate px-3 text-xs text-ink-muted" title={userLabel}>{userLabel}</p>
-          <div className="mt-2 flex gap-1">
+          <div className="mt-2 flex gap-0.5 rounded-lg border border-line bg-surface-subtle p-0.5">
             <ThemeToggle compact />
             <PrivacyToggle compact />
           </div>
