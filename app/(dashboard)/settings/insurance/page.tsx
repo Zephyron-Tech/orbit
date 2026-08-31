@@ -1,5 +1,6 @@
 import { FileTextIcon as FileText, UserIcon as User } from '@phosphor-icons/react/dist/ssr';
 
+import { InsuranceManager } from '@/components/insurance/insurance-manager';
 import { MoneyValue } from '@/components/ui/money-value';
 import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { Badge } from '@/components/ui/status';
@@ -144,6 +145,20 @@ export default async function InsurancePage(): Promise<React.JSX.Element> {
           })}
         </div>
       </section>
+
+      <InsuranceManager
+        policies={policies.map((policy) => ({
+          id: policy.id,
+          vehicleName: policy.vehicleName,
+          licensePlate: policy.licensePlate,
+          policyNumber: policy.policyNumber,
+          policyHolder: policy.policyHolder,
+          annualCost: policy.annualCost.toFixed(2),
+          paymentFrequency: policy.paymentFrequency,
+          startDate: policy.startDate.toISOString().slice(0, 10),
+          status: policy.status,
+        }))}
+      />
     </PageShell>
   );
 }
