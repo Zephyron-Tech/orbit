@@ -20,14 +20,14 @@ incident, a bad `docker volume rm`, or the VPS itself being compromised.
    ```
    ssh-keygen -t ed25519 -f ~/.ssh/orbit_backup_pull -C orbit-backup-pull
    ```
-2. On the VPS, install `rrsync` (ships with the `rsync` package, restricts an SSH key to read-only rsync of one directory — no shell, no other paths):
+2. Check whether `rrsync` (restricts an SSH key to read-only rsync of one directory — no shell, no other paths) is already installed as part of the `rsync` package:
    ```
-   sudo cp /usr/share/doc/rsync/scripts/rrsync /usr/local/bin/rrsync
-   sudo chmod +x /usr/local/bin/rrsync
+   dpkg -L rsync | grep -i rrsync
    ```
-3. Append the Mac Mini's **public** key to the deploy user's `~/.ssh/authorized_keys` on the VPS, prefixed with the forced command (single line):
+   On Debian/Ubuntu with a full `rsync` package this usually already prints `/usr/bin/rrsync` — nothing to install. If it prints nothing, the doc-scripts variant is missing and you'll need to fetch `rrsync` from the `rsync` source distribution matching your installed version and place it at `/usr/local/bin/rrsync` (`chmod +x`) — adjust the path in the next step accordingly.
+3. Append the Mac Mini's **public** key to the deploy user's `~/.ssh/authorized_keys` on the VPS, prefixed with the forced command (single line, using whichever `rrsync` path step 2 found — `/usr/bin/rrsync` if already installed):
    ```
-   command="/usr/local/bin/rrsync -ro /opt/docker/orbit/backups/",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA...your-key-here orbit-backup-pull
+   command="/usr/bin/rrsync -ro /opt/docker/orbit/backups/",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA...your-key-here orbit-backup-pull
    ```
    Verify the restriction: `ssh -i ~/.ssh/orbit_backup_pull <user>@<host>` should be refused a shell (the forced command runs instead of a login shell).
 4. Test the pull once by hand:
