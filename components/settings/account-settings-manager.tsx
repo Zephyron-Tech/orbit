@@ -7,9 +7,11 @@ import {
   changeMyEmail,
   changeMyPassword,
   updateReportingStartMonth,
-} from '@/app/(dashboard)/settings/account/actions';
+} from '@/app/(dashboard)/settings/actions';
 import { SectionHeader } from '@/components/ui/page-container';
+import { SelectField } from '@/components/ui/select-field';
 import { StatusNotice } from '@/components/ui/status';
+import { formatPeriod } from '@/lib/ui/period';
 
 function useFormAction() {
   const router = useRouter();
@@ -130,9 +132,19 @@ function PasswordForm(): React.JSX.Element {
   );
 }
 
-function ReportingStartMonthForm({ reportingStartMonth }: { reportingStartMonth: string | null }): React.JSX.Element {
+function ReportingStartMonthForm({
+  reportingStartMonth,
+  availableMonths,
+}: {
+  reportingStartMonth: string | null;
+  availableMonths: string[];
+}): React.JSX.Element {
   const { isPending, error, success, run } = useFormAction();
   const [value, setValue] = useState(reportingStartMonth ?? '');
+  const options = [
+    { value: '', label: 'Bez omezení' },
+    ...availableMonths.map((month) => ({ value: month, label: formatPeriod(month) })),
+  ];
 
   return (
     <form
@@ -145,18 +157,15 @@ function ReportingStartMonthForm({ reportingStartMonth }: { reportingStartMonth:
       <h3 className="font-semibold">Rozsah dat</h3>
       <p className="text-sm text-ink-muted">
         Od kterého měsíce se mají data zobrazovat ve výběru období (transakce, přehled). Starší měsíce v appce
-        nezmizí ze záznamů, jen nepůjdou vybrat. Prázdné pole znamená bez omezení.
+        nezmizí ze záznamů, jen nepůjdou vybrat.
       </p>
-      <label className="ui-label min-w-0">
-        <span>Zobrazovat od</span>
-        <input
-          type="month"
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          disabled={isPending}
-          className="px-3 py-2"
-        />
-      </label>
+      <SelectField
+        label="Zobrazovat od"
+        value={value}
+        options={options}
+        onValueChange={setValue}
+        disabled={isPending}
+      />
       {error ? <StatusNotice tone="danger" live="assertive">{error}</StatusNotice> : null}
       {success ? <StatusNotice tone="success" live="polite">{success}</StatusNotice> : null}
       <div className="flex flex-wrap gap-2">
@@ -184,9 +193,11 @@ function ReportingStartMonthForm({ reportingStartMonth }: { reportingStartMonth:
 export function AccountSettingsManager({
   email,
   reportingStartMonth,
+  availableMonths,
 }: {
   email: string;
   reportingStartMonth: string | null;
+  availableMonths: string[];
 }): React.JSX.Element {
   return (
     <div className="flex flex-col gap-8">
@@ -199,7 +210,7 @@ export function AccountSettingsManager({
       </section>
       <section className="flex flex-col gap-3">
         <SectionHeader title="Zobrazení dat" description="Platí pro celou domácnost." />
-        <ReportingStartMonthForm reportingStartMonth={reportingStartMonth} />
+        <ReportingStartMonthForm reportingStartMonth={reportingStartMonth} availableMonths={availableMonths} />
       </section>
     </div>
   );
