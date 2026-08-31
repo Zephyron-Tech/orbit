@@ -403,6 +403,11 @@ against production, with no confirmation step. Migrations only ever happen throu
 the real deploy pipeline. A one-off script or `npm run dev` is safe (neither migrates);
 `docker compose up` is not.
 
+For the rare case where you need the actual containerized `app` (not `npm run dev`)
+pointed at production — see `docs/prod-db-access.md` for the full walkthrough
+(`docker-compose.prod-local.yml` overrides `DATABASE_URL` and drops the local
+`postgres`/`migrate` dependency, so a plain `docker compose up` still can't reach it).
+
 ### Local dev against the containerised database
 
 ```bash
