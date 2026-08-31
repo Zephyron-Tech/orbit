@@ -21,6 +21,11 @@
 # this prunes the same way the VPS's own backup service does instead of
 # relying on rsync to mirror deletions.
 #
+# The remote path is just ":" (empty), not the absolute backups path: the
+# forced command on the VPS (`rrsync -ro /opt/docker/orbit/backups/`) already
+# locks the session's root to that directory, so requesting the same
+# absolute path again on top of it doubles up and rsync can't find it.
+#
 # Usage: DEPLOY_HOST=77.42.45.121 [DEPLOY_USER=vandl] [ORBIT_RSYNC_BIN=/opt/homebrew/bin/rsync] ./scripts/backup/pull-from-vps.sh [dest-dir]
 set -euo pipefail
 
@@ -34,7 +39,7 @@ mkdir -p "$DEST"
 
 "$RSYNC_BIN" -az \
   -e "ssh -i ${KEY} -o StrictHostKeyChecking=accept-new" \
-  "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/docker/orbit/backups/" "${DEST}/"
+  "${DEPLOY_USER}@${DEPLOY_HOST}:" "${DEST}/"
 
 find "$DEST" -name 'orbit-*.dump' -mtime +30 -delete
 
