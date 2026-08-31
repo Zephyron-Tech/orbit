@@ -56,7 +56,7 @@ function firstIssue(error: z.ZodError): string {
 }
 
 function revalidatePlanning(): void {
-  revalidatePath('/settings/planning');
+  revalidatePath('/planning');
   revalidatePath('/dashboard');
 }
 

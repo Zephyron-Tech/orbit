@@ -78,7 +78,7 @@ export async function createInsurancePolicy(input: InsurancePolicyInput): Promis
     throw error;
   }
 
-  revalidatePath('/settings/insurance');
+  revalidatePath('/insurance');
 
   return { ok: true };
 }
@@ -106,7 +106,7 @@ export async function updateInsurancePolicy(id: string, input: InsurancePolicyIn
     throw error;
   }
 
-  revalidatePath('/settings/insurance');
+  revalidatePath('/insurance');
 
   return { ok: true };
 }
@@ -126,7 +126,7 @@ export async function deleteInsurancePolicy(id: string): Promise<ActionResult> {
 
   await prisma.insurancePolicy.delete({ where: { id: parsedId.data } });
 
-  revalidatePath('/settings/insurance');
+  revalidatePath('/insurance');
 
   return { ok: true };
 }

@@ -46,12 +46,12 @@ const PRIMARY: NavItem[] = [
 ];
 
 const SETTINGS: NavItem[] = [
-  { href: '/settings/accounts', label: 'Účty', icon: Bank },
-  { href: '/settings/planning', label: 'Plánování', icon: Target },
-  { href: '/settings/insurance', label: 'Pojistky', icon: Car },
-  { href: '/settings/fuel', label: 'Palivo', icon: GasPump },
-  { href: '/settings/users', label: 'Domácnost', icon: UsersThree },
-  { href: '/settings/account', label: 'Nastavení', icon: GearSix },
+  { href: '/accounts', label: 'Účty', icon: Bank },
+  { href: '/planning', label: 'Plánování', icon: Target },
+  { href: '/insurance', label: 'Pojistky', icon: Car },
+  { href: '/fuel', label: 'Palivo', icon: GasPump },
+  { href: '/users', label: 'Domácnost', icon: UsersThree },
+  { href: '/settings', label: 'Nastavení', icon: GearSix },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -86,19 +86,14 @@ function withPreferredPeriod(href: string, period: string | null): string {
   return href;
 }
 
+const ALL_NAV_ITEMS: NavItem[] = [...PRIMARY, ...SETTINGS];
+
 function Navigation({ preferredPeriod, onNavigate }: { preferredPeriod: string | null; onNavigate?: () => void }): React.JSX.Element {
   return (
-    <nav aria-label="Hlavní navigace" className="flex flex-1 flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        {PRIMARY.map((item) => (
-          <NavLink key={item.href} item={item} preferredPeriod={preferredPeriod} onNavigate={onNavigate} />
-        ))}
-      </div>
-      <div className="flex flex-col gap-1">
-        {SETTINGS.map((item) => (
-          <NavLink key={item.href} item={item} preferredPeriod={preferredPeriod} onNavigate={onNavigate} />
-        ))}
-      </div>
+    <nav aria-label="Hlavní navigace" className="flex flex-1 flex-col gap-1">
+      {ALL_NAV_ITEMS.map((item) => (
+        <NavLink key={item.href} item={item} preferredPeriod={preferredPeriod} onNavigate={onNavigate} />
+      ))}
     </nav>
   );
 }
@@ -161,11 +156,9 @@ export function AppShell({ children, userLabel, preferredPeriod }: { children: R
         <Navigation preferredPeriod={activePeriod} />
         <div className="mt-4 border-t border-line pt-4">
           <p className="truncate px-3 text-xs text-ink-muted" title={userLabel}>{userLabel}</p>
-          <div className="mt-1">
-            <ThemeToggle />
-          </div>
-          <div className="mt-1">
-            <PrivacyToggle />
+          <div className="mt-2 flex gap-1">
+            <ThemeToggle compact />
+            <PrivacyToggle compact />
           </div>
           <button
             type="button"
@@ -201,11 +194,9 @@ export function AppShell({ children, userLabel, preferredPeriod }: { children: R
           <Navigation preferredPeriod={activePeriod} onNavigate={() => setMenuOpen(false)} />
           <div className="mt-5 border-t border-line pt-4">
             <p className="px-3 text-xs text-ink-muted">{userLabel}</p>
-            <div className="mt-2">
-              <ThemeToggle />
-            </div>
-            <div className="mt-1">
-              <PrivacyToggle />
+            <div className="mt-2 flex gap-1">
+              <ThemeToggle compact />
+              <PrivacyToggle compact />
             </div>
             <button
               type="button"

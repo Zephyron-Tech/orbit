@@ -34,7 +34,7 @@ export default async function NetWorthPage(): Promise<React.JSX.Element> {
           title="Nejdřív přidejte účet"
           description="Po přidání bankovního nebo investičního účtu zde uvidíte aktuální hodnotu, historii i kvalitu podkladových dat."
           action={
-            <Link href="/settings/accounts" className="ui-button ui-button-primary">
+            <Link href="/accounts" className="ui-button ui-button-primary">
               Přidat účet
               <ArrowRight aria-hidden="true" size={16} />
             </Link>
@@ -176,11 +176,11 @@ export default async function NetWorthPage(): Promise<React.JSX.Element> {
           <SectionHeader
             title="Účty"
             description={`${cardAccounts.length.toLocaleString('cs-CZ')} aktivních účtů zahrnutých do čistého jmění.`}
-            action={<Link href="/settings/accounts" className="ui-button ui-button-secondary">Spravovat účty</Link>}
+            action={<Link href="/accounts" className="ui-button ui-button-secondary">Spravovat účty</Link>}
           />
         </div>
         {cardAccounts.length > 0 ? <AccountCards accounts={cardAccounts} fixedBaseline={fixedBaseline} /> : (
-          <EmptyState title="Žádný účet není zahrnutý" description="Aktivní účty existují, ale žádný se nyní nezapočítává do čistého jmění. Změňte nastavení účtů, které chcete sledovat." action={<Link href="/settings/accounts" className="ui-button ui-button-primary">Nastavit účty</Link>} />
+          <EmptyState title="Žádný účet není zahrnutý" description="Aktivní účty existují, ale žádný se nyní nezapočítává do čistého jmění. Změňte nastavení účtů, které chcete sledovat." action={<Link href="/accounts" className="ui-button ui-button-primary">Nastavit účty</Link>} />
         )}
       </section>
 
@@ -305,7 +305,7 @@ function DataConfidencePanel({
             <DiagnosticItem
               title="Kreditní karta nemá potvrzený počáteční dluh"
               count={incompleteCredit.length}
-              actionHref="/settings/accounts"
+              actionHref="/accounts"
               actionLabel="Potvrdit start nebo zadat dluh"
             >
               <p>

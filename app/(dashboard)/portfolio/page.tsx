@@ -93,7 +93,7 @@ export default async function PortfolioPage(): Promise<React.JSX.Element> {
           tone="info"
           title="Začněte nastavením investičního účtu"
           actions={
-            <Link href="/settings/accounts" className="ui-button ui-button-primary">
+            <Link href="/accounts" className="ui-button ui-button-primary">
               <GearSix aria-hidden size={18} />
               Nastavit účty
             </Link>

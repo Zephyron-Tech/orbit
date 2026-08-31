@@ -41,7 +41,7 @@ export async function createCategory(input: z.input<typeof createSchema>): Promi
   }
 
   revalidatePath('/transactions');
-  revalidatePath('/settings/recurring');
+  revalidatePath('/planning');
   return { ok: true };
 }
 
@@ -64,7 +64,7 @@ export async function updateCategory(input: z.input<typeof updateSchema>): Promi
   }
 
   revalidatePath('/transactions');
-  revalidatePath('/settings/recurring');
+  revalidatePath('/planning');
   return { ok: true };
 }
 

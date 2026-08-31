@@ -14,7 +14,7 @@ import {
   setAccountArchived,
   updateAccount,
   type AccountInput,
-} from '@/app/(dashboard)/settings/accounts/actions';
+} from '@/app/(dashboard)/accounts/actions';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MoneyValue } from '@/components/ui/money-value';
 import { SectionHeader } from '@/components/ui/page-container';

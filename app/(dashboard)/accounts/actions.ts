@@ -94,7 +94,7 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 function revalidateAccountViews(): void {
-  revalidatePath('/settings/accounts');
+  revalidatePath('/accounts');
   revalidatePath('/net-worth');
   revalidatePath('/dashboard');
 }

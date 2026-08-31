@@ -9,7 +9,7 @@ import {
   deleteInsurancePolicy,
   updateInsurancePolicy,
   type InsurancePolicyInput,
-} from '@/app/(dashboard)/settings/insurance/actions';
+} from '@/app/(dashboard)/insurance/actions';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
