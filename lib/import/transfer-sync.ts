@@ -21,12 +21,12 @@ export async function matchPendingTransfers(): Promise<TransferSyncResult> {
 
     const candidates = await tx.transaction.findMany({
       where: { kind: { in: ['INTERNAL_TRANSFER', 'PENDING_TRANSFER'] }, transferId: null, amountCzk: { not: null } },
-      select: { id: true, accountId: true, date: true, amountCzk: true, kind: true },
+      select: { id: true, accountId: true, date: true, amountCzk: true, currency: true, kind: true },
     });
     const result = matchTransfers(
       candidates.flatMap((candidate) =>
         candidate.amountCzk
-          ? [{ id: candidate.id, accountId: candidate.accountId, date: candidate.date, amountCzk: candidate.amountCzk }]
+          ? [{ id: candidate.id, accountId: candidate.accountId, date: candidate.date, amountCzk: candidate.amountCzk, currency: candidate.currency }]
           : [],
       ),
     );

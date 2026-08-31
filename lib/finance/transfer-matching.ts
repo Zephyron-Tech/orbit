@@ -10,10 +10,17 @@ import { Prisma } from '@/lib/generated/prisma/client';
  * amounts actually cancel. A false positive there would silently vanish from
  * settlement as "just a transfer". Matching is the proof.
  *
- * Only an **exact** amount match within a short date window counts. When more
- * than one candidate on the other side has the same amount in the window, none
- * of that group is matched — guessing wrong is worse than asking a human,
- * the same rule the CSV parser and the balance checkpoint already follow.
+ * Only an amount match within a short date window counts. When more than one
+ * candidate on the other side has a matching amount in the window, none of
+ * that group is matched — guessing wrong is worse than asking a human, the
+ * same rule the CSV parser and the balance checkpoint already follow.
+ *
+ * Same-currency legs must match **exactly** — a bank moves the exact amount
+ * between two of your own accounts, no reason to ever tolerate a gap there.
+ * Cross-currency legs get a small tolerance: the CZK leg carries the bank's
+ * own real applied conversion, but a foreign-currency leg's `amountCzk` is
+ * computed from an ECB reference rate (`lib/providers/fx/rate-lookup.ts`),
+ * which never exactly equals the bank's actual spread.
  */
 
 export interface TransferCandidate {
@@ -21,6 +28,27 @@ export interface TransferCandidate {
   accountId: string;
   date: Date;
   amountCzk: Prisma.Decimal;
+  currency: string;
+}
+
+/**
+ * 2% — real cross-currency transfers observed live showed 0.02%-0.18% gaps
+ * between the bank's applied rate and the ECB reference rate. Generous
+ * headroom without inviting a false match: same-currency pairs never use
+ * this at all, and the ambiguity check below still abstains whenever the
+ * tolerance lets in more than one candidate.
+ */
+const FX_SPREAD_TOLERANCE = 0.02;
+
+function amountsMatch(a: TransferCandidate, b: TransferCandidate, target: Prisma.Decimal): boolean {
+  if (a.currency === b.currency) {
+    return b.amountCzk.equals(target);
+  }
+
+  const diff = b.amountCzk.minus(target).abs();
+  const tolerance = Prisma.Decimal.max(a.amountCzk.abs(), b.amountCzk.abs()).times(FX_SPREAD_TOLERANCE);
+
+  return diff.lessThanOrEqualTo(tolerance);
 }
 
 export interface MatchResult {
@@ -66,7 +94,7 @@ export function matchTransfers(
         candidate.id !== outgoing.id &&
         !consumed.has(candidate.id) &&
         candidate.accountId !== outgoing.accountId &&
-        candidate.amountCzk.equals(target) &&
+        amountsMatch(outgoing, candidate, target) &&
         Math.abs(candidate.date.getTime() - outgoing.date.getTime()) <= windowMs,
     );
 
@@ -98,7 +126,7 @@ export function matchTransfers(
         candidate.id !== incoming.id &&
         !consumed.has(candidate.id) &&
         candidate.accountId !== incoming.accountId &&
-        candidate.amountCzk.equals(reverseTarget) &&
+        amountsMatch(incoming, candidate, reverseTarget) &&
         Math.abs(candidate.date.getTime() - incoming.date.getTime()) <= windowMs,
     );
 

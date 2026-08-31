@@ -6,8 +6,8 @@ import { matchTransfers, type TransferCandidate } from './transfer-matching';
 
 const d = (value: string): Prisma.Decimal => new Prisma.Decimal(value);
 
-function candidate(id: string, accountId: string, date: string, amount: string): TransferCandidate {
-  return { id, accountId, date: new Date(date), amountCzk: d(amount) };
+function candidate(id: string, accountId: string, date: string, amount: string, currency = 'CZK'): TransferCandidate {
+  return { id, accountId, date: new Date(date), amountCzk: d(amount), currency };
 }
 
 describe('matchTransfers', () => {
@@ -136,5 +136,50 @@ describe('matchTransfers', () => {
 
     expect(matchTransfers(candidates, 3).pairs).toEqual([]);
     expect(matchTransfers(candidates, 4).pairs).toEqual([['out', 'in']]);
+  });
+});
+
+describe('matchTransfers cross-currency tolerance', () => {
+  it('matches a cross-currency pair within the 2% spread tolerance', () => {
+    // The real case from this session: EUR leg's amountCzk (ECB reference
+    // rate) vs the CZK leg's amountCzk (the bank's own applied rate).
+    const result = matchTransfers([
+      candidate('out', 'eur-account', '2026-08-21T00:00:00Z', '-12058.00', 'EUR'),
+      candidate('in', 'czk-account', '2026-08-21T00:00:00Z', '12036.05', 'CZK'),
+    ]);
+
+    expect(result.pairs).toEqual([['out', 'in']]);
+    expect(result.ambiguous).toEqual([]);
+  });
+
+  it('does not match a cross-currency pair beyond the tolerance', () => {
+    const result = matchTransfers([
+      candidate('out', 'eur-account', '2026-08-21T00:00:00Z', '-1000.00', 'EUR'),
+      candidate('in', 'czk-account', '2026-08-21T00:00:00Z', '1030.00', 'CZK'), // 3% gap
+    ]);
+
+    expect(result.pairs).toEqual([]);
+    expect(result.ambiguous).toEqual([]);
+  });
+
+  it('still requires exact equality for a same-currency pair, even close', () => {
+    const result = matchTransfers([
+      candidate('out', 'a', '2026-08-21T00:00:00Z', '-1000.00', 'CZK'),
+      candidate('in', 'b', '2026-08-21T00:00:00Z', '1000.50', 'CZK'), // within 2%, but same currency
+    ]);
+
+    expect(result.pairs).toEqual([]);
+    expect(result.ambiguous).toEqual([]);
+  });
+
+  it('marks an ambiguous cross-currency case when two candidates fall within tolerance', () => {
+    const result = matchTransfers([
+      candidate('out', 'eur-account', '2026-08-21T00:00:00Z', '-1000.00', 'EUR'),
+      candidate('in1', 'czk-account', '2026-08-21T00:00:00Z', '1005.00', 'CZK'),
+      candidate('in2', 'czk-account-2', '2026-08-22T00:00:00Z', '1010.00', 'CZK'),
+    ]);
+
+    expect(result.pairs).toEqual([]);
+    expect(new Set(result.ambiguous)).toEqual(new Set(['out', 'in1', 'in2']));
   });
 });
