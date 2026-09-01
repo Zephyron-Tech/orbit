@@ -493,6 +493,12 @@ model PlanningSettings {
   /// bounds Trading 212 historical-transfer classification — conflating them
   /// would make changing one silently change the other's unrelated behavior.
   reportingStartMonth DateTime?
+  /// Permanently dismisses the "Historické převody Trading 212" data-confidence
+  /// notice: a broker transfer older than the imported bank history can never
+  /// find its matching bank-side leg (that history genuinely doesn't exist in
+  /// Orbit), so the notice can never resolve itself the way other diagnostics
+  /// do. Household-wide, not per-user — see the ownership model note in CLAUDE.md.
+  hideHistoricalBrokerTransfers Boolean @default(false)
   updatedAt DateTime @updatedAt
 }
 

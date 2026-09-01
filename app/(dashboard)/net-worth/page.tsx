@@ -60,7 +60,7 @@ export default async function NetWorthPage(): Promise<React.JSX.Element> {
       orderBy: { periodFrom: 'asc' },
       select: { periodFrom: true },
     }),
-    prisma.planningSettings.findUnique({ where: { id: 'household' }, select: { transferHistoryFrom: true } }),
+    prisma.planningSettings.findUnique({ where: { id: 'household' }, select: { transferHistoryFrom: true, hideHistoricalBrokerTransfers: true } }),
     prisma.account.findMany({
       where: { isArchived: false, includeInNetWorth: true },
       select: {
@@ -143,7 +143,13 @@ export default async function NetWorthPage(): Promise<React.JSX.Element> {
     const baseline = planningSettings?.transferHistoryFrom ?? firstBankBatch?.periodFrom ?? null;
     return baseline ? transaction.date.getTime() >= baseline.getTime() : false;
   });
-  const historicalBrokerTransfers = unmatchedTransfers.length - actionableTransfers.length;
+  // Permanently dismissible (see /planning "Historie bankovních převodů"): a
+  // transfer older than the imported bank history can never find its
+  // matching leg, unlike every other diagnostic here, so it never resolves
+  // itself the normal way.
+  const historicalBrokerTransfers = planningSettings?.hideHistoricalBrokerTransfers
+    ? 0
+    : unmatchedTransfers.length - actionableTransfers.length;
   const coverageGapCount = gapsByAccount.reduce((count, entry) => count + entry.gaps.length, 0);
   const confidenceIssueCount = incomplete.length + unknown.length + coverageGapCount + actionableTransfers.length;
 
