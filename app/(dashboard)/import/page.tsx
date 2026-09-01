@@ -10,7 +10,7 @@ export default async function ImportPage(): Promise<React.JSX.Element> {
     prisma.account.findMany({
       where: { isArchived: false },
       select: { id: true, name: true, externalId: true },
-      orderBy: { name: 'asc' },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     }),
     prisma.importBatch.findMany({
       take: 10,

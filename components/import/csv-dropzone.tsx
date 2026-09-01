@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useRef, useState } from 'react';
 
+import { AmountField } from '@/components/ui/amount-field';
 import { SelectField } from '@/components/ui/select-field';
 import { Badge, StatusNotice } from '@/components/ui/status';
 
@@ -415,10 +416,10 @@ export function CsvDropzone({ accounts }: { accounts: AccountOption[] }): React.
         {phase === 'preview' && summary?.kind === 'MOVEMENTS' && summary.needsAnchor ? (
           <label className="ui-label max-w-md rounded-xl border border-warning/25 bg-[var(--warning-soft)] p-4">
             <span>Konečný zůstatek podle banky k {summary.periodTo ?? 'konci období'}</span>
-            <input
+            <AmountField
               value={closingBalance}
-              onChange={(event) => setClosingBalance(event.target.value)}
-              inputMode="decimal"
+              onChange={setClosingBalance}
+              decimalSeparator=","
               placeholder="např. 42 350,18"
               className="px-3 py-2"
               disabled={busy}

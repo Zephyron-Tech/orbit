@@ -16,6 +16,7 @@ import { useCallback, useMemo, useState, useTransition } from 'react';
 import { bulkCategorize, runTransferMatching, updateTransaction } from '@/app/(dashboard)/transactions/actions';
 import { applyMerchantCategory, countMerchantCategoryTargets } from '@/app/(dashboard)/transactions/category-actions';
 import { mergeSplit, splitTransaction } from '@/app/(dashboard)/transactions/split-actions';
+import { AmountField } from '@/components/ui/amount-field';
 import { MoneyValue } from '@/components/ui/money-value';
 import { SelectField, type SelectOption } from '@/components/ui/select-field';
 import { Badge } from '@/components/ui/status';
@@ -1137,7 +1138,7 @@ function SplitEditor({
         {lines.map((line, index) => (
           <fieldset key={index} className="grid min-w-0 gap-3 rounded-xl border border-line bg-[var(--surface-raised)] p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,8rem)_minmax(0,12rem)_minmax(0,1fr)_auto]">
             <legend className="px-1 text-xs font-semibold text-ink-muted">Část {index + 1}</legend>
-            <label className="ui-label">Částka<input value={line.amount} onChange={(event) => updateLine(index, { amount: event.target.value })} inputMode="decimal" placeholder="0,00" className={compactFieldClass} /></label>
+            <label className="ui-label">Částka<AmountField value={line.amount} onChange={(amount) => updateLine(index, { amount })} decimalSeparator="," allowNegative placeholder="0,00" className={compactFieldClass} /></label>
             <SelectField
               label="Kategorie"
               value={line.categoryId ?? ''}

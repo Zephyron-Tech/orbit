@@ -21,6 +21,7 @@ import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-conta
 import { Badge, StatusNotice } from '@/components/ui/status';
 import { prisma } from '@/lib/db/prisma';
 import { calculateBurnRate, type BurnRateTransaction } from '@/lib/finance/burn-rate';
+import { countIncompleteOrUnknown, findCheckpointIssues, isActionableTransfer, totalDataConfidenceIssues } from '@/lib/finance/data-confidence';
 import { loadInsuranceOverview } from '@/lib/finance/insurance-service';
 import { loadNetWorth } from '@/lib/finance/net-worth-service';
 import { monthPeriod } from '@/lib/finance/settlement';
@@ -92,6 +93,7 @@ export default async function DashboardPage({
     unmatchedTransferRows,
     firstBankBatch,
     insuranceOverview,
+    allTimeUnmatchedTransferRows,
   ] = await Promise.all([
     prisma.transaction.findMany({
       where: { date: { gte: from, lt: to } },
@@ -159,7 +161,7 @@ export default async function DashboardPage({
       select: { status: true, failedCount: true, coverageFrom: true, coverageTo: true, accountId: true, account: { select: { name: true } } },
     }),
     prisma.transaction.findMany({
-      where: { date: { gte: from, lt: to }, kind: { in: ['INTERNAL_TRANSFER', 'PENDING_TRANSFER'] }, transferId: null },
+      where: { date: { gte: from, lt: to }, kind: { in: ['INTERNAL_TRANSFER', 'PENDING_TRANSFER'] }, transferId: null, transferDismissedAt: null },
       select: { date: true, account: { select: { provider: true } } },
     }),
     prisma.importBatch.findFirst({
@@ -168,6 +170,14 @@ export default async function DashboardPage({
       select: { periodFrom: true },
     }),
     loadInsuranceOverview(now, 30),
+    // All-time, unlike unmatchedTransferRows above (which is scoped to the
+    // selected month for the "Nespárované převody v období" tile) — this
+    // feeds the same all-time data-confidence total /net-worth shows, so the
+    // two pages can't disagree on it.
+    prisma.transaction.findMany({
+      where: { kind: { in: ['INTERNAL_TRANSFER', 'PENDING_TRANSFER'] }, transferId: null, transferDismissedAt: null },
+      select: { date: true, account: { select: { provider: true } } },
+    }),
   ]);
 
   const zero = new Prisma.Decimal(0);
@@ -220,7 +230,9 @@ export default async function DashboardPage({
   const cashInvestmentRatio = currentWorth.investmentValue.isZero()
     ? null
     : currentWorth.cashValue.dividedBy(currentWorth.investmentValue);
-  const incompleteWorthAccounts = currentWorth.accounts.filter((account) => account.incompleteHistory || account.source === 'UNKNOWN');
+  const incompleteWorthAccounts = countIncompleteOrUnknown(
+    currentWorth.accounts.map((a) => ({ accountId: a.accountId, name: a.name, incompleteHistory: a.incompleteHistory, source: a.source })),
+  );
   const creditAccounts = accounts.filter((account) => account.type === 'CREDIT' && account.creditLimit && account.currency === 'CZK');
   const creditUsed = creditAccounts.reduce((sum, account) => {
     const balance = currentWorth.accounts.find((entry) => entry.accountId === account.id)?.balance ?? zero;
@@ -260,13 +272,26 @@ export default async function DashboardPage({
 
   const coverageGapCount = [...new Map(importBatches.map((batch) => [batch.accountId, batch.account.name])).keys()]
     .reduce((count, accountId) => count + findCoverageGaps(importBatches.filter((batch) => batch.accountId === accountId)).length, 0);
-  const checkpointIssues = accounts.filter((account) => {
-    const snapshot = account.snapshots[0];
-    return !snapshot || (snapshot.expectedBalance !== null && !snapshot.balance.equals(snapshot.expectedBalance));
-  }).length;
+  const checkpointIssues = findCheckpointIssues(
+    accounts.map((account) => ({
+      accountId: account.id,
+      name: account.name,
+      latestSnapshot: account.snapshots[0] ? { balance: account.snapshots[0].balance, expectedBalance: account.snapshots[0].expectedBalance } : null,
+    })),
+  );
   const failedImports = importBatches.filter((batch) => batch.status === 'FAILED' || batch.failedCount > 0).length;
-  const dataGapCount = coverageGapCount + checkpointIssues + incompleteWorthAccounts.length;
   const historyBaseline = settings?.transferHistoryFrom ?? firstBankBatch?.periodFrom ?? null;
+  // All-time, same baseline rule /net-worth's own actionableTransfers count
+  // uses — the two totals can't disagree since this is the same predicate.
+  const allTimeActionableTransfers = allTimeUnmatchedTransferRows.filter((row) =>
+    isActionableTransfer({ date: row.date, provider: row.account.provider }, historyBaseline),
+  );
+  const dataGapCount = totalDataConfidenceIssues({
+    incompleteOrUnknown: incompleteWorthAccounts.length,
+    coverageGaps: coverageGapCount,
+    actionableTransfers: allTimeActionableTransfers.length,
+    checkpointIssues: checkpointIssues.length,
+  });
   // Two independent floors: `historyBaseline` hides months where transfer
   // data isn't trustworthy yet, `reportingStartMonth` is the user's explicit
   // "don't show anything before this" — whichever is later wins.
