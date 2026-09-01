@@ -146,7 +146,8 @@ function resolveMerchant(messages: unknown, otherAccount: string | undefined): s
   return fallback ? fallback : null;
 }
 
-function sumAmounts(values: readonly string[]): { debit: string; credit: string; net: string } {
+/** Exported for reuse by lib/parsers/pdf/moneta-account-statement.ts, which needs the same exact-decimal reconciliation. */
+export function sumAmounts(values: readonly string[]): { debit: string; credit: string; net: string } {
   // String maths in minor units: a statement must reconcile to the haler, and
   // summing 84 floats does not.
   let debit = 0n;
@@ -165,7 +166,7 @@ function sumAmounts(values: readonly string[]): { debit: string; credit: string;
   return { debit: fromMinorUnits(debit), credit: fromMinorUnits(credit), net: fromMinorUnits(credit - debit) };
 }
 
-function toMinorUnits(value: string): bigint {
+export function toMinorUnits(value: string): bigint {
   const match = /^(-)?(\d*)(?:\.(\d+))?$/.exec(value.trim());
 
   if (!match) {
@@ -184,7 +185,7 @@ function toMinorUnits(value: string): bigint {
   return sign === '-' ? -digits : digits;
 }
 
-function fromMinorUnits(value: bigint): string {
+export function fromMinorUnits(value: bigint): string {
   const negative = value < 0n;
   const absolute = negative ? -value : value;
   const whole = absolute / 100n;

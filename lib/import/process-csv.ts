@@ -5,7 +5,7 @@ import { PDFParse } from 'pdf-parse';
 import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
 import type { Provider } from '@/lib/generated/prisma/enums';
-import { buildIdempotencyKey, dedupStrategyFor, normalizeMerchant, type DedupStrategy } from '@/lib/finance/idempotency';
+import { buildAttributeSignature, buildIdempotencyKey, dedupStrategyFor, normalizeMerchant, type DedupStrategy } from '@/lib/finance/idempotency';
 import { createFxRateResolver, FxRateError } from '@/lib/providers/fx/rate-lookup';
 import { decodeCsv } from '@/lib/parsers/csv/decode';
 import { classifyByMerchant, mapMonetaCategory } from '@/lib/parsers/csv/moneta-categories';
@@ -13,6 +13,7 @@ import { getCsvParser } from '@/lib/parsers/csv/registry';
 import { CsvStructureError, type ParsedTransaction } from '@/lib/parsers/csv/types';
 import { parseMonetaStatement, type StatementParseResult } from '@/lib/parsers/xml/moneta-statement';
 import { parseMonetaCreditCardStatement, type CreditCardStatementParseResult } from '@/lib/parsers/pdf/moneta-credit-card-statement';
+import { parseMonetaAccountStatement } from '@/lib/parsers/pdf/moneta-account-statement';
 import { ensurePdfWorkerConfigured } from '@/lib/parsers/pdf/pdf-worker';
 
 import { recordBalanceCheckpoint, type CheckpointResult } from './checkpoints';
@@ -150,31 +151,56 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     );
   }
 
-  // A PDF is a credit card statement — the only file type here that isn't
-  // text, so it's checked by magic bytes before anything tries to decode it
-  // as one.
+  // A PDF is either a credit card statement or a checking/savings account
+  // statement — the only file type here that isn't text, so it's checked by
+  // magic bytes before anything tries to decode it as one.
   const isPdf = options.bytes.length >= 4 && new TextDecoder().decode(options.bytes.slice(0, 4)) === '%PDF';
 
-  const creditCardResult: CreditCardStatementParseResult | null = isPdf
+  // Extracted once, sniffed to find out which of the two PDF kinds it is —
+  // mirrors looksLikeStatement's content-sniff below, just for a format
+  // decodeCsv can't touch at all.
+  const pdfText = isPdf
     ? await (async () => {
         ensurePdfWorkerConfigured();
         const pdf = new PDFParse({ data: Buffer.from(options.bytes) });
 
         try {
-          const { text } = await pdf.getText();
-
-          try {
-            return parseMonetaCreditCardStatement(text);
-          } catch (error: unknown) {
-            const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný výpis ke kreditní kartě (PDF)';
-
-            throw new ImportError(reason, 'BAD_FORMAT');
-          }
+          return (await pdf.getText()).text;
         } finally {
           await pdf.destroy();
         }
       })()
     : null;
+
+  const creditCardResult: CreditCardStatementParseResult | null =
+    pdfText !== null && /Výpis ke kreditní kartě/.test(pdfText)
+      ? (() => {
+          try {
+            return parseMonetaCreditCardStatement(pdfText);
+          } catch (error: unknown) {
+            const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný výpis ke kreditní kartě (PDF)';
+
+            throw new ImportError(reason, 'BAD_FORMAT');
+          }
+        })()
+      : null;
+
+  const accountStatementPdfResult: StatementParseResult | null =
+    pdfText !== null && creditCardResult === null && /Výpis z běžného účtu|Výpis ze spořicího účtu/.test(pdfText)
+      ? (() => {
+          try {
+            return parseMonetaAccountStatement(pdfText);
+          } catch (error: unknown) {
+            const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný výpis z účtu (PDF)';
+
+            throw new ImportError(reason, 'BAD_FORMAT');
+          }
+        })()
+      : null;
+
+  if (isPdf && creditCardResult === null && accountStatementPdfResult === null) {
+    throw new ImportError('Nerozpoznaný formát PDF výpisu', 'BAD_FORMAT');
+  }
 
   // A movement export never touches this branch; decoding a PDF's binary
   // bytes as text would just produce garbage, so this only runs otherwise.
@@ -184,17 +210,19 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
   // and does not. The file decides, not the caller.
   const isStatement = decoded !== null && looksLikeStatement(options.filename, decoded.text);
 
-  const statementResult: StatementParseResult | null = isStatement
-    ? (() => {
-        try {
-          return parseMonetaStatement(decoded.text);
-        } catch (error: unknown) {
-          const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný XML výpis';
+  const statementResult: StatementParseResult | null = accountStatementPdfResult
+    ? accountStatementPdfResult
+    : isStatement
+      ? (() => {
+          try {
+            return parseMonetaStatement(decoded.text);
+          } catch (error: unknown) {
+            const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný XML výpis';
 
-          throw new ImportError(reason, 'BAD_FORMAT');
-        }
-      })()
-    : null;
+            throw new ImportError(reason, 'BAD_FORMAT');
+          }
+        })()
+      : null;
 
   const parsed = creditCardResult
     ? {
@@ -304,12 +332,42 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
   });
   const existingKeys = new Set(existing.map((row) => row.idempotencyKey));
 
+  // Cross-format safety net: a row with no source reference only ever
+  // hashes via ATTRIBUTES, which the exact-key check above can't match
+  // against a same real transaction that an *earlier* import keyed via
+  // EXTERNAL_ID instead (e.g. a credit-card CSV export with a reference,
+  // re-imported later from that card's PDF statement, which never has one
+  // at all). Only fetched/compared when this file actually has a
+  // reference-less row — most imports never need it.
+  const hasReferenceLessRow = keyed.some(({ transaction }) => !transaction.externalId?.trim());
+  const existingSignatures = hasReferenceLessRow
+    ? new Set(
+        (
+          await prisma.transaction.findMany({
+            where: { accountId: account.id },
+            select: { date: true, amount: true, currency: true, merchant: true },
+          })
+        ).map((row) => buildAttributeSignature({ date: row.date, amount: row.amount.toString(), currency: row.currency, merchant: row.merchant })),
+      )
+    : null;
+
   const seenInFile = new Set<string>();
   const fresh: { transaction: ParsedTransaction; key: string }[] = [];
   let skipped = 0;
 
   for (const entry of keyed) {
-    if (existingKeys.has(entry.key) || seenInFile.has(entry.key)) {
+    const isCrossFormatDuplicate =
+      !entry.transaction.externalId?.trim() &&
+      existingSignatures?.has(
+        buildAttributeSignature({
+          date: entry.transaction.date,
+          amount: entry.transaction.amount,
+          currency: entry.transaction.currency,
+          merchant: entry.transaction.merchant,
+        }),
+      );
+
+    if (existingKeys.has(entry.key) || seenInFile.has(entry.key) || isCrossFormatDuplicate) {
       skipped += 1;
       continue;
     }
@@ -392,7 +450,16 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     failures: parsed.failures.map((failure) => ({ rowNumber: failure.rowNumber, reason: failure.reason })),
     checkpoint: null,
     derivedBalance: null,
-    needsAnchor: anyStatementResult === null && (await prisma.accountSnapshot.count({ where: { accountId: account.id } })) === 0,
+    // CREDIT accounts never ask here: they have their own dedicated anchor
+    // tools ("Splatit dluh", "Potvrdit nulový start" on /accounts) that
+    // already enforce the correct debt-is-negative sign convention. This
+    // generic prompt takes whatever a person types verbatim with no sign
+    // handling — real production data once had a genuine card debt overwritten
+    // by a positive "available credit" figure typed in here by mistake.
+    needsAnchor:
+      account.type !== 'CREDIT' &&
+      anyStatementResult === null &&
+      (await prisma.accountSnapshot.count({ where: { accountId: account.id } })) === 0,
     kind: anyStatementResult ? ('STATEMENT' as const) : ('MOVEMENTS' as const),
     statement: anyStatementResult
       ? {
@@ -553,7 +620,12 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     ? anyStatementResult.warnings.length === 0
       ? { day: anyStatementResult.period.to, balance: anyStatementResult.closingBalance }
       : null
-    : options.closingBalance && periodTo
+    // Same reasoning as needsAnchor above: a CREDIT account's manual anchor
+    // must go through the dedicated debt-entry tools, which enforce the
+    // negative-is-debt sign convention. A typed-in movement-CSV closingBalance
+    // never does, and it takes only one honest mistake to overwrite a real
+    // debt with a positive "available credit" figure.
+    : options.closingBalance && periodTo && account.type !== 'CREDIT'
       ? { day: periodTo.toISOString().slice(0, 10), balance: options.closingBalance }
       : null;
 

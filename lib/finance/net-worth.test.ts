@@ -234,7 +234,7 @@ describe('calculateNetWorth', () => {
     expect(result.totalWorth.toString()).toBe('69610.07');
   });
 
-  it('does not count a positive credit balance as wealth or debt', () => {
+  it('counts a positive credit balance (an overpayment) as wealth, never as debt', () => {
     const result = calculateNetWorth(
       [account({ id: 'cc', type: 'CREDIT' })],
       [tx('cc', '2026-08-12T00:00:00Z', '500')],
@@ -242,18 +242,24 @@ describe('calculateNetWorth', () => {
     );
 
     expect(result.liabilityValue.toString()).toBe('0');
-    expect(result.totalWorth.toString()).toBe('0');
+    expect(result.cashValue.toString()).toBe('500');
+    expect(result.totalWorth.toString()).toBe('500');
   });
 
-  it('ignores a positive credit checkpoint because it is availability, not wealth', () => {
+  it('trusts a positive credit checkpoint as an anchor (an overpayment is a real balance, not a rejected guess)', () => {
     const result = calculateNetWorth(
       [account({ id: 'cc', type: 'CREDIT' })],
       [tx('cc', '2026-08-12T00:00:00Z', '-3492.5')],
       [checkpoint('cc', '2026-08-01', '46507.5')],
     );
 
-    expect(result.liabilityValue.toString()).toBe('3492.5');
-    expect(result.totalWorth.toString()).toBe('-3492.5');
+    // 46507.5 - 3492.5 = 43015, still positive: a real overpayment, counted
+    // as cash, not distrusted the way a raw manually-typed "available credit"
+    // figure would be — that path no longer reaches a CREDIT checkpoint at
+    // all (see needsAnchor in process-csv.ts).
+    expect(result.liabilityValue.toString()).toBe('0');
+    expect(result.cashValue.toString()).toBe('43015');
+    expect(result.totalWorth.toString()).toBe('43015');
   });
 
   it('keeps net worth unchanged when cash repays matching credit debt', () => {

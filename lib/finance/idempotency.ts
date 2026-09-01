@@ -114,6 +114,24 @@ export function dedupStrategyFor(input: IdempotencyInput): DedupStrategy {
 }
 
 /**
+ * The four parts an ATTRIBUTES-strategy key hashes: booking day, minor-units
+ * amount, currency, normalized merchant. Exposed separately from
+ * `buildIdempotencyKey` so a reference-less row can be compared against an
+ * *existing* row that might have been keyed a different way — e.g. one
+ * imported earlier via a source that did supply a reference (EXTERNAL_ID),
+ * for the same real transaction re-imported later from a source that
+ * doesn't (a credit-card PDF statement, which never carries a reference at
+ * all). Two different key spaces for the same transaction never collide via
+ * `idempotencyKey` alone; comparing this signature against existing rows is
+ * the cross-format safety net for that case.
+ */
+export function buildAttributeSignature(input: Pick<IdempotencyInput, 'date' | 'amount' | 'currency' | 'merchant'>): string {
+  return [toBookingDay(input.date), toMinorUnits(input.amount), input.currency.trim().toUpperCase(), normalizeMerchant(input.merchant)].join(
+    SEPARATOR,
+  );
+}
+
+/**
  * Builds the unique key used to deduplicate a transaction.
  *
  * With a source reference the key is exact. Without one it falls back to the
@@ -130,15 +148,7 @@ export function buildIdempotencyKey(input: IdempotencyInput): string {
 
   const parts = externalId
     ? [input.provider, input.accountId, 'ref', externalId]
-    : [
-        input.provider,
-        input.accountId,
-        'attr',
-        toBookingDay(input.date),
-        toMinorUnits(input.amount),
-        input.currency.trim().toUpperCase(),
-        normalizeMerchant(input.merchant),
-      ];
+    : [input.provider, input.accountId, 'attr', buildAttributeSignature(input)];
 
   return createHash('sha256').update(parts.join(SEPARATOR)).digest('hex');
 }
