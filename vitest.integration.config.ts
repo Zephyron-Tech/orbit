@@ -16,7 +16,7 @@ const testDatabaseUrl = resolveTestDatabaseUrl();
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['lib/**/*.integration.test.ts'],
+    include: ['lib/**/*.integration.test.ts', 'app/**/*.integration.test.ts'],
     globalSetup: ['./scripts/test/global-setup.ts'],
     // They share one database, so they must not run concurrently.
     fileParallelism: false,

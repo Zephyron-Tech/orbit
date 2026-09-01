@@ -17,6 +17,7 @@ const decimalString = z
 const spendingTargetSchema = z.object({
   monthlySpendingTarget: decimalString.nullable(),
   transferHistoryFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  hideHistoricalBrokerTransfers: z.boolean(),
 });
 
 const planSchema = z.object({
@@ -148,13 +149,16 @@ export async function saveSpendingTarget(input: SpendingTargetInput): Promise<Ac
       id: 'household',
       monthlySpendingTarget: parsed.data.monthlySpendingTarget ? new Prisma.Decimal(parsed.data.monthlySpendingTarget) : null,
       transferHistoryFrom: parsed.data.transferHistoryFrom ? new Date(`${parsed.data.transferHistoryFrom}T00:00:00.000Z`) : null,
+      hideHistoricalBrokerTransfers: parsed.data.hideHistoricalBrokerTransfers,
     },
     update: {
       monthlySpendingTarget: parsed.data.monthlySpendingTarget ? new Prisma.Decimal(parsed.data.monthlySpendingTarget) : null,
       transferHistoryFrom: parsed.data.transferHistoryFrom ? new Date(`${parsed.data.transferHistoryFrom}T00:00:00.000Z`) : null,
+      hideHistoricalBrokerTransfers: parsed.data.hideHistoricalBrokerTransfers,
     },
   });
   revalidatePlanning();
+  revalidatePath('/net-worth');
   return { ok: true };
 }
 

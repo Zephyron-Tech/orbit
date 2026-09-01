@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
 import type { SnapshotSource } from '@/lib/generated/prisma/enums';
 import { endOfDayUtc, reconcileCheckpoint } from '@/lib/finance/net-worth';
+import { lookupFxRate } from '@/lib/providers/fx/rate-lookup';
 
 /**
  * Balance checkpoints for cash accounts.
@@ -41,6 +42,24 @@ export async function recordBalanceCheckpoint(input: RecordCheckpointInput): Pro
 
   const balance = new Prisma.Decimal(input.balance);
 
+  // A foreign-currency checkpoint used to store balanceCzk: null unconditionally
+  // — no conversion was ever attempted, unlike individual transactions (see
+  // process-csv.ts). That made a non-CZK account's checkpoint permanently
+  // unusable as a net-worth anchor (lib/finance/net-worth.ts's usableSnapshot
+  // requires balanceCzk), regardless of how clean the statement it came from
+  // was. A lookup failure degrades to null exactly as before — it must never
+  // block the checkpoint write, same resilience rule the per-transaction FX
+  // resolver already follows.
+  const balanceCzk =
+    account.currency === 'CZK'
+      ? balance
+      : await lookupFxRate(capturedAt, account.currency, 'CZK')
+          .then((rate) => balance.times(rate))
+          .catch((error: unknown) => {
+            console.error(`FX lookup failed for checkpoint ${account.id} (${account.currency}->CZK)`, error);
+            return null;
+          });
+
   const [previous, transactions] = await Promise.all([
     prisma.accountSnapshot.findFirst({
       where: { accountId: account.id, capturedAt: { lt: capturedAt } },
@@ -70,7 +89,7 @@ export async function recordBalanceCheckpoint(input: RecordCheckpointInput): Pro
     where: { accountId_capturedAt: { accountId: account.id, capturedAt } },
     update: {
       balance,
-      balanceCzk: account.currency === 'CZK' ? balance : null,
+      balanceCzk,
       expectedBalance: reconciliation.expected,
       note: input.note ?? null,
       source: input.source ?? 'MANUAL',
@@ -83,7 +102,7 @@ export async function recordBalanceCheckpoint(input: RecordCheckpointInput): Pro
       capturedAt,
       currency: account.currency,
       balance,
-      balanceCzk: account.currency === 'CZK' ? balance : null,
+      balanceCzk,
       expectedBalance: reconciliation.expected,
       note: input.note ?? null,
     },

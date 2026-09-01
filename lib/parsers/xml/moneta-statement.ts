@@ -238,6 +238,35 @@ export function parseMonetaStatement(xml: string): StatementParseResult {
     });
   }
 
+  // Moneta reuses one @id for a same-day interest+tax pair (verified against
+  // a real savings statement: "KREDITNÍ ÚROKY" +109.24 and "Daň z úroku"
+  // -16.39 both carry id "260831GTA900001"). Trusting it as EXTERNAL_ID would
+  // hash both rows to the identical idempotency key and silently drop one as
+  // a same-file duplicate — exactly the kind of collision CLAUDE.md's
+  // idempotency rule warns about, just from the reference itself this time
+  // instead of the attribute fallback. Any id shared by more than one row in
+  // this document is not trustworthy as unique, so those specific rows fall
+  // back to the ATTRIBUTES strategy instead — date/amount/merchant already
+  // tell interest and tax apart, so nothing is lost.
+  const idCounts = new Map<string, number>();
+
+  for (const transaction of transactions) {
+    if (transaction.externalId) {
+      idCounts.set(transaction.externalId, (idCounts.get(transaction.externalId) ?? 0) + 1);
+    }
+  }
+
+  // Not pushed onto `warnings`: that array also gates whether the closing
+  // balance is trusted as a checkpoint anchor (see below), and this
+  // collision is routine on a savings account (interest posts monthly) —
+  // it would otherwise block auto-anchoring from savings statements every
+  // month even though the statement itself reconciles perfectly.
+  for (const transaction of transactions) {
+    if (transaction.externalId && (idCounts.get(transaction.externalId) ?? 0) > 1) {
+      transaction.externalId = null;
+    }
+  }
+
   const declaredCount = Number(header.stmt['@trn-cnt']);
 
   // The document states its own totals, so it can be checked against itself.

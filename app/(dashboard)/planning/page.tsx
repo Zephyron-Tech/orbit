@@ -77,7 +77,7 @@ export default async function PlanningPage(): Promise<React.JSX.Element> {
         <p className="text-sm text-ink-muted">Po ručním přiřazení se worker naučí přesnou protistranu z daného exportu. Další importy přiřadí automaticky jen při jednoznačné shodě na stejném účtu; výpis a historie účtu mohou mít pro jednu platbu různé naučené aliasy. Změna sdílení se promítne do všech propojených nevyrovnaných plateb.</p>
         <RecurringExpenseManager expenses={recurringRows} categories={categories} paymentAccounts={accounts.filter((account) => account.type !== 'INVESTMENT')} />
       </section>
-      <PlanningManager monthlySpendingTarget={settings?.monthlySpendingTarget?.toString() ?? null} transferHistoryFrom={settings?.transferHistoryFrom?.toISOString().slice(0, 10) ?? firstBankBatch?.periodFrom?.toISOString().slice(0, 10) ?? null} plans={rows} incomeSourceRules={incomeSourceRuleRows} accounts={accounts} />
+      <PlanningManager monthlySpendingTarget={settings?.monthlySpendingTarget?.toString() ?? null} transferHistoryFrom={settings?.transferHistoryFrom?.toISOString().slice(0, 10) ?? firstBankBatch?.periodFrom?.toISOString().slice(0, 10) ?? null} hideHistoricalBrokerTransfers={settings?.hideHistoricalBrokerTransfers ?? false} plans={rows} incomeSourceRules={incomeSourceRuleRows} accounts={accounts} />
     </PageShell>
   );
 }

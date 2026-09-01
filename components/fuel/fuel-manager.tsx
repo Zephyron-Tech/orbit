@@ -126,6 +126,10 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
   const [receiptPreview, setReceiptPreview] = useState<ReceiptUploadResult[] | null>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
 
+  const [rematchPending, setRematchPending] = useState(false);
+  const [rematchError, setRematchError] = useState<string | null>(null);
+  const [rematchResult, setRematchResult] = useState<{ matched: number; stillUnmatched: number } | null>(null);
+
   async function uploadXls(dryRun: boolean): Promise<void> {
     const file = xlsInputRef.current?.files?.[0];
 
@@ -263,6 +267,34 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
       setReceiptError('Nahrání se teď nezdařilo. Zkontrolujte připojení a zkuste to znovu.');
     } finally {
       setReceiptPending(false);
+    }
+  }
+
+  async function rematchReceipts(): Promise<void> {
+    setRematchPending(true);
+    setRematchError(null);
+    setRematchResult(null);
+
+    try {
+      const response = await fetch('/api/import/fuel-receipt/rematch', { method: 'POST' });
+      const payload: unknown = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          typeof payload === 'object' && payload !== null && 'error' in payload && typeof payload.error === 'string'
+            ? payload.error
+            : 'Spárování se nezdařilo.';
+
+        setRematchError(message);
+        return;
+      }
+
+      setRematchResult(payload as { matched: number; stillUnmatched: number });
+      router.refresh();
+    } catch {
+      setRematchError('Spárování se teď nezdařilo. Zkontrolujte připojení a zkuste to znovu.');
+    } finally {
+      setRematchPending(false);
     }
   }
 
@@ -605,7 +637,27 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-semibold">Nahrané účtenky</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold">Nahrané účtenky</h2>
+          {unmatchedCount > 0 ? (
+            <button type="button" onClick={() => void rematchReceipts()} disabled={rematchPending} className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs">
+              {rematchPending ? 'Páruji…' : 'Znovu spárovat nespárované'}
+            </button>
+          ) : null}
+        </div>
+        {rematchError ? (
+          <StatusNotice tone="danger" onDismiss={() => setRematchError(null)} autoDismissMs={8000}>
+            {rematchError}
+          </StatusNotice>
+        ) : null}
+        {rematchResult ? (
+          <StatusNotice tone={rematchResult.matched > 0 ? 'success' : 'info'} onDismiss={() => setRematchResult(null)} autoDismissMs={8000}>
+            {rematchResult.matched > 0
+              ? `Spárováno ${rematchResult.matched} ${rematchResult.matched === 1 ? 'účtenka' : 'účtenek'}.`
+              : 'Žádná účtenka se nespárovala — chybí odpovídající nákup (nahrajte Sales.xls, pokud jste to ještě neudělali).'}
+            {rematchResult.stillUnmatched > 0 ? ` Zbývá ${rematchResult.stillUnmatched} nespárovaných.` : ''}
+          </StatusNotice>
+        ) : null}
         {receipts.length === 0 ? (
           <StatusNotice tone="info">Zatím nejsou nahrané žádné účtenky.</StatusNotice>
         ) : (
