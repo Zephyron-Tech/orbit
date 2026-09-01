@@ -220,6 +220,14 @@ model Transaction {
   transferId String?
   transfer   Transfer? @relation(fields: [transferId], references: [id], onDelete: SetNull)
 
+  /// Set once a person confirms an unmatched INTERNAL_TRANSFER/PENDING_TRANSFER
+  /// will never find its counterpart leg (e.g. it moved to/from an account
+  /// that's since been closed and will never be imported) — stops it nagging
+  /// in the /net-worth "Nespárované převody" panel forever. Does not change
+  /// `kind`: the transaction is still correctly excluded from income/spending
+  /// either way, this only silences the "needs attention" diagnostic.
+  transferDismissedAt DateTime?
+
   /// Secondary label from the source: standing order name, payment message or
   /// transaction type. Complements `merchant`, which names the counterparty.
   description String?

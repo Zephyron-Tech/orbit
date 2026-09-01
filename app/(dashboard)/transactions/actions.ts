@@ -144,6 +144,44 @@ export async function bulkCategorize(ids: string[], categoryId: string | null): 
   return { ok: true };
 }
 
+/**
+ * Confirms an unmatched transfer will never find its counterpart leg (the
+ * account it moved to/from has since been closed and will never be
+ * imported) — silences it in /net-worth's "Nespárované převody" panel for
+ * good. Never touches `kind`/`transferId`: the transaction is already
+ * correctly excluded from income/spending either way, this only stops the
+ * diagnostic nagging about a match that can't ever happen.
+ */
+export async function dismissUnmatchedTransfer(id: string): Promise<ActionResult> {
+  const user = await getActiveUser();
+
+  if (!user) {
+    return { ok: false, error: 'Přihlaste se prosím' };
+  }
+
+  const parsedId = z.uuid().safeParse(id);
+
+  if (!parsedId.success) {
+    return { ok: false, error: 'Neplatná transakce' };
+  }
+
+  // Re-verified server-side rather than trusting a stale client-side row —
+  // only a genuinely still-unmatched transfer can be dismissed.
+  const { count } = await prisma.transaction.updateMany({
+    where: { id: parsedId.data, kind: { in: ['INTERNAL_TRANSFER', 'PENDING_TRANSFER'] }, transferId: null, transferDismissedAt: null },
+    data: { transferDismissedAt: new Date() },
+  });
+
+  if (count === 0) {
+    return { ok: false, error: 'Převod už není nespárovaný, nebo byl už dříve skryt.' };
+  }
+
+  revalidatePath('/transactions');
+  revalidatePath('/net-worth');
+
+  return { ok: true };
+}
+
 export interface TransferMatchResult extends ActionResult {
   matched?: number;
   ambiguous?: number;
