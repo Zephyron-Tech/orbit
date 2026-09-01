@@ -5,7 +5,7 @@ import { PDFParse } from 'pdf-parse';
 import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
 import type { Provider } from '@/lib/generated/prisma/enums';
-import { buildIdempotencyKey, dedupStrategyFor, normalizeMerchant, type DedupStrategy } from '@/lib/finance/idempotency';
+import { buildAttributeSignature, buildIdempotencyKey, dedupStrategyFor, normalizeMerchant, type DedupStrategy } from '@/lib/finance/idempotency';
 import { createFxRateResolver, FxRateError } from '@/lib/providers/fx/rate-lookup';
 import { decodeCsv } from '@/lib/parsers/csv/decode';
 import { classifyByMerchant, mapMonetaCategory } from '@/lib/parsers/csv/moneta-categories';
@@ -304,12 +304,42 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
   });
   const existingKeys = new Set(existing.map((row) => row.idempotencyKey));
 
+  // Cross-format safety net: a row with no source reference only ever
+  // hashes via ATTRIBUTES, which the exact-key check above can't match
+  // against a same real transaction that an *earlier* import keyed via
+  // EXTERNAL_ID instead (e.g. a credit-card CSV export with a reference,
+  // re-imported later from that card's PDF statement, which never has one
+  // at all). Only fetched/compared when this file actually has a
+  // reference-less row — most imports never need it.
+  const hasReferenceLessRow = keyed.some(({ transaction }) => !transaction.externalId?.trim());
+  const existingSignatures = hasReferenceLessRow
+    ? new Set(
+        (
+          await prisma.transaction.findMany({
+            where: { accountId: account.id },
+            select: { date: true, amount: true, currency: true, merchant: true },
+          })
+        ).map((row) => buildAttributeSignature({ date: row.date, amount: row.amount.toString(), currency: row.currency, merchant: row.merchant })),
+      )
+    : null;
+
   const seenInFile = new Set<string>();
   const fresh: { transaction: ParsedTransaction; key: string }[] = [];
   let skipped = 0;
 
   for (const entry of keyed) {
-    if (existingKeys.has(entry.key) || seenInFile.has(entry.key)) {
+    const isCrossFormatDuplicate =
+      !entry.transaction.externalId?.trim() &&
+      existingSignatures?.has(
+        buildAttributeSignature({
+          date: entry.transaction.date,
+          amount: entry.transaction.amount,
+          currency: entry.transaction.currency,
+          merchant: entry.transaction.merchant,
+        }),
+      );
+
+    if (existingKeys.has(entry.key) || seenInFile.has(entry.key) || isCrossFormatDuplicate) {
       skipped += 1;
       continue;
     }

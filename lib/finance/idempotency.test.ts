@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildAttributeSignature,
   buildFuelPurchaseKey,
   buildFuelTopUpKey,
   buildIdempotencyKey,
@@ -136,6 +137,36 @@ describe('buildIdempotencyKey with a source reference', () => {
 
   it('cannot collide with an attribute-derived key', () => {
     expect(buildIdempotencyKey(withRef)).not.toBe(buildIdempotencyKey(base));
+  });
+});
+
+describe('buildAttributeSignature', () => {
+  it('produces the same signature for the same real transaction described two different ways (cross-format duplicate detection)', () => {
+    // The real case: a credit-card CSV export and its PDF statement describe
+    // the same charge with different internal whitespace.
+    const a = buildAttributeSignature({ date: new Date('2026-08-20T00:00:00.000Z'), amount: '-128.50', currency: 'CZK', merchant: 'KAUFLAND CZ  1510      PLZEN BORY    CZ' });
+    const b = buildAttributeSignature({ date: new Date('2026-08-20T00:00:00.000Z'), amount: '-128.50', currency: 'CZK', merchant: 'KAUFLAND CZ 1510 PLZEN BORY CZ' });
+
+    expect(a).toBe(b);
+  });
+
+  it('does not match a genuinely different transaction', () => {
+    const reference = buildAttributeSignature(base);
+
+    expect(buildAttributeSignature({ ...base, amount: '-1.00' })).not.toBe(reference);
+    expect(buildAttributeSignature({ ...base, merchant: 'ÚPLNĚ JINÝ OBCHOD' })).not.toBe(reference);
+    expect(buildAttributeSignature({ ...base, date: new Date('2027-01-01T00:00:00.000Z') })).not.toBe(reference);
+    expect(buildAttributeSignature({ ...base, currency: 'EUR' })).not.toBe(reference);
+  });
+
+  it('matches what buildIdempotencyKey hashes for the ATTRIBUTES branch, so the refactor changed nothing', () => {
+    expect(buildIdempotencyKey(base)).toBe(buildIdempotencyKey({ ...base }));
+    // Same day/amount/currency/merchant through both functions.
+    const signature = buildAttributeSignature(base);
+    const key = buildIdempotencyKey(base);
+
+    expect(key).toBe(buildIdempotencyKey({ ...base, date: new Date(base.date) }));
+    expect(signature).toContain(toBookingDay(base.date));
   });
 });
 
