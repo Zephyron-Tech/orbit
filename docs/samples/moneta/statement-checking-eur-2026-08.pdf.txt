@@ -1,0 +1,72 @@
+Výpis z běžného účtu
+Číslo výpisu:
+Výpis ze dne:
+Předchozí výpis ze dne:
+Periodicita výpisu:
+Strana:
+2026/1
+31.08.2026
+1/1
+měsíční
+Jan Novák
+Příkladová 123
+383 01 Prachatice - Prachatice II
+Informace o účtu
+Obchodní místo: MMB, a. s. PRACHATICE
+ZAHRADNÍ 126
+383 01 PRACHATICE
+Bankovní spojení:
+Číslo účtu IBAN:
+SWIFT kód BIC:
+111222555 / 0600
+CZ95 0600 0000 0001 1122 2555
+AGBACZPP
+Označení měny: EUR
+Souhrnné zúčtování v měně účtu
+Počáteční zůstatek:
+Konečný zůstatek:
+0,00
+0,00
+Obrat kredit:
+Obrat debet:
+Roční kreditní obrat:
+Roční debetní obrat:
+1 000,00
+-1 000,00
+1 000,00
+1 000,00
+Počáteční zůstatek 0,00	Přehled transakcí
+Datum Bankovní spojení Kód transakce VS Debetní obrat Kreditní obrat
+zpracování / Popis Datum zaúčtování / KS Částka Částka
+Valuta odepsání SS
+21.08.2026 245113999/0600 260821M00448104358 5,00
+PŘEVOD-KONVERZE MĚNY 21.08.2026
+21.08.2026
+DI: SB: 21.08.2026/10:42:36 1115021622
+21.08.2026 245113999/0600 260821M00448104599 495,00
+PŘEVOD-KONVERZE MĚNY 21.08.2026
+21.08.2026
+DI: SB: 21.08.2026/10:46:22 1115023206
+21.08.2026 111222333/0600 260821M00448108733 - 500,00
+PŘEVOD-KONVERZE MĚNY 21.08.2026
+21.08.2026
+KI: SB: 21.08.2026/10:49:03 1115024394 2425041661
+26.08.2026 245113999/0600 260826M00448934899 500,00
+PŘEVOD-KONVERZE MĚNY 26.08.2026
+26.08.2026
+DI: SB: 26.08.2026/19:16:20 1116829796
+26.08.2026 111222333/0600 260826M00448934945 - 500,00
+PŘEVOD-KONVERZE MĚNY 26.08.2026
+26.08.2026
+KI: SB: 26.08.2026/19:18:03 1116830348 2431398123
+Celkový počet transakcí: 5 Součet obratů na výpisu: 1 000,00 1 000,00
+Konečný zůstatek 0,00
+Žádáme Vás o překontrolování uvedených údajů. V případě nesouhlasu informujte obchodní místo spravující Váš účet.
+Dovolujeme si Vás upozornit, že v případě nepovoleného debetu bežného účtu jsme oprávněni účtovat
+následující poplatky a úroky:
+Smluvní úrok z nepovoleného debetního zůstatku dle aktuálního Úrokového lístku
+www.moneta.cz | zákaznický servis: 224 443 636
+MONETA Money Bank, a. s., Vyskočilova 1442/1b, 140 28 Praha 4 - Michle
+IČO: 25672720, Zapsáno u MS v Praze, odd. B, vl. 5403
+
+-- 1 of 1 --

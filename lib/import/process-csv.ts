@@ -13,6 +13,7 @@ import { getCsvParser } from '@/lib/parsers/csv/registry';
 import { CsvStructureError, type ParsedTransaction } from '@/lib/parsers/csv/types';
 import { parseMonetaStatement, type StatementParseResult } from '@/lib/parsers/xml/moneta-statement';
 import { parseMonetaCreditCardStatement, type CreditCardStatementParseResult } from '@/lib/parsers/pdf/moneta-credit-card-statement';
+import { parseMonetaAccountStatement } from '@/lib/parsers/pdf/moneta-account-statement';
 import { ensurePdfWorkerConfigured } from '@/lib/parsers/pdf/pdf-worker';
 
 import { recordBalanceCheckpoint, type CheckpointResult } from './checkpoints';
@@ -150,31 +151,56 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     );
   }
 
-  // A PDF is a credit card statement — the only file type here that isn't
-  // text, so it's checked by magic bytes before anything tries to decode it
-  // as one.
+  // A PDF is either a credit card statement or a checking/savings account
+  // statement — the only file type here that isn't text, so it's checked by
+  // magic bytes before anything tries to decode it as one.
   const isPdf = options.bytes.length >= 4 && new TextDecoder().decode(options.bytes.slice(0, 4)) === '%PDF';
 
-  const creditCardResult: CreditCardStatementParseResult | null = isPdf
+  // Extracted once, sniffed to find out which of the two PDF kinds it is —
+  // mirrors looksLikeStatement's content-sniff below, just for a format
+  // decodeCsv can't touch at all.
+  const pdfText = isPdf
     ? await (async () => {
         ensurePdfWorkerConfigured();
         const pdf = new PDFParse({ data: Buffer.from(options.bytes) });
 
         try {
-          const { text } = await pdf.getText();
-
-          try {
-            return parseMonetaCreditCardStatement(text);
-          } catch (error: unknown) {
-            const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný výpis ke kreditní kartě (PDF)';
-
-            throw new ImportError(reason, 'BAD_FORMAT');
-          }
+          return (await pdf.getText()).text;
         } finally {
           await pdf.destroy();
         }
       })()
     : null;
+
+  const creditCardResult: CreditCardStatementParseResult | null =
+    pdfText !== null && /Výpis ke kreditní kartě/.test(pdfText)
+      ? (() => {
+          try {
+            return parseMonetaCreditCardStatement(pdfText);
+          } catch (error: unknown) {
+            const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný výpis ke kreditní kartě (PDF)';
+
+            throw new ImportError(reason, 'BAD_FORMAT');
+          }
+        })()
+      : null;
+
+  const accountStatementPdfResult: StatementParseResult | null =
+    pdfText !== null && creditCardResult === null && /Výpis z běžného účtu|Výpis ze spořicího účtu/.test(pdfText)
+      ? (() => {
+          try {
+            return parseMonetaAccountStatement(pdfText);
+          } catch (error: unknown) {
+            const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný výpis z účtu (PDF)';
+
+            throw new ImportError(reason, 'BAD_FORMAT');
+          }
+        })()
+      : null;
+
+  if (isPdf && creditCardResult === null && accountStatementPdfResult === null) {
+    throw new ImportError('Nerozpoznaný formát PDF výpisu', 'BAD_FORMAT');
+  }
 
   // A movement export never touches this branch; decoding a PDF's binary
   // bytes as text would just produce garbage, so this only runs otherwise.
@@ -184,17 +210,19 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
   // and does not. The file decides, not the caller.
   const isStatement = decoded !== null && looksLikeStatement(options.filename, decoded.text);
 
-  const statementResult: StatementParseResult | null = isStatement
-    ? (() => {
-        try {
-          return parseMonetaStatement(decoded.text);
-        } catch (error: unknown) {
-          const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný XML výpis';
+  const statementResult: StatementParseResult | null = accountStatementPdfResult
+    ? accountStatementPdfResult
+    : isStatement
+      ? (() => {
+          try {
+            return parseMonetaStatement(decoded.text);
+          } catch (error: unknown) {
+            const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný XML výpis';
 
-          throw new ImportError(reason, 'BAD_FORMAT');
-        }
-      })()
-    : null;
+            throw new ImportError(reason, 'BAD_FORMAT');
+          }
+        })()
+      : null;
 
   const parsed = creditCardResult
     ? {
