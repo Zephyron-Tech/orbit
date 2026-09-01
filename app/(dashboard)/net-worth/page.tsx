@@ -12,6 +12,7 @@ import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-conta
 import { Badge } from '@/components/ui/status';
 import { prisma } from '@/lib/db/prisma';
 import { loadAccountAnalytics } from '@/lib/finance/account-analytics-service';
+import { countIncompleteOrUnknown, findCheckpointIssues, isActionableTransfer, totalDataConfidenceIssues } from '@/lib/finance/data-confidence';
 import { loadMonthlyNetWorthHistory, rebuildMonthlyNetWorth } from '@/lib/finance/monthly-net-worth-service';
 import { loadNetWorth } from '@/lib/finance/net-worth-service';
 import { findCoverageGaps } from '@/lib/import/coverage';
@@ -77,7 +78,7 @@ export default async function NetWorthPage(): Promise<React.JSX.Element> {
         snapshots: {
           orderBy: { capturedAt: 'desc' },
           take: 1,
-          select: { cashBalance: true, investedValue: true, unrealizedPnl: true, updatedAt: true, currency: true },
+          select: { cashBalance: true, investedValue: true, unrealizedPnl: true, updatedAt: true, currency: true, balance: true, expectedBalance: true },
         },
       },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
@@ -139,11 +140,10 @@ export default async function NetWorthPage(): Promise<React.JSX.Element> {
   const incomplete = current.accounts.filter((account) => account.incompleteHistory);
   const incompleteCredit = incomplete.filter((account) => account.type === 'CREDIT');
   const incompleteCash = incomplete.filter((account) => account.type !== 'CREDIT');
-  const actionableTransfers = unmatchedTransfers.filter((transaction) => {
-    if (transaction.account.provider !== 'TRADING212') return true;
-    const baseline = planningSettings?.transferHistoryFrom ?? firstBankBatch?.periodFrom ?? null;
-    return baseline ? transaction.date.getTime() >= baseline.getTime() : false;
-  });
+  const transferBaseline = planningSettings?.transferHistoryFrom ?? firstBankBatch?.periodFrom ?? null;
+  const actionableTransfers = unmatchedTransfers.filter((transaction) =>
+    isActionableTransfer({ date: transaction.date, provider: transaction.account.provider }, transferBaseline),
+  );
   // Permanently dismissible (see /planning "Historie bankovních převodů"): a
   // transfer older than the imported bank history can never find its
   // matching leg, unlike every other diagnostic here, so it never resolves
@@ -152,7 +152,22 @@ export default async function NetWorthPage(): Promise<React.JSX.Element> {
     ? 0
     : unmatchedTransfers.length - actionableTransfers.length;
   const coverageGapCount = gapsByAccount.reduce((count, entry) => count + entry.gaps.length, 0);
-  const confidenceIssueCount = incomplete.length + unknown.length + coverageGapCount + actionableTransfers.length;
+  const checkpointIssues = findCheckpointIssues(
+    accounts.map((account) => ({
+      accountId: account.id,
+      name: account.name,
+      latestSnapshot: account.snapshots[0] ? { balance: account.snapshots[0].balance, expectedBalance: account.snapshots[0].expectedBalance } : null,
+    })),
+  );
+  // Same union rule dashboard's own incompleteWorthAccounts already used —
+  // an account tripping both incompleteHistory and source: 'UNKNOWN' is one
+  // problem, not two.
+  const confidenceIssueCount = totalDataConfidenceIssues({
+    incompleteOrUnknown: countIncompleteOrUnknown(current.accounts.map((a) => ({ accountId: a.accountId, name: a.name, incompleteHistory: a.incompleteHistory, source: a.source }))).length,
+    coverageGaps: coverageGapCount,
+    actionableTransfers: actionableTransfers.length,
+    checkpointIssues: checkpointIssues.length,
+  });
 
   return (
     <PageShell>
@@ -200,7 +215,7 @@ export default async function NetWorthPage(): Promise<React.JSX.Element> {
         <NetWorthChart data={monthlyHistory} />
       </section>
 
-      <DataConfidencePanel issueCount={confidenceIssueCount} incomplete={incompleteCash} incompleteCredit={incompleteCredit} unknown={unknown} gapsByAccount={gapsByAccount} coverageGapCount={coverageGapCount} unmatchedTransfers={actionableTransfers} historicalBrokerTransfers={historicalBrokerTransfers} />
+      <DataConfidencePanel issueCount={confidenceIssueCount} incomplete={incompleteCash} incompleteCredit={incompleteCredit} unknown={unknown} gapsByAccount={gapsByAccount} coverageGapCount={coverageGapCount} unmatchedTransfers={actionableTransfers} historicalBrokerTransfers={historicalBrokerTransfers} checkpointIssues={checkpointIssues.map((a) => ({ accountId: a.accountId, name: a.name }))} />
     </PageShell>
   );
 }
@@ -254,6 +269,7 @@ function DataConfidencePanel({
   coverageGapCount,
   unmatchedTransfers,
   historicalBrokerTransfers,
+  checkpointIssues,
 }: {
   issueCount: number;
   incomplete: AccountDiagnostic[];
@@ -263,6 +279,7 @@ function DataConfidencePanel({
   coverageGapCount: number;
   unmatchedTransfers: TransferDiagnostic[];
   historicalBrokerTransfers: number;
+  checkpointIssues: AccountDiagnostic[];
 }): React.JSX.Element {
   const hasIssues = issueCount > 0;
 
@@ -338,6 +355,21 @@ function DataConfidencePanel({
                 součtu vstupují nulovou hodnotou.
               </p>
               <CollapsedNames names={unknown.map((account) => account.name)} />
+            </DiagnosticItem>
+          ) : null}
+
+          {checkpointIssues.length > 0 ? (
+            <DiagnosticItem
+              title="Kontrolní bod nesedí"
+              count={checkpointIssues.length}
+              actionHref="/import"
+              actionLabel="Doplnit kontrolní bod"
+            >
+              <p>
+                U účtů {formatNamePreview(checkpointIssues.map((account) => account.name))} chybí kontrolní bod, nebo
+                se neshoduje s tím, co ledger očekával z předchozí kotvy a importovaných pohybů.
+              </p>
+              <CollapsedNames names={checkpointIssues.map((account) => account.name)} />
             </DiagnosticItem>
           ) : null}
 

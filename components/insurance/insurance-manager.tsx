@@ -10,6 +10,8 @@ import {
   updateInsurancePolicy,
   type InsurancePolicyInput,
 } from '@/app/(dashboard)/insurance/actions';
+import { AmountField } from '@/components/ui/amount-field';
+import { DateField } from '@/components/ui/date-field';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
@@ -337,12 +339,12 @@ function PolicyForm({
 
         <label className="ui-label min-w-0">
           <span>Roční pojistné</span>
-          <input
+          <AmountField
             value={values.annualCost}
-            onChange={(event) => setValues({ ...values, annualCost: event.target.value })}
+            onChange={(annualCost) => setValues({ ...values, annualCost })}
             disabled={disabled}
             required
-            inputMode="decimal"
+            decimalSeparator=","
             placeholder="12000"
             className="px-3 py-2"
           />
@@ -356,17 +358,13 @@ function PolicyForm({
           disabled={disabled}
         />
 
-        <label className="ui-label min-w-0">
-          <span>Počátek smlouvy</span>
-          <input
-            type="date"
-            value={values.startDate}
-            onChange={(event) => setValues({ ...values, startDate: event.target.value })}
-            disabled={disabled}
-            required
-            className="px-3 py-2"
-          />
-        </label>
+        <DateField
+          label="Počátek smlouvy"
+          value={values.startDate}
+          onValueChange={(startDate) => setValues({ ...values, startDate })}
+          disabled={disabled}
+          required
+        />
 
         <SelectField
           value={values.status}

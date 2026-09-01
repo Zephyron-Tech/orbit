@@ -11,6 +11,8 @@ import {
   updateRecurringExpense,
   type RecurringExpenseInput,
 } from '@/app/(dashboard)/planning/recurring-actions';
+import { AmountField } from '@/components/ui/amount-field';
+import { DateField } from '@/components/ui/date-field';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MoneyValue } from '@/components/ui/money-value';
 import { SectionHeader } from '@/components/ui/page-container';
@@ -417,12 +419,12 @@ function RecurringExpenseForm({
 
         <label className="ui-label min-w-0">
           <span>Očekávaná měsíční částka</span>
-          <input
+          <AmountField
             value={values.expectedAmount}
-            onChange={(event) => setValues({ ...values, expectedAmount: event.target.value })}
+            onChange={(expectedAmount) => setValues({ ...values, expectedAmount })}
             disabled={disabled}
             required
-            inputMode="decimal"
+            decimalSeparator=","
             placeholder="18200"
             className="px-3 py-2"
           />
@@ -467,27 +469,19 @@ function RecurringExpenseForm({
           />
         </label>
 
-        <label className="ui-label min-w-0">
-          <span>Platí od</span>
-          <input
-            type="date"
-            value={values.startsOn ?? ''}
-            onChange={(event) => setValues({ ...values, startsOn: event.target.value || null })}
-            disabled={disabled}
-            className="px-3 py-2"
-          />
-        </label>
+        <DateField
+          label="Platí od"
+          value={values.startsOn ?? ''}
+          onValueChange={(startsOn) => setValues({ ...values, startsOn: startsOn || null })}
+          disabled={disabled}
+        />
 
-        <label className="ui-label min-w-0">
-          <span>Platí do</span>
-          <input
-            type="date"
-            value={values.endsOn ?? ''}
-            onChange={(event) => setValues({ ...values, endsOn: event.target.value || null })}
-            disabled={disabled}
-            className="px-3 py-2"
-          />
-        </label>
+        <DateField
+          label="Platí do"
+          value={values.endsOn ?? ''}
+          onValueChange={(endsOn) => setValues({ ...values, endsOn: endsOn || null })}
+          disabled={disabled}
+        />
 
         <SelectField
           value={values.paymentAccountId ?? ''}

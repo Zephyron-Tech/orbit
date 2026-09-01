@@ -18,6 +18,8 @@ import {
   type AccountInput,
   type CreditRepaymentCandidate,
 } from '@/app/(dashboard)/accounts/actions';
+import { AmountField } from '@/components/ui/amount-field';
+import { DateField } from '@/components/ui/date-field';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MoneyValue } from '@/components/ui/money-value';
 import { SectionHeader } from '@/components/ui/page-container';
@@ -586,15 +588,14 @@ function AccountForm({
           <>
             <label className="ui-label min-w-0">
               <span>Kreditní limit</span>
-              <input
-                inputMode="decimal"
+              <AmountField
                 value={values.creditLimit ?? ''}
-                onChange={(event) => setValues({ ...values, creditLimit: event.target.value || null })}
+                onChange={(creditLimit) => setValues({ ...values, creditLimit: creditLimit || null })}
                 disabled={disabled}
                 placeholder="30 000"
                 className="px-3 py-2"
               />
-              <span className="ui-helper">Například 30 000 Kč. Zadejte bez mezer.</span>
+              <span className="ui-helper">Například 30 000 Kč.</span>
             </label>
             <label className="ui-label min-w-0">
               <span>Poslední 4 číslice karty</span>
@@ -745,27 +746,16 @@ function CreditDebtForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="ui-label min-w-0">
           <span>Aktuální dluh ({currency})</span>
-          <input
-            inputMode="decimal"
+          <AmountField
             value={debt}
-            onChange={(event) => setDebt(event.target.value)}
+            onChange={setDebt}
             disabled={disabled}
             required
             placeholder="5 000"
             className="px-3 py-2"
           />
         </label>
-        <label className="ui-label min-w-0">
-          <span>Platný k datu</span>
-          <input
-            type="date"
-            value={asOf}
-            onChange={(event) => setAsOf(event.target.value)}
-            disabled={disabled}
-            required
-            className="px-3 py-2"
-          />
-        </label>
+        <DateField label="Platný k datu" value={asOf} onValueChange={setAsOf} disabled={disabled} required />
       </div>
       <div className="flex flex-col-reverse gap-2 sm:flex-row">
         <button type="button" onClick={onCancel} disabled={disabled} className="ui-button ui-button-secondary">
