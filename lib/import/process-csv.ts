@@ -240,7 +240,14 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
   // The export names the account it belongs to; refuse to file July's Moneta
   // statement under the Revolut account. Normalisation is shared with internal
   // transfer detection: a CSV prints "204370628/0600", a statement "204370628".
-  if (parsed.sourceAccountId && account.externalId) {
+  //
+  // Skipped for CREDIT accounts: a card statement's sourceAccountId is the
+  // card's contract number ("Variabilní symbol"), not an account number —
+  // there is no field on the document in the same identifier space as
+  // Account.externalId (which for a card is typically the payment account,
+  // e.g. "301030/0600", something else entirely). Identity is already
+  // verified below via cardLast4, which is the real binding for a card.
+  if (account.type !== 'CREDIT' && parsed.sourceAccountId && account.externalId) {
     if (normalizeAccountNumber(parsed.sourceAccountId) !== normalizeAccountNumber(account.externalId)) {
       throw new ImportError(
         `Soubor patří k účtu ${parsed.sourceAccountId}, ale ${account.name} má číslo ${account.externalId}`,
