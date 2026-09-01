@@ -135,4 +135,22 @@ describe('parseMonetaStatement self-check', () => {
     expect(result.period.from).toBeNull();
     expect(result.period.to).toBe('2026-07-31');
   });
+
+  it('falls back to attributes for two distinct rows sharing one @id, instead of silently dropping one at import time', () => {
+    // Moneta genuinely does this on a same-day interest+tax pair (verified
+    // against a real savings statement); reproduced here by forcing two
+    // otherwise-distinct real rows to share an id.
+    const xml = load(STATEMENT).replace('id="666253V736248517386"', 'id="980718S58185102457"');
+    const result = parseMonetaStatement(xml);
+
+    const affected = result.transactions.filter((t) => t.raw['@id'] === '980718S58185102457');
+
+    expect(affected).toHaveLength(2);
+    expect(affected.every((t) => t.externalId === null)).toBe(true);
+    // Untouched rows keep their reference.
+    expect(result.transactions.filter((t) => t.externalId === null)).toHaveLength(2);
+    // Not surfaced as a warning: it would otherwise block the checkpoint
+    // anchor every time a savings statement has interest, i.e. monthly.
+    expect(result.warnings).toEqual([]);
+  });
 });
