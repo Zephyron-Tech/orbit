@@ -129,6 +129,37 @@ describe('credit card payoff auto-detection (Variabilní Symbol match)', () => {
     expect(newSnapshot.balance.toFixed(2)).toBe('797.00');
   });
 
+  it('rescues a payment already stuck as PENDING_TRANSFER (import-time false-positive internal-transfer guess)', async () => {
+    // Reproduces a real scenario: the credit account's own Account.externalId
+    // happened to equal the payment's counterparty account (Moneta's shared
+    // card-clearing account), so the generic import-time internal-transfer
+    // matcher flagged this row PENDING_TRANSFER — a guess with no second leg
+    // to ever match, since the credit account has no transaction without a
+    // card statement. It must still be reachable here, or it's stuck forever.
+    const stuck = await prisma.transaction.create({
+      data: {
+        accountId: checkingAccountId,
+        date: new Date('2026-09-03T00:00:00.000Z'),
+        amount: '-1000.00',
+        amountCzk: '-1000.00',
+        currency: 'CZK',
+        merchant: 'MMB - TECH. ÚČTY',
+        kind: 'PENDING_TRANSFER',
+        idempotencyKey: 'test-payoff-pending-transfer',
+        rawData: { 'Variabilní Symbol': VARIABLE_SYMBOL },
+      },
+    });
+
+    const candidates = await findCreditRepaymentCandidates();
+    expect(candidates.some((c) => c.sourceTransactionId === stuck.id && c.matchedBy === 'VARIABLE_SYMBOL')).toBe(true);
+
+    const result = await confirmCreditPayoffFromChecking(stuck.id, creditAccountId);
+    expect(result.ok).toBe(true);
+
+    const updated = await prisma.transaction.findUniqueOrThrow({ where: { id: stuck.id } });
+    expect(updated.kind).toBe('INTERNAL_TRANSFER');
+  });
+
   it('refuses to confirm a payoff whose Variabilní Symbol does not match', async () => {
     const mismatched = await prisma.transaction.create({
       data: {

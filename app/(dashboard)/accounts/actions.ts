@@ -425,19 +425,31 @@ function readVariableSymbol(rawData: Prisma.JsonValue | null): string | null {
 
 export async function findCreditRepaymentCandidates(): Promise<CreditRepaymentCandidate[]> {
   if (!(await getActiveUser())) return [];
+  // PENDING_TRANSFER included alongside NORMAL: a card payment's counterparty
+  // account (Moneta's shared card-clearing account) can coincidentally equal
+  // another account's own Account.externalId, which the generic import-time
+  // internal-transfer guess (lib/import/internal-transfers.ts) then flags as
+  // PENDING_TRANSFER — a one-sided guess with no second leg to match, since
+  // the credit account has no transaction of its own without a card
+  // statement. Excluding PENDING_TRANSFER here would make that row invisible
+  // to this matcher forever, stuck.
   const rows = await prisma.transaction.findMany({
-    where: { transferId: null, kind: 'NORMAL', amountCzk: { not: null } },
-    select: { id: true, accountId: true, date: true, amountCzk: true, rawData: true, account: { select: { name: true, type: true } } },
+    where: { transferId: null, kind: { in: ['NORMAL', 'PENDING_TRANSFER'] }, amountCzk: { not: null } },
+    select: { id: true, accountId: true, date: true, amountCzk: true, rawData: true, kind: true, account: { select: { name: true, type: true } } },
   });
   const candidates: CreditRepaymentCandidate[] = [];
   const matchedSourceIds = new Set<string>();
+  // Amount/date matching stays NORMAL-only on both sides: unlike the
+  // Variabilní Symbol match below, it has no independent bank-assigned
+  // reference to fall back on, so it should not widen to a guessed kind too.
   const creditRows = rows.filter(
     (row): row is typeof row & { amountCzk: Prisma.Decimal } =>
-      row.account.type === 'CREDIT' && row.amountCzk !== null && row.amountCzk.isPositive(),
+      row.kind === 'NORMAL' && row.account.type === 'CREDIT' && row.amountCzk !== null && row.amountCzk.isPositive(),
   );
 
   for (const credit of creditRows) {
     const sourceMatches = rows.filter((source) =>
+      source.kind === 'NORMAL' &&
       source.account.type !== 'CREDIT' &&
       source.amountCzk?.isNegative() &&
       source.amountCzk.abs().equals(credit.amountCzk.abs()) &&
