@@ -154,3 +154,60 @@ export async function processFuelReceiptUpload({ bytes, dryRun }: ProcessFuelRec
     discountAmount: receipt.discountAmount.toFixed(2),
   };
 }
+
+export interface RematchResult {
+  matched: number;
+  stillUnmatched: number;
+}
+
+/**
+ * Re-runs matching for every receipt still stuck at `purchaseId: null`.
+ *
+ * Matching otherwise only ever runs once, at upload time (see
+ * `processFuelReceiptUpload` above) — a receipt uploaded before its
+ * corresponding `Sales.xls` import has no `FuelPurchase` candidates to match
+ * against yet, and nothing retries it afterward. Re-uploading the same PDF
+ * doesn't help either: it's rejected as already imported by both `docNumber`
+ * and file hash, before matching would even run.
+ */
+export async function rematchFuelReceipts(): Promise<RematchResult> {
+  const unmatched = await prisma.fuelReceipt.findMany({
+    where: { purchaseId: null },
+    select: { id: true, stationCode: true, purchasedAt: true, totalAfterDiscount: true },
+    orderBy: { purchasedAt: 'asc' },
+  });
+
+  if (unmatched.length === 0) {
+    return { matched: 0, stillUnmatched: 0 };
+  }
+
+  const candidates = await prisma.fuelPurchase.findMany({
+    where: { receipt: null },
+    select: { id: true, stationCode: true, purchasedAt: true, amountCzk: true },
+  });
+
+  // A purchase claimed by one receipt in this pass must not also be offered
+  // to the next — same one-purchase-one-receipt rule the unique constraint
+  // on FuelReceipt.purchaseId enforces at the database level.
+  const claimedPurchaseIds = new Set<string>();
+  let matched = 0;
+
+  for (const receipt of unmatched) {
+    const remainingCandidates = candidates.filter((candidate) => !claimedPurchaseIds.has(candidate.id));
+
+    const matchedPurchaseId = matchReceiptToPurchase(
+      { stationCode: receipt.stationCode, purchasedAt: receipt.purchasedAt, totalAfterDiscount: receipt.totalAfterDiscount },
+      remainingCandidates,
+    );
+
+    if (!matchedPurchaseId) {
+      continue;
+    }
+
+    claimedPurchaseIds.add(matchedPurchaseId);
+    await prisma.fuelReceipt.update({ where: { id: receipt.id }, data: { purchaseId: matchedPurchaseId } });
+    matched += 1;
+  }
+
+  return { matched, stillUnmatched: unmatched.length - matched };
+}
