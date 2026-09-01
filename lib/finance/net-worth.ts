@@ -136,14 +136,15 @@ export function calculateNetWorth(
     }
 
     const snapshot = latest.get(account.id);
-    // Card availability is sometimes entered as a positive "balance". That is
-    // unused credit capacity, not a household asset or a debt anchor. CREDIT
-    // accounts accept only zero/negative balance anchors; otherwise their debt
-    // derives from the imported card movements.
-    const usableSnapshot =
-      snapshot?.balanceCzk && (account.type !== 'CREDIT' || snapshot.balanceCzk.lessThanOrEqualTo(0))
-        ? snapshot
-        : undefined;
+    // A CREDIT snapshot can legitimately be positive (an overpayment — see
+    // the liability/asset split below), so its sign alone is never a reason
+    // to distrust it as an anchor. The one thing that used to produce an
+    // untrustworthy positive figure — a movement-CSV import's manually typed
+    // closing balance, with no sign convention — no longer reaches a CREDIT
+    // account's checkpoint at all (see needsAnchor in process-csv.ts); every
+    // CREDIT anchor now comes from a real statement or one of the dedicated
+    // debt-entry tools on /accounts, both trustworthy regardless of sign.
+    const usableSnapshot = snapshot?.balanceCzk ? snapshot : undefined;
 
     // An investment account is only as good as its last snapshot. Falling back
     // to a transaction sum would report a confidently wrong number.
@@ -177,9 +178,12 @@ export function calculateNetWorth(
       investmentValue = investmentValue.plus(balance);
     } else if (account.type === 'CREDIT') {
       // A credit limit is configuration, never a balance. Negative balance is
-      // debt; a positive refund/overpayment is a real household asset.
+      // debt; a positive refund/overpayment is a real household asset, so it
+      // counts the same way a positive checking balance would.
       if (balance.isNegative()) {
         liabilityValue = liabilityValue.plus(balance.abs());
+      } else {
+        cashValue = cashValue.plus(balance);
       }
     } else {
       cashValue = cashValue.plus(balance);

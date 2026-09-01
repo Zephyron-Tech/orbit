@@ -392,7 +392,16 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     failures: parsed.failures.map((failure) => ({ rowNumber: failure.rowNumber, reason: failure.reason })),
     checkpoint: null,
     derivedBalance: null,
-    needsAnchor: anyStatementResult === null && (await prisma.accountSnapshot.count({ where: { accountId: account.id } })) === 0,
+    // CREDIT accounts never ask here: they have their own dedicated anchor
+    // tools ("Splatit dluh", "Potvrdit nulový start" on /accounts) that
+    // already enforce the correct debt-is-negative sign convention. This
+    // generic prompt takes whatever a person types verbatim with no sign
+    // handling — real production data once had a genuine card debt overwritten
+    // by a positive "available credit" figure typed in here by mistake.
+    needsAnchor:
+      account.type !== 'CREDIT' &&
+      anyStatementResult === null &&
+      (await prisma.accountSnapshot.count({ where: { accountId: account.id } })) === 0,
     kind: anyStatementResult ? ('STATEMENT' as const) : ('MOVEMENTS' as const),
     statement: anyStatementResult
       ? {
@@ -553,7 +562,12 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     ? anyStatementResult.warnings.length === 0
       ? { day: anyStatementResult.period.to, balance: anyStatementResult.closingBalance }
       : null
-    : options.closingBalance && periodTo
+    // Same reasoning as needsAnchor above: a CREDIT account's manual anchor
+    // must go through the dedicated debt-entry tools, which enforce the
+    // negative-is-debt sign convention. A typed-in movement-CSV closingBalance
+    // never does, and it takes only one honest mistake to overwrite a real
+    // debt with a positive "available credit" figure.
+    : options.closingBalance && periodTo && account.type !== 'CREDIT'
       ? { day: periodTo.toISOString().slice(0, 10), balance: options.closingBalance }
       : null;
 
