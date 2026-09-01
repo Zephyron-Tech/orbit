@@ -397,24 +397,45 @@ export async function reorderAccount(id: string, direction: -1 | 1): Promise<Act
 }
 
 export interface CreditRepaymentCandidate {
-  creditTransactionId: string;
+  /** Null when there is no transaction on the credit account to pair with — see `creditAccountId` instead. */
+  creditTransactionId: string | null;
   sourceTransactionId: string;
   amount: string;
   date: string;
   sourceAccountName: string;
+  /** How this candidate was matched. */
+  matchedBy: 'AMOUNT_DATE' | 'VARIABLE_SYMBOL';
+  /** Only set for a VARIABLE_SYMBOL match — which credit account to check off. */
+  creditAccountId?: string;
+  creditAccountName?: string;
+}
+
+/** The raw CSV row's own key for "Variabilní Symbol" — see lib/parsers/csv/moneta.ts's COLUMNS map. */
+const VARIABLE_SYMBOL_KEY = 'Variabilní Symbol';
+
+function readVariableSymbol(rawData: Prisma.JsonValue | null): string | null {
+  if (rawData === null || typeof rawData !== 'object' || Array.isArray(rawData)) {
+    return null;
+  }
+
+  const value = (rawData as Record<string, unknown>)[VARIABLE_SYMBOL_KEY];
+
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
 export async function findCreditRepaymentCandidates(): Promise<CreditRepaymentCandidate[]> {
   if (!(await getActiveUser())) return [];
   const rows = await prisma.transaction.findMany({
     where: { transferId: null, kind: 'NORMAL', amountCzk: { not: null } },
-    select: { id: true, accountId: true, date: true, amountCzk: true, account: { select: { name: true, type: true } } },
+    select: { id: true, accountId: true, date: true, amountCzk: true, rawData: true, account: { select: { name: true, type: true } } },
   });
   const candidates: CreditRepaymentCandidate[] = [];
+  const matchedSourceIds = new Set<string>();
   const creditRows = rows.filter(
     (row): row is typeof row & { amountCzk: Prisma.Decimal } =>
       row.account.type === 'CREDIT' && row.amountCzk !== null && row.amountCzk.isPositive(),
   );
+
   for (const credit of creditRows) {
     const sourceMatches = rows.filter((source) =>
       source.account.type !== 'CREDIT' &&
@@ -426,15 +447,140 @@ export async function findCreditRepaymentCandidates(): Promise<CreditRepaymentCa
     if (sourceMatches.length !== 1) continue;
     const source = sourceMatches[0];
     if (!source) continue;
+    matchedSourceIds.add(source.id);
     candidates.push({
       creditTransactionId: credit.id,
       sourceTransactionId: source.id,
       amount: credit.amountCzk.toFixed(2),
       date: credit.date.toISOString().slice(0, 10),
       sourceAccountName: source.account.name,
+      matchedBy: 'AMOUNT_DATE',
     });
   }
+
+  // Second detection: a checking-side payoff with no card statement imported
+  // yet, so there is no transaction on the credit account to pair against.
+  // Matched instead on Variabilní Symbol, which Moneta sets to the card's own
+  // contract number on a card payment — the same value stored as the credit
+  // account's Account.externalId (see lib/parsers/pdf/moneta-credit-card-statement.ts).
+  // A bank-assigned reference, not a guess, same trust level as Bankovní
+  // reference elsewhere in this codebase. Requires an existing checkpoint on
+  // the credit account — with none at all, adding the payment to an assumed
+  // zero would itself be a guess; `confirmCreditZeroStart` is the intended
+  // way to establish that baseline first.
+  const creditAccounts = await prisma.account.findMany({
+    where: { type: 'CREDIT', currency: 'CZK', externalId: { not: null } },
+    select: { id: true, name: true, externalId: true },
+  });
+  const creditAccountsWithAnchor = creditAccounts.length
+    ? await prisma.accountSnapshot.findMany({
+        where: { accountId: { in: creditAccounts.map((a) => a.id) } },
+        select: { accountId: true },
+        distinct: ['accountId'],
+      })
+    : [];
+  const anchoredCreditAccountIds = new Set(creditAccountsWithAnchor.map((s) => s.accountId));
+
+  for (const creditAccount of creditAccounts) {
+    if (!anchoredCreditAccountIds.has(creditAccount.id) || !creditAccount.externalId) {
+      continue;
+    }
+
+    for (const source of rows) {
+      if (
+        source.account.type === 'CREDIT' ||
+        matchedSourceIds.has(source.id) ||
+        !source.amountCzk?.isNegative() ||
+        readVariableSymbol(source.rawData) !== creditAccount.externalId
+      ) {
+        continue;
+      }
+
+      matchedSourceIds.add(source.id);
+      candidates.push({
+        creditTransactionId: null,
+        sourceTransactionId: source.id,
+        amount: source.amountCzk.abs().toFixed(2),
+        date: source.date.toISOString().slice(0, 10),
+        sourceAccountName: source.account.name,
+        matchedBy: 'VARIABLE_SYMBOL',
+        creditAccountId: creditAccount.id,
+        creditAccountName: creditAccount.name,
+      });
+    }
+  }
+
   return candidates;
+}
+
+export async function confirmCreditPayoffFromChecking(sourceTransactionId: string, creditAccountId: string): Promise<ActionResult> {
+  if (!(await getActiveUser())) return { ok: false, error: 'Přihlaste se prosím' };
+  const parsed = z.tuple([z.uuid(), z.uuid()]).safeParse([sourceTransactionId, creditAccountId]);
+  if (!parsed.success) return { ok: false, error: 'Neplatné transakce' };
+  const [sourceId, creditId] = parsed.data;
+
+  const [source, creditAccount] = await Promise.all([
+    prisma.transaction.findUnique({
+      where: { id: sourceId },
+      select: { id: true, date: true, amountCzk: true, transferId: true, rawData: true, account: { select: { type: true } } },
+    }),
+    prisma.account.findUnique({ where: { id: creditId }, select: { type: true, currency: true, externalId: true } }),
+  ]);
+
+  // Re-verified server-side rather than trusting the client-supplied pairing —
+  // same discipline as confirmCreditRepayment.
+  if (
+    !source ||
+    source.transferId !== null ||
+    source.account.type === 'CREDIT' ||
+    !source.amountCzk?.isNegative() ||
+    !creditAccount ||
+    creditAccount.type !== 'CREDIT' ||
+    creditAccount.currency !== 'CZK' ||
+    !creditAccount.externalId ||
+    readVariableSymbol(source.rawData) !== creditAccount.externalId
+  ) {
+    return { ok: false, error: 'Platba neodpovídá variabilnímu symbolu kreditky.' };
+  }
+
+  const latestSnapshot = await prisma.accountSnapshot.findFirst({
+    where: { accountId: creditId },
+    orderBy: { capturedAt: 'desc' },
+    select: { balance: true },
+  });
+
+  if (!latestSnapshot) {
+    return { ok: false, error: 'Kreditka nemá žádný počáteční stav — nejdřív potvrďte nulový start nebo zadejte dluh ručně.' };
+  }
+
+  const day = source.date.toISOString().slice(0, 10);
+  const newBalance = latestSnapshot.balance.plus(source.amountCzk.abs());
+  const transferCategory = await prisma.category.findFirst({ where: { key: 'transfer', isActive: true }, select: { id: true } });
+
+  await prisma.$transaction(async (tx) => {
+    const transfer = await tx.transfer.create({ data: { legs: { connect: [{ id: sourceId }] } } });
+    await tx.transaction.update({ where: { id: sourceId }, data: { kind: 'INTERNAL_TRANSFER', transferId: transfer.id, categoryId: transferCategory?.id ?? null } });
+  });
+
+  try {
+    await recordBalanceCheckpoint({
+      accountId: creditId,
+      day,
+      balance: newBalance.toString(),
+      note: `Payoff matched to transaction ${sourceId} (Variabilní symbol)`,
+    });
+  } catch (error: unknown) {
+    console.error('Credit payoff checkpoint failed', error);
+    return { ok: false, error: 'Splacení se podařilo spárovat, ale nový zůstatek kreditky se nepodařilo uložit.' };
+  }
+
+  revalidateAccountViews();
+  revalidatePath('/transactions');
+  void rebuildMonthlyNetWorth(new Date(Date.UTC(source.date.getUTCFullYear(), source.date.getUTCMonth(), 1)), new Date()).catch((error: unknown) =>
+    console.error('Monthly net-worth rebuild failed after credit payoff', error),
+  );
+
+  return { ok: true };
 }
 
 export async function confirmCreditRepayment(creditTransactionId: string, sourceTransactionId: string): Promise<ActionResult> {

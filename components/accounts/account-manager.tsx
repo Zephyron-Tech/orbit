@@ -11,10 +11,12 @@ import {
   confirmCreditZeroStart,
   clearCreditCapacitySnapshot,
   confirmCreditRepayment,
+  confirmCreditPayoffFromChecking,
   reorderAccount,
   setAccountArchived,
   updateAccount,
   type AccountInput,
+  type CreditRepaymentCandidate,
 } from '@/app/(dashboard)/accounts/actions';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MoneyValue } from '@/components/ui/money-value';
@@ -29,8 +31,6 @@ export interface AccountRow extends AccountInput {
   creditDetails: { limit: string; debt: string; capacity: string; asOf: string | null; invalidCapacitySnapshot: boolean } | null;
   creditNeedsOpeningConfirmation: boolean;
 }
-
-export interface CreditRepaymentCandidate { creditTransactionId: string; sourceTransactionId: string; amount: string; date: string; sourceAccountName: string }
 
 const TYPE_LABELS: Record<AccountInput['type'], string> = {
   CHECKING: 'Běžný účet',
@@ -431,9 +431,30 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
           <SectionHeader title="Nalezené splacení kreditky" description="Po ruční platbě v bance potvrďte odpovídající dvojici importovaných pohybů." />
           <div className="mt-4 flex flex-col gap-3">
             {repaymentCandidates.map((candidate) => (
-              <div key={candidate.creditTransactionId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-[var(--surface-raised)] p-3">
-                <p className="text-sm text-ink-muted">{candidate.date} · {candidate.sourceAccountName} → kreditní karta · <span className="font-semibold text-ink"><MoneyValue>{formatMoney(candidate.amount, 'CZK')}</MoneyValue></span></p>
-                <button type="button" disabled={isPending} onClick={() => run(() => confirmCreditRepayment(candidate.creditTransactionId, candidate.sourceTransactionId), 'Splacení kreditky bylo potvrzeno jako interní převod.')} className="ui-button ui-button-primary">Potvrdit splacení</button>
+              <div key={candidate.sourceTransactionId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-[var(--surface-raised)] p-3">
+                <p className="text-sm text-ink-muted">
+                  {candidate.date} · {candidate.sourceAccountName} → {candidate.matchedBy === 'VARIABLE_SYMBOL' ? candidate.creditAccountName : 'kreditní karta'} ·{' '}
+                  <span className="font-semibold text-ink"><MoneyValue>{formatMoney(candidate.amount, 'CZK')}</MoneyValue></span>
+                  {candidate.matchedBy === 'VARIABLE_SYMBOL' ? (
+                    <span className="ml-1 text-xs text-ink-muted">(podle variabilního symbolu kreditky — výpis karty zatím není nahraný)</span>
+                  ) : null}
+                </p>
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() =>
+                    run(
+                      () =>
+                        candidate.matchedBy === 'VARIABLE_SYMBOL' && candidate.creditAccountId
+                          ? confirmCreditPayoffFromChecking(candidate.sourceTransactionId, candidate.creditAccountId)
+                          : confirmCreditRepayment(candidate.creditTransactionId as string, candidate.sourceTransactionId),
+                      'Splacení kreditky bylo potvrzeno jako interní převod.',
+                    )
+                  }
+                  className="ui-button ui-button-primary"
+                >
+                  Potvrdit splacení
+                </button>
               </div>
             ))}
           </div>
