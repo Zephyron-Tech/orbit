@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 
+import { PDFParse } from 'pdf-parse';
+
 import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
 import type { Provider } from '@/lib/generated/prisma/enums';
@@ -10,6 +12,8 @@ import { classifyByMerchant, mapMonetaCategory } from '@/lib/parsers/csv/moneta-
 import { getCsvParser } from '@/lib/parsers/csv/registry';
 import { CsvStructureError, type ParsedTransaction } from '@/lib/parsers/csv/types';
 import { parseMonetaStatement, type StatementParseResult } from '@/lib/parsers/xml/moneta-statement';
+import { parseMonetaCreditCardStatement, type CreditCardStatementParseResult } from '@/lib/parsers/pdf/moneta-credit-card-statement';
+import { ensurePdfWorkerConfigured } from '@/lib/parsers/pdf/pdf-worker';
 
 import { recordBalanceCheckpoint, type CheckpointResult } from './checkpoints';
 import { buildOwnAccountIndex, isInternalTransfer, isTrading212Funding, normalizeAccountNumber } from './internal-transfers';
@@ -49,7 +53,8 @@ export interface ImportRowPreview {
 
 export interface StatementInfo {
   number: string;
-  from: string;
+  /** `null` on an account's first-ever statement — no prior coverage exists. */
+  from: string | null;
   to: string;
   openingBalance: string;
   closingBalance: string;
@@ -145,11 +150,39 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     );
   }
 
-  const decoded = decodeCsv(options.bytes);
+  // A PDF is a credit card statement — the only file type here that isn't
+  // text, so it's checked by magic bytes before anything tries to decode it
+  // as one.
+  const isPdf = options.bytes.length >= 4 && new TextDecoder().decode(options.bytes.slice(0, 4)) === '%PDF';
+
+  const creditCardResult: CreditCardStatementParseResult | null = isPdf
+    ? await (async () => {
+        ensurePdfWorkerConfigured();
+        const pdf = new PDFParse({ data: Buffer.from(options.bytes) });
+
+        try {
+          const { text } = await pdf.getText();
+
+          try {
+            return parseMonetaCreditCardStatement(text);
+          } catch (error: unknown) {
+            const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný výpis ke kreditní kartě (PDF)';
+
+            throw new ImportError(reason, 'BAD_FORMAT');
+          }
+        } finally {
+          await pdf.destroy();
+        }
+      })()
+    : null;
+
+  // A movement export never touches this branch; decoding a PDF's binary
+  // bytes as text would just produce garbage, so this only runs otherwise.
+  const decoded = isPdf ? null : decodeCsv(options.bytes);
 
   // A monthly statement is XML and carries balances; a movement export is CSV
   // and does not. The file decides, not the caller.
-  const isStatement = looksLikeStatement(options.filename, decoded.text);
+  const isStatement = decoded !== null && looksLikeStatement(options.filename, decoded.text);
 
   const statementResult: StatementParseResult | null = isStatement
     ? (() => {
@@ -163,23 +196,46 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
       })()
     : null;
 
-  const parsed = statementResult
+  const parsed = creditCardResult
     ? {
-       provider: statementResult.provider,
-       sourceAccountId: statementResult.sourceAccountId,
-       sourceCardLast4: null,
-        transactions: statementResult.transactions,
+        provider: creditCardResult.provider,
+        sourceAccountId: creditCardResult.sourceAccountId,
+        sourceCardLast4: creditCardResult.sourceCardLast4,
+        transactions: creditCardResult.transactions,
         failures: [],
       }
-    : (() => {
-        try {
-          return parser(decoded.text);
-        } catch (error: unknown) {
-          const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný CSV soubor';
-
-          throw new ImportError(reason, 'BAD_FORMAT');
+    : statementResult
+      ? {
+          provider: statementResult.provider,
+          sourceAccountId: statementResult.sourceAccountId,
+          sourceCardLast4: null,
+          transactions: statementResult.transactions,
+          failures: [],
         }
-      })();
+      : (() => {
+          try {
+            return parser(decoded!.text);
+          } catch (error: unknown) {
+            const reason = error instanceof CsvStructureError ? error.message : 'Nečitelný CSV soubor';
+
+            throw new ImportError(reason, 'BAD_FORMAT');
+          }
+        })();
+
+  // Both statement shapes (XML bank statement, PDF card statement) carry
+  // balances and a period; a movement CSV carries neither. Everything below
+  // that renders/persists "the statement" reads from this one place instead
+  // of branching on which parser produced it.
+  const anyStatementResult: { period: { number: string; from: string | null; to: string }; openingBalance: string; closingBalance: string; warnings: string[] } | null = statementResult
+    ? statementResult
+    : creditCardResult
+      ? {
+          period: { number: creditCardResult.number, from: creditCardResult.period.from, to: creditCardResult.period.to },
+          openingBalance: creditCardResult.openingBalance,
+          closingBalance: creditCardResult.closingBalance,
+          warnings: creditCardResult.warnings,
+        }
+      : null;
 
   // The export names the account it belongs to; refuse to file July's Moneta
   // statement under the Revolut account. Normalisation is shared with internal
@@ -318,7 +374,7 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     filename: options.filename,
     dryRun: options.dryRun,
     dedupStrategy,
-    encoding: decoded.encoding,
+    encoding: decoded?.encoding ?? 'pdf',
     rowCount: parsed.transactions.length + parsed.failures.length,
     inserted: fresh.length,
     skipped,
@@ -329,16 +385,16 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     failures: parsed.failures.map((failure) => ({ rowNumber: failure.rowNumber, reason: failure.reason })),
     checkpoint: null,
     derivedBalance: null,
-    needsAnchor: statementResult === null && (await prisma.accountSnapshot.count({ where: { accountId: account.id } })) === 0,
-    kind: statementResult ? ('STATEMENT' as const) : ('MOVEMENTS' as const),
-    statement: statementResult
+    needsAnchor: anyStatementResult === null && (await prisma.accountSnapshot.count({ where: { accountId: account.id } })) === 0,
+    kind: anyStatementResult ? ('STATEMENT' as const) : ('MOVEMENTS' as const),
+    statement: anyStatementResult
       ? {
-          number: statementResult.period.number,
-          from: statementResult.period.from,
-          to: statementResult.period.to,
-          openingBalance: statementResult.openingBalance,
-          closingBalance: statementResult.closingBalance,
-          warnings: statementResult.warnings,
+          number: anyStatementResult.period.number,
+          from: anyStatementResult.period.from,
+          to: anyStatementResult.period.to,
+          openingBalance: anyStatementResult.openingBalance,
+          closingBalance: anyStatementResult.closingBalance,
+          warnings: anyStatementResult.warnings,
         }
       : null,
   };
@@ -382,10 +438,12 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
         filename: options.filename,
         fileHash,
         status: 'PENDING',
-        statementNumber: statementResult?.period.number ?? null,
+        statementNumber: anyStatementResult?.period.number ?? null,
         // Only a statement declares what it covers; a movement export does not.
-        coverageFrom: statementResult ? new Date(`${statementResult.period.from}T00:00:00.000Z`) : null,
-        coverageTo: statementResult ? new Date(`${statementResult.period.to}T00:00:00.000Z`) : null,
+        // `null` on a movement export, and also on an account's first-ever
+        // statement — there is no prior coverage to declare either way.
+        coverageFrom: anyStatementResult?.period.from ? new Date(`${anyStatementResult.period.from}T00:00:00.000Z`) : null,
+        coverageTo: anyStatementResult ? new Date(`${anyStatementResult.period.to}T00:00:00.000Z`) : null,
       },
     });
 
@@ -484,9 +542,9 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
   // A statement that failed its own self-check is not trusted as an anchor: a
   // wrong balance is worse than none, because everything after it inherits the
   // error silently.
-  const anchor = statementResult
-    ? statementResult.warnings.length === 0
-      ? { day: statementResult.period.to, balance: statementResult.closingBalance }
+  const anchor = anyStatementResult
+    ? anyStatementResult.warnings.length === 0
+      ? { day: anyStatementResult.period.to, balance: anyStatementResult.closingBalance }
       : null
     : options.closingBalance && periodTo
       ? { day: periodTo.toISOString().slice(0, 10), balance: options.closingBalance }
@@ -498,8 +556,8 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
         day: anchor.day,
         balance: anchor.balance,
         note: `Import ${options.filename}`,
-        source: statementResult ? 'STATEMENT' : 'MANUAL',
-        importBatchId: statementResult ? batch.id : null,
+        source: anyStatementResult ? 'STATEMENT' : 'MANUAL',
+        importBatchId: anyStatementResult ? batch.id : null,
       })
     : null;
 
@@ -519,10 +577,11 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
   }
   if (statementResult) {
     try {
-      await rebuildMonthlyNetWorth(
-        new Date(`${statementResult.period.from.slice(0, 7)}-01T00:00:00.000Z`),
-        new Date(),
-      );
+      // First-ever statement has no `from` to rebuild back to; its own
+      // period's month is the earliest month this import could have touched.
+      const rebuildFromMonth = (statementResult.period.from ?? statementResult.period.to).slice(0, 7);
+
+      await rebuildMonthlyNetWorth(new Date(`${rebuildFromMonth}-01T00:00:00.000Z`), new Date());
     } catch (error: unknown) {
       console.error('Monthly net-worth rebuild failed after statement import', error);
     }
@@ -607,12 +666,7 @@ async function deriveBalance(accountId: string): Promise<DerivedBalance> {
   return {
     balance: balance.toFixed(2),
     anchoredAt: anchorAt?.toISOString().slice(0, 10) ?? null,
-    // A manual checkpoint written by a statement import notes the filename.
-    anchorSource: !anchor
-      ? 'NONE'
-      : anchor.source === 'PROVIDER' || anchor.note?.includes('.xml')
-        ? 'STATEMENT'
-        : 'MANUAL',
+    anchorSource: !anchor ? 'NONE' : anchor.source === 'STATEMENT' ? 'STATEMENT' : 'MANUAL',
     incomplete: anchor === null,
   };
 }

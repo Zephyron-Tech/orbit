@@ -55,7 +55,10 @@ const statementSchema = z.object({
       stmt: z.object({
         '@number': z.string().min(1),
         '@date': dateString,
-        '@date-previous': dateString,
+        // Empty (not omitted) on an account's first-ever statement — Moneta
+        // has no other field naming the period start, so this is the only
+        // signal for "no prior coverage exists" (see `period.from` below).
+        '@date-previous': z.union([dateString, z.literal('')]),
         '@trn-cnt': z.string(),
       }),
       account: z.object({
@@ -77,8 +80,14 @@ const statementSchema = z.object({
 export interface StatementPeriod {
   /** Sequence number, e.g. "2026000007". Consecutive statements chain by it. */
   number: string;
-  /** Exclusive start: the previous statement's closing date. */
-  from: string;
+  /**
+   * Exclusive start: the previous statement's closing date. `null` on an
+   * account's first-ever statement — there is no previous one to anchor to,
+   * and this project never infers coverage from transaction dates (see
+   * `findCoverageGaps` in CLAUDE.md), so that is reported honestly instead
+   * of guessed.
+   */
+  from: string | null;
   /** Inclusive end, and the date the closing balance is true as of. */
   to: string;
 }
@@ -262,7 +271,7 @@ export function parseMonetaStatement(xml: string): StatementParseResult {
     currency: account['@currency'].toUpperCase(),
     period: {
       number: header.stmt['@number'],
-      from: header.stmt['@date-previous'],
+      from: header.stmt['@date-previous'] || null,
       to: header.stmt['@date'],
     },
     openingBalance: normalizeAmount(account['stm-bgn-bal']),
