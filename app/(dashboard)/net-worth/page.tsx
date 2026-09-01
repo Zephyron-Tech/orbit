@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { czk } from '@/components/charts/chart-theme';
 import { NetWorthChart } from '@/components/charts/net-worth-chart';
 import { AccountCards, type AccountCardData } from '@/components/net-worth/account-cards';
+import { DismissTransferButton } from '@/components/net-worth/dismiss-transfer-button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MoneyValue } from '@/components/ui/money-value';
 import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
@@ -51,7 +52,7 @@ export default async function NetWorthPage(): Promise<React.JSX.Element> {
       select: { accountId: true, coverageFrom: true, coverageTo: true, account: { select: { name: true } } },
     }),
     prisma.transaction.findMany({
-       where: { kind: { in: ['INTERNAL_TRANSFER', 'PENDING_TRANSFER'] }, transferId: null },
+       where: { kind: { in: ['INTERNAL_TRANSFER', 'PENDING_TRANSFER'] }, transferId: null, transferDismissedAt: null },
        select: { id: true, date: true, amount: true, amountCzk: true, currency: true, merchant: true, account: { select: { name: true, provider: true } } },
       orderBy: { date: 'desc' },
     }),
@@ -463,14 +464,17 @@ function TransferRow({ transaction }: { transaction: TransferDiagnostic }): Reac
   });
 
   return (
-    <li className="break-words">
-      <time dateTime={transaction.date.toISOString()}>{transaction.date.toLocaleDateString('cs-CZ')}</time>
-      {' · '}
-      {transaction.account.name}
-      {' · '}
-      {transaction.merchant ?? 'Bez popisu'}
-      {' · '}
-      <span className="tabular text-ink"><MoneyValue>{formatter.format(amount)}</MoneyValue></span>
+    <li className="flex flex-wrap items-center justify-between gap-2 break-words">
+      <span>
+        <time dateTime={transaction.date.toISOString()}>{transaction.date.toLocaleDateString('cs-CZ')}</time>
+        {' · '}
+        {transaction.account.name}
+        {' · '}
+        {transaction.merchant ?? 'Bez popisu'}
+        {' · '}
+        <span className="tabular text-ink"><MoneyValue>{formatter.format(amount)}</MoneyValue></span>
+      </span>
+      <DismissTransferButton transactionId={transaction.id} />
     </li>
   );
 }
