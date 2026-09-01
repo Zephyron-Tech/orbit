@@ -35,7 +35,8 @@ interface CheckpointResult {
 
 interface StatementInfo {
   number: string;
-  from: string;
+  /** `null` on an account's first-ever statement — no prior coverage exists. */
+  from: string | null;
   to: string;
   openingBalance: string;
   closingBalance: string;
@@ -72,7 +73,7 @@ interface ImportSummary {
 type Phase = 'idle' | 'analyzing' | 'preview' | 'importing' | 'done';
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
-const ACCEPTED_EXTENSIONS = ['.csv', '.xml'];
+const ACCEPTED_EXTENSIONS = ['.csv', '.xml', '.pdf'];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -99,7 +100,7 @@ function isStatement(value: unknown): value is StatementInfo | null {
     value === null ||
     (isRecord(value) &&
       typeof value.number === 'string' &&
-      typeof value.from === 'string' &&
+      isNullableString(value.from) &&
       typeof value.to === 'string' &&
       typeof value.openingBalance === 'string' &&
       typeof value.closingBalance === 'string' &&
@@ -175,7 +176,7 @@ function validateFile(file: File): string | null {
   }
 
   if (!ACCEPTED_EXTENSIONS.some((extension) => file.name.toLowerCase().endsWith(extension))) {
-    return 'Podporované jsou pouze soubory .csv a .xml.';
+    return 'Podporované jsou pouze soubory .csv, .xml a .pdf.';
   }
 
   return null;
@@ -372,7 +373,7 @@ export function CsvDropzone({ accounts }: { accounts: AccountOption[] }): React.
               CSV
             </div>
             <p className="text-sm font-semibold">Přetáhněte výpis sem</p>
-            <p className="text-xs text-ink-muted">Soubory .csv nebo .xml, nejvýše 5 MB</p>
+            <p className="text-xs text-ink-muted">Soubory .csv, .xml nebo .pdf, nejvýše 5 MB</p>
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
@@ -384,7 +385,7 @@ export function CsvDropzone({ accounts }: { accounts: AccountOption[] }): React.
             <input
               ref={inputRef}
               type="file"
-              accept=".csv,.xml,text/csv,text/xml,application/xml"
+              accept=".csv,.xml,.pdf,text/csv,text/xml,application/xml,application/pdf"
               className="sr-only"
               disabled={busy}
               onChange={(event) => {
@@ -526,8 +527,10 @@ function StatementPanel({ statement }: { statement: StatementInfo }): React.JSX.
     );
   }
 
+  const period = statement.from ? `${statement.from} až ${statement.to}` : `první výpis účtu, do ${statement.to}`;
+
   return (
-    <StatusNotice title={`Výpis č. ${statement.number} · ${statement.from} až ${statement.to}`}>
+    <StatusNotice title={`Výpis č. ${statement.number} · ${period}`}>
       Počáteční zůstatek {statement.openingBalance} Kč, konečný zůstatek {statement.closingBalance} Kč. Výpis je vnitřně konzistentní; konečný zůstatek se automaticky uloží jako ověřený kontrolní bod.
     </StatusNotice>
   );

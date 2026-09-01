@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 /** A month of statements is a few tens of kilobytes; this is a generous ceiling. */
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
-const ACCEPTED_EXTENSIONS = ['.csv', '.xml'];
+const ACCEPTED_EXTENSIONS = ['.csv', '.xml', '.pdf'];
 
 const formSchema = z.object({
   accountId: z.uuid(),
@@ -59,7 +59,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   const file = formData.get('file');
 
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: 'Nahrajte prosím CSV nebo XML soubor' }, { status: 400 });
+    return NextResponse.json({ error: 'Nahrajte prosím CSV, XML nebo PDF soubor' }, { status: 400 });
   }
 
   if (file.size === 0) {
@@ -71,7 +71,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   if (!ACCEPTED_EXTENSIONS.some((extension) => file.name.toLowerCase().endsWith(extension))) {
-    return NextResponse.json({ error: 'Podporovány jsou soubory .csv a .xml' }, { status: 415 });
+    return NextResponse.json({ error: 'Podporovány jsou soubory .csv, .xml a .pdf' }, { status: 415 });
   }
 
   try {

@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { join } from 'node:path';
 
 import { PDFParse } from 'pdf-parse';
 
@@ -7,27 +6,7 @@ import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
 import { matchReceiptToPurchase } from '@/lib/finance/fuel-matching';
 import { parseOrlenReceipt, ReceiptParseError, type ParsedFuelReceipt } from '@/lib/parsers/pdf/orlen-receipt';
-
-// pdfjs-dist (pdf-parse's dependency) resolves its worker script relative to
-// its own compiled module by default ("./pdf.worker.mjs"), which breaks once
-// Next's bundler moves the module into a chunk at an unrelated path — it
-// only ever surfaces in the Docker/standalone build, never in `next dev` or
-// a plain script, since those keep the real node_modules layout intact.
-// `require.resolve`/`createRequire` don't help here: Turbopack replaces them
-// with its own shim in the compiled server bundle, which returns an internal
-// numeric module id instead of a real path, both at build time ("collect
-// page data") and at runtime. Plain filesystem math from `process.cwd()`
-// sidesteps the bundler entirely — the Docker runner's WORKDIR and `next
-// dev`'s working directory are both the project root, and
-// `next.config.ts`'s `outputFileTracingIncludes` guarantees this exact file
-// exists at this path in the standalone build.
-let workerConfigured = false;
-
-function ensureWorkerConfigured(): void {
-  if (workerConfigured) return;
-  PDFParse.setWorker(join(process.cwd(), 'node_modules/pdf-parse/dist/pdf-parse/cjs/pdf.worker.mjs'));
-  workerConfigured = true;
-}
+import { ensurePdfWorkerConfigured } from '@/lib/parsers/pdf/pdf-worker';
 
 export class FuelReceiptError extends Error {
   constructor(
@@ -70,7 +49,7 @@ export interface ProcessFuelReceiptOptions {
  * final write is skipped.
  */
 export async function processFuelReceiptUpload({ bytes, dryRun }: ProcessFuelReceiptOptions): Promise<FuelReceiptSummary> {
-  ensureWorkerConfigured();
+  ensurePdfWorkerConfigured();
 
   const fileHash = createHash('sha256').update(bytes).digest('hex');
 

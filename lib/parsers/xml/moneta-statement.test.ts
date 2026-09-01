@@ -127,4 +127,12 @@ describe('parseMonetaStatement self-check', () => {
   it('rejects a document that is not a Moneta statement', () => {
     expect(() => parseMonetaStatement('<nope/>')).toThrow(CsvStructureError);
   });
+
+  it('reads an empty date-previous (account\'s first-ever statement) as no prior coverage, not a parse error', () => {
+    const xml = load(STATEMENT).replace('date-previous="2026-06-30"', 'date-previous=""');
+    const result = parseMonetaStatement(xml);
+
+    expect(result.period.from).toBeNull();
+    expect(result.period.to).toBe('2026-07-31');
+  });
 });

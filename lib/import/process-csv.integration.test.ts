@@ -230,6 +230,26 @@ describe('statement import', () => {
     expect(summary.checkpoint).toBeNull();
     await expect(prisma.accountSnapshot.count({ where: { accountId } })).resolves.toBe(0);
   });
+
+  it('imports an account\'s first-ever statement (empty date-previous) without throwing', async () => {
+    await prisma.transaction.deleteMany({ where: { accountId } });
+    await prisma.accountSnapshot.deleteMany({ where: { accountId } });
+    await prisma.importBatch.deleteMany({ where: { accountId } });
+
+    const firstEver = readFileSync(STATEMENT, 'utf8').replace('date-previous="2026-06-30"', 'date-previous=""');
+
+    const summary = await processCsvImport({
+      bytes: new TextEncoder().encode(firstEver),
+      filename: 'first-statement.xml',
+      accountId,
+      dryRun: false,
+    });
+
+    expect(summary.statement?.from).toBeNull();
+    expect(summary.checkpoint?.balance).toBe('184186.86');
+    const batch = await prisma.importBatch.findFirstOrThrow({ where: { accountId, filename: 'first-statement.xml' } });
+    expect(batch.coverageFrom).toBeNull();
+  });
 });
 
 describe('credit card history import', () => {
