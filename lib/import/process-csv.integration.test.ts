@@ -160,6 +160,14 @@ describe('processCsvImport', () => {
 
     await prisma.account.delete({ where: { id: other.id } });
   });
+
+  it('reports a corrupted PDF as BAD_FORMAT, not an unhandled crash', async () => {
+    const corrupt = new TextEncoder().encode('%PDF-1.4 this is not a real PDF');
+
+    await expect(
+      processCsvImport({ bytes: corrupt, filename: 'broken.pdf', accountId, dryRun: true }),
+    ).rejects.toMatchObject({ code: 'BAD_FORMAT' });
+  });
 });
 
 describe('statement import', () => {

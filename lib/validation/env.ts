@@ -17,6 +17,12 @@ const envSchema = z.object({
   /// the ability to trigger the Trading 212 sync or net-worth snapshot cron.
   FUEL_INGESTION_SECRET: z.string().min(32),
 
+  /// Shared secret for the bank-statement automation bot's file uploads.
+  /// Deliberately separate from FUEL_INGESTION_SECRET and INGESTION_SECRET for
+  /// the same reason those two are already separate: a leaked bot secret must
+  /// only ever unlock the one bot it belongs to.
+  BANK_STATEMENT_INGESTION_SECRET: z.string().min(32),
+
   /// Auth.js signing secret.
   AUTH_SECRET: z.string().min(32),
 

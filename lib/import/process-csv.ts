@@ -166,6 +166,12 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
 
         try {
           return (await pdf.getText()).text;
+        } catch {
+          // A corrupted or non-Moneta PDF — permanent, not a server hiccup:
+          // the caller must not retry it. Without this, an unguarded
+          // `pdf.getText()` throw here would surface as a 500, telling an
+          // ingest bot to keep retrying a file that will never parse.
+          throw new ImportError('Nečitelný soubor PDF', 'BAD_FORMAT');
         } finally {
           await pdf.destroy();
         }
