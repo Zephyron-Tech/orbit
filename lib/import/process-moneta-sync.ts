@@ -36,7 +36,13 @@ export class MonetaSyncError extends Error {
 }
 
 export interface MonetaSyncTransactionInput {
-  transactionId: string;
+  /**
+   * The bank's own reference. `null` for the email-fallback source (an Info
+   * Servis notification carries no transaction id at all) — `buildIdempotencyKey`
+   * already falls back to its ATTRIBUTES strategy whenever this is empty, so
+   * no separate dedup path is needed here.
+   */
+  transactionId: string | null;
   date: string;
   amount: string;
   currency: string;
@@ -44,23 +50,28 @@ export interface MonetaSyncTransactionInput {
   description: string | null;
   counterAccount: string | null;
   sourceCategory: string | null;
+  /** Free-text tag identifying which upstream channel produced this row (e.g. "moneta-sync-email-fallback"), kept in `rawData` only — never shown as the transaction's own description. */
+  sourceTag?: string;
 }
 
 export interface ProcessMonetaSyncOptions {
   accountId: string;
-  /** Current live balance, if the bot captured one — writes an AccountSnapshot checkpoint. */
+  /** Current live balance, if the caller captured one — writes an AccountSnapshot checkpoint. */
   balance?: string | null;
   transactions: readonly MonetaSyncTransactionInput[];
+  /** When true nothing is written; the caller gets the summary for confirmation. */
+  dryRun?: boolean;
 }
 
 export interface MonetaSyncSummary {
-  batchId: string;
+  batchId: string | null;
   accountId: string;
+  dryRun: boolean;
   rowCount: number;
   inserted: number;
   skipped: number;
   failed: number;
-  failures: { transactionId: string; reason: string }[];
+  failures: { transactionId: string | null; reason: string }[];
   checkpoint: CheckpointResult | null;
 }
 
@@ -89,9 +100,11 @@ export async function processMonetaSyncTransactions(options: ProcessMonetaSyncOp
   }
 
   // `ParsedTransaction.raw` is typed `Record<string, string>` because every
-  // CSV/XML source row naturally is one; a scraped JSON row has null fields
-  // too, so the real raw payload is kept separately (`rawByTransactionId`)
-  // instead of forcing it through that narrower shape.
+  // CSV/XML source row naturally is one; a scraped/email-parsed JSON row has
+  // null fields too, so the real raw payload is kept separately
+  // (`rawByIndex`, not by `transactionId` — every email-fallback row has the
+  // same `null` id, so that would collide) instead of forcing it through
+  // that narrower shape.
   const parsed: ParsedTransaction[] = options.transactions.map((row) => ({
     externalId: row.transactionId,
     date: new Date(`${row.date}T00:00:00.000Z`),
@@ -103,10 +116,11 @@ export async function processMonetaSyncTransactions(options: ProcessMonetaSyncOp
     sourceCategory: row.sourceCategory,
     raw: {},
   }));
-  const rawByTransactionId = new Map(options.transactions.map((row) => [row.transactionId, row]));
+  const rawByIndex = new Map(options.transactions.map((row, index) => [index, row]));
 
-  const keyed = parsed.map((transaction) => ({
+  const keyed = parsed.map((transaction, index) => ({
     transaction,
+    index,
     key: buildIdempotencyKey({
       provider: 'MONETA',
       externalId: transaction.externalId,
@@ -125,7 +139,7 @@ export async function processMonetaSyncTransactions(options: ProcessMonetaSyncOp
   const existingKeys = new Set(existing.map((row) => row.idempotencyKey));
 
   const seenInFile = new Set<string>();
-  const fresh: { transaction: ParsedTransaction; key: string }[] = [];
+  const fresh: { transaction: ParsedTransaction; index: number; key: string }[] = [];
   let skipped = 0;
 
   for (const entry of keyed) {
@@ -147,21 +161,35 @@ export async function processMonetaSyncTransactions(options: ProcessMonetaSyncOp
 
   const resolveFxRate = createFxRateResolver();
   const fxByKey = new Map<string, { amountCzk: Prisma.Decimal; fxRate: Prisma.Decimal }>();
-  const fxFailures: { key: string; transaction: ParsedTransaction; reason: string }[] = [];
+  const fxFailures: { key: string; index: number; transaction: ParsedTransaction; reason: string }[] = [];
 
   await Promise.all(
     fresh
       .filter(({ transaction }) => transaction.currency !== 'CZK')
-      .map(async ({ transaction, key }) => {
+      .map(async ({ transaction, index, key }) => {
         try {
           const fxRate = await resolveFxRate(transaction.date, transaction.currency, 'CZK');
           fxByKey.set(key, { amountCzk: new Prisma.Decimal(transaction.amount).times(fxRate), fxRate });
         } catch (error: unknown) {
           const reason = error instanceof FxRateError ? error.message : 'FX rate lookup failed';
-          fxFailures.push({ key, transaction, reason });
+          fxFailures.push({ key, index, transaction, reason });
         }
       }),
   );
+
+  if (options.dryRun) {
+    return {
+      batchId: null,
+      accountId: account.id,
+      dryRun: true,
+      rowCount: parsed.length,
+      inserted: fresh.length,
+      skipped,
+      failed: fxFailures.length,
+      failures: fxFailures.map((failure) => ({ transactionId: failure.transaction.externalId, reason: failure.reason })),
+      checkpoint: null,
+    };
+  }
 
   const batch = await prisma.$transaction(async (tx) => {
     const created = await tx.importBatch.upsert({
@@ -179,7 +207,7 @@ export async function processMonetaSyncTransactions(options: ProcessMonetaSyncOp
     if (fresh.length > 0) {
       await tx.transaction.createMany({
         skipDuplicates: true,
-        data: fresh.map(({ transaction, key }) => {
+        data: fresh.map(({ transaction, index, key }) => {
           const internalTransfer =
             isInternalTransfer(transaction.counterAccount, ownAccountIndex) ||
             isTrading212Funding(transaction.merchant, transaction.description, transaction.amount);
@@ -201,7 +229,7 @@ export async function processMonetaSyncTransactions(options: ProcessMonetaSyncOp
             fxRate: transaction.currency === 'CZK' ? null : (fxByKey.get(key)?.fxRate ?? null),
             merchant: transaction.merchant,
             description: transaction.description,
-            rawData: rawByTransactionId.get(transaction.externalId ?? '') ?? {},
+            rawData: rawByIndex.get(index) ?? {},
           };
         }),
       });
@@ -214,7 +242,7 @@ export async function processMonetaSyncTransactions(options: ProcessMonetaSyncOp
           status: 'FAILED' as const,
           importBatchId: created.id,
           idempotencyKey: failure.key,
-          rawPayload: rawByTransactionId.get(failure.transaction.externalId ?? '') ?? {},
+          rawPayload: rawByIndex.get(failure.index) ?? {},
           errorMessage: `Přepočet do CZK selhal: ${failure.reason}`,
         })),
       });
@@ -247,11 +275,12 @@ export async function processMonetaSyncTransactions(options: ProcessMonetaSyncOp
   return {
     batchId: batch.id,
     accountId: account.id,
+    dryRun: false,
     rowCount: parsed.length,
     inserted: fresh.length,
     skipped,
     failed: fxFailures.length,
-    failures: fxFailures.map((failure) => ({ transactionId: failure.transaction.externalId ?? '', reason: failure.reason })),
+    failures: fxFailures.map((failure) => ({ transactionId: failure.transaction.externalId, reason: failure.reason })),
     checkpoint,
   };
 }

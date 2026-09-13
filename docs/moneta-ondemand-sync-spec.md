@@ -1,5 +1,15 @@
 # On-Demand Moneta Ingestion Pipeline — spec + work split
 
+**CANCELLED (2026-09-13).** The on-demand live-scrape flow this document
+describes (UI trigger → Redis Pub/Sub → Mac Mini Playwright login against
+`ib.moneta.cz` → XHR capture) does not proceed. `ib.moneta.cz` runs behind
+F5 Bot Defense; automating past a bank's own fraud/anti-automation defense
+is a real account-risk (blocking, fraud review) — not a technical problem
+worth solving around. Nothing described below this notice was ever built
+beyond the write endpoint's transaction-ingest half, which has since been
+repurposed for the passive e-mail fallback instead (§3 below) — see
+`docs/moneta-sync-ingest-api.md` for what actually exists today.
+
 Original spec (Jan Vandlíček, 2026-09-13), verbatim below the split. This
 document exists to divide work between the **Orbit** repo and the
 **mac-automation** repo before any implementation starts.

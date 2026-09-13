@@ -1,6 +1,8 @@
 /**
- * Integration test for the Moneta live-sync ingest path. Requires a running
- * database (`npm run db:up`) and is excluded from the default unit-test run:
+ * Integration test for the Moneta sync ingest path (currently: the
+ * email-fallback bot only — the on-demand live-scrape flow was cancelled,
+ * see docs/moneta-ondemand-sync-spec.md). Requires a running database
+ * (`npm run db:up`) and is excluded from the default unit-test run:
  * `npm run test:integration`.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -157,6 +159,42 @@ describe('processMonetaSyncTransactions', () => {
     await expect(
       processMonetaSyncTransactions({ accountId: '00000000-0000-0000-0000-000000000000', transactions: [] }),
     ).rejects.toBeInstanceOf(MonetaSyncError);
+  });
+
+  it('dedups an email-fallback row (no transactionId) via ATTRIBUTES, and dryRun writes nothing', async () => {
+    const row = {
+      transactionId: null,
+      date: '2026-09-13',
+      amount: '250.00',
+      currency: 'CZK',
+      merchant: 'Obchodník s.r.o.',
+      description: null,
+      counterAccount: null,
+      sourceCategory: null,
+    };
+
+    const preview = await processMonetaSyncTransactions({ accountId, transactions: [row], dryRun: true });
+
+    expect(preview.dryRun).toBe(true);
+    expect(preview.batchId).toBeNull();
+    expect(preview.inserted).toBe(1);
+
+    const notWritten = await prisma.transaction.findFirst({ where: { accountId, merchant: 'Obchodník s.r.o.' } });
+    expect(notWritten).toBeNull();
+
+    const committed = await processMonetaSyncTransactions({ accountId, transactions: [row] });
+    expect(committed.inserted).toBe(1);
+
+    // Same day/amount/merchant, no reference, arriving alongside something
+    // new (a real resend never resends byte-identically — see the
+    // ALREADY_IMPORTED test above for that case) — the repeat must not
+    // double it.
+    const resend = await processMonetaSyncTransactions({
+      accountId,
+      transactions: [row, { ...row, amount: '10.00', merchant: 'Jiný obchodník' }],
+    });
+    expect(resend.inserted).toBe(1);
+    expect(resend.skipped).toBe(1);
   });
 
   it('refuses a non-Moneta account', async () => {
