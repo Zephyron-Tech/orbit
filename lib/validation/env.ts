@@ -23,6 +23,12 @@ const envSchema = z.object({
   /// only ever unlock the one bot it belongs to.
   BANK_STATEMENT_INGESTION_SECRET: z.string().min(32),
 
+  /// Shared secret for the Moneta live-sync automation bot's transaction uploads.
+  /// Deliberately separate from the other ingestion secrets for the same
+  /// reason they're all separate: a leaked bot secret must only unlock the
+  /// one bot it belongs to.
+  MONETA_SYNC_INGESTION_SECRET: z.string().min(32),
+
   /// Auth.js signing secret.
   AUTH_SECRET: z.string().min(32),
 

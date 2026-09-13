@@ -676,7 +676,7 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
 }
 
 /** Maps stable Orbit category keys to ids, for the bank categories present in the file. */
-async function resolveCategoryIds(transactions: readonly ParsedTransaction[]): Promise<Map<string, string>> {
+export async function resolveCategoryIds(transactions: readonly ParsedTransaction[]): Promise<Map<string, string>> {
   const names = new Set<string>();
   names.add('transfer');
   names.add('income');
@@ -706,7 +706,7 @@ async function resolveCategoryIds(transactions: readonly ParsedTransaction[]): P
  * falling back to the merchant/description text when the bank supplies none
  * at all (Moneta never categorises savings-account interest, for example).
  */
-function resolveTransactionCategory(transaction: ParsedTransaction): string | null {
+export function resolveTransactionCategory(transaction: ParsedTransaction): string | null {
   return mapMonetaCategory(transaction.sourceCategory) ?? classifyByMerchant(transaction.merchant, transaction.description);
 }
 
