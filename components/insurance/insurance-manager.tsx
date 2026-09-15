@@ -1,12 +1,13 @@
 'use client';
 
-import { Car, Plus, X } from '@phosphor-icons/react';
+import { ArrowDown, ArrowUp, Car, CloudArrowUp, DownloadSimple, Plus, X } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 
 import {
   createInsurancePolicy,
   deleteInsurancePolicy,
+  reorderInsurancePolicy,
   updateInsurancePolicy,
   type InsurancePolicyInput,
 } from '@/app/(dashboard)/insurance/actions';
@@ -16,9 +17,19 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
 import { StatusNotice } from '@/components/ui/status';
+import { formatLicensePlate } from '@/lib/finance/license-plate';
+
+export interface InsuranceDocumentInfo {
+  id: string;
+  filename: string;
+  uploadedAt: string;
+}
 
 export interface InsurancePolicyRow extends InsurancePolicyInput {
   id: string;
+  isFirst: boolean;
+  isLast: boolean;
+  documents: { contract: InsuranceDocumentInfo | null; greenCard: InsuranceDocumentInfo | null };
 }
 
 type Confirmation = { id: string } | null;
@@ -36,12 +47,23 @@ const STATUS_OPTIONS = [
   { value: 'TERMINATED', label: 'Ukončeno' },
 ];
 
+const VEHICLE_TYPE_OPTIONS = [
+  { value: 'CAR', label: 'Osobní auto' },
+  { value: 'MOTORCYCLE', label: 'Motocykl' },
+  { value: 'TRUCK_OR_TRACTOR', label: 'Nákladní auto / traktor' },
+  { value: 'MOPED', label: 'Moped' },
+  { value: 'BUS', label: 'Autobus' },
+  { value: 'TRAILER', label: 'Přívěs / návěs' },
+  { value: 'OTHER', label: 'Ostatní' },
+];
+
 function emptyValues(): InsurancePolicyInput {
   return {
     vehicleName: '',
     licensePlate: '',
     policyNumber: '',
     policyHolder: '',
+    vehicleType: 'CAR',
     annualCost: '',
     paymentFrequency: 'ANNUAL',
     startDate: new Date().toISOString().slice(0, 10),
@@ -102,6 +124,8 @@ export function InsuranceManager({ policies }: { policies: InsurancePolicyRow[] 
           </div>
           <PolicyForm
             initial={policy}
+            policyId={policy.id}
+            documents={policy.documents}
             submitLabel="Uložit změny"
             pendingLabel="Ukládám…"
             onCancel={() => setEditingId(null)}
@@ -124,10 +148,40 @@ export function InsuranceManager({ policies }: { policies: InsurancePolicyRow[] 
           <div className="min-w-0">
             <h3 className="font-semibold" title={policy.vehicleName}>{policy.vehicleName}</h3>
             <p className="mt-1 text-xs text-ink-muted">
-              {policy.licensePlate} · {policy.policyNumber} · {policy.policyHolder}
+              {formatLicensePlate(policy.licensePlate, policy.vehicleType)} · {policy.policyNumber} · {policy.policyHolder}
             </p>
+            {policy.documents.contract || policy.documents.greenCard ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {policy.documents.contract ? (
+                  <DocumentLink policyId={policy.id} document={policy.documents.contract} label="Smlouva" />
+                ) : null}
+                {policy.documents.greenCard ? (
+                  <DocumentLink policyId={policy.id} document={policy.documents.greenCard} label="Zelená karta" />
+                ) : null}
+              </div>
+            ) : null}
           </div>
           <div className="flex w-full min-w-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
+            <button
+              type="button"
+              onClick={() => run(() => reorderInsurancePolicy(policy.id, -1), 'Pořadí bylo změněno.')}
+              disabled={isPending || policy.isFirst}
+              aria-label="Posunout výš"
+              title="Posunout výš"
+              className="ui-button ui-button-ghost size-9 p-0"
+            >
+              <ArrowUp size={15} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => run(() => reorderInsurancePolicy(policy.id, 1), 'Pořadí bylo změněno.')}
+              disabled={isPending || policy.isLast}
+              aria-label="Posunout níž"
+              title="Posunout níž"
+              className="ui-button ui-button-ghost size-9 p-0"
+            >
+              <ArrowDown size={15} aria-hidden="true" />
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -234,6 +288,8 @@ export function InsuranceManager({ policies }: { policies: InsurancePolicyRow[] 
             </div>
             <PolicyForm
               initial={emptyValues()}
+              policyId={null}
+              documents={{ contract: null, greenCard: null }}
               submitLabel="Vytvořit pojistku"
               pendingLabel="Vytvářím…"
               onCancel={() => setCreating(false)}
@@ -265,8 +321,144 @@ export function InsuranceManager({ policies }: { policies: InsurancePolicyRow[] 
   );
 }
 
+function DocumentLink({
+  policyId,
+  document,
+  label,
+}: {
+  policyId: string;
+  document: InsuranceDocumentInfo;
+  label: string;
+}): React.JSX.Element {
+  return (
+    <a
+      href={`/api/insurance/${policyId}/documents/${document.id}`}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface-subtle px-2 py-1 text-xs text-ink-muted hover:text-ink"
+    >
+      <DownloadSimple size={13} aria-hidden="true" />
+      {label}
+    </a>
+  );
+}
+
+type GreenCardParsed = {
+  policyNumber: string;
+  plateOrVin: string;
+  vehicleType: InsurancePolicyInput['vehicleType'];
+  validFrom: string;
+};
+
+type ContractParsed = {
+  policyNumber: string | null;
+  licensePlate: string | null;
+  vehicleType: InsurancePolicyInput['vehicleType'] | null;
+  annualCost: string | null;
+  startDate: string | null;
+};
+
+function DocumentUploader({
+  kind,
+  label,
+  policyId,
+  existing,
+  disabled,
+  onParsed,
+}: {
+  kind: 'CONTRACT' | 'GREEN_CARD';
+  label: string;
+  policyId: string | null;
+  existing: InsuranceDocumentInfo | null;
+  disabled: boolean;
+  onParsed: (fields: GreenCardParsed | ContractParsed) => void;
+}): React.JSX.Element {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  async function handleFile(file: File): Promise<void> {
+    setBusy(true);
+    setLocalError(null);
+
+    try {
+      const parseBody = new FormData();
+      parseBody.set('file', file);
+      parseBody.set('kind', kind);
+
+      const parseResponse = await fetch('/api/insurance/documents/parse', { method: 'POST', body: parseBody });
+      const parsed: unknown = await parseResponse.json();
+
+      if (!parseResponse.ok) {
+        const message = parsed && typeof parsed === 'object' && 'error' in parsed ? String(parsed.error) : 'Nepodařilo se přečíst PDF';
+        setLocalError(message);
+        return;
+      }
+
+      onParsed(parsed as GreenCardParsed | ContractParsed);
+
+      if (policyId) {
+        const storeBody = new FormData();
+        storeBody.set('file', file);
+        storeBody.set('kind', kind);
+
+        const storeResponse = await fetch(`/api/insurance/${policyId}/documents`, { method: 'POST', body: storeBody });
+
+        if (!storeResponse.ok && storeResponse.status !== 409) {
+          const storeError: unknown = await storeResponse.json().catch(() => null);
+          const message = storeError && typeof storeError === 'object' && 'error' in storeError ? String(storeError.error) : 'Uložení dokumentu se nezdařilo';
+          setLocalError(message);
+        }
+      }
+    } catch {
+      setLocalError('Nahrání se nezdařilo. Zkontrolujte připojení a zkuste to znovu.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".pdf"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) void handleFile(file);
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={disabled || busy}
+        className="ui-button ui-button-secondary min-h-9 justify-start px-3 py-2 text-xs"
+      >
+        <CloudArrowUp size={15} aria-hidden="true" />
+        {busy ? 'Zpracovávám…' : existing ? `Nahradit — ${label}` : `Nahrát — ${label}`}
+      </button>
+      {existing ? (
+        <a
+          href={policyId ? `/api/insurance/${policyId}/documents/${existing.id}` : undefined}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs text-ink-muted hover:text-ink"
+        >
+          Aktuální soubor: {existing.filename}
+        </a>
+      ) : null}
+      {localError ? <p className="text-xs text-critical">{localError}</p> : null}
+      {!policyId ? <p className="text-xs text-ink-faint">Soubor se uloží po vytvoření pojistky — nejdřív ji uložte, pak dokument nahrajte znovu v úpravě.</p> : null}
+    </div>
+  );
+}
+
 function PolicyForm({
   initial,
+  policyId,
+  documents,
   submitLabel,
   pendingLabel,
   onSubmit,
@@ -274,6 +466,8 @@ function PolicyForm({
   disabled,
 }: {
   initial: InsurancePolicyInput;
+  policyId: string | null;
+  documents: { contract: InsuranceDocumentInfo | null; greenCard: InsuranceDocumentInfo | null };
   submitLabel: string;
   pendingLabel: string;
   onSubmit: (values: InsurancePolicyInput) => void;
@@ -281,6 +475,27 @@ function PolicyForm({
   disabled: boolean;
 }): React.JSX.Element {
   const [values, setValues] = useState<InsurancePolicyInput>(initial);
+
+  function applyGreenCard(fields: GreenCardParsed): void {
+    setValues((current) => ({
+      ...current,
+      policyNumber: fields.policyNumber || current.policyNumber,
+      licensePlate: fields.plateOrVin || current.licensePlate,
+      vehicleType: fields.vehicleType ?? current.vehicleType,
+      startDate: fields.validFrom || current.startDate,
+    }));
+  }
+
+  function applyContract(fields: ContractParsed): void {
+    setValues((current) => ({
+      ...current,
+      policyNumber: fields.policyNumber ?? current.policyNumber,
+      licensePlate: fields.licensePlate ?? current.licensePlate,
+      vehicleType: fields.vehicleType ?? current.vehicleType,
+      annualCost: fields.annualCost ?? current.annualCost,
+      startDate: fields.startDate ?? current.startDate,
+    }));
+  }
 
   return (
     <form
@@ -337,6 +552,14 @@ function PolicyForm({
           />
         </label>
 
+        <SelectField
+          value={values.vehicleType}
+          options={VEHICLE_TYPE_OPTIONS}
+          onValueChange={(vehicleType) => setValues({ ...values, vehicleType: vehicleType as InsurancePolicyInput['vehicleType'] })}
+          label="Druh vozidla"
+          disabled={disabled}
+        />
+
         <label className="ui-label min-w-0">
           <span>Roční pojistné</span>
           <AmountField
@@ -372,6 +595,25 @@ function PolicyForm({
           onValueChange={(status) => setValues({ ...values, status: status as InsurancePolicyInput['status'] })}
           label="Stav"
           disabled={disabled}
+        />
+      </div>
+
+      <div className="grid gap-3 border-t border-line pt-4 sm:grid-cols-2">
+        <DocumentUploader
+          kind="CONTRACT"
+          label="smlouva"
+          policyId={policyId}
+          existing={documents.contract}
+          disabled={disabled}
+          onParsed={(fields) => applyContract(fields as ContractParsed)}
+        />
+        <DocumentUploader
+          kind="GREEN_CARD"
+          label="zelená karta"
+          policyId={policyId}
+          existing={documents.greenCard}
+          disabled={disabled}
+          onParsed={(fields) => applyGreenCard(fields as GreenCardParsed)}
         />
       </div>
 
