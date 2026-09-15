@@ -353,6 +353,7 @@ type GreenCardParsed = {
 type ContractParsed = {
   policyNumber: string | null;
   licensePlate: string | null;
+  vehicleName: string | null;
   vehicleType: InsurancePolicyInput['vehicleType'] | null;
   annualCost: string | null;
   startDate: string | null;
@@ -373,13 +374,16 @@ function DocumentUploader({
   disabled: boolean;
   onParsed: (fields: GreenCardParsed | ContractParsed) => void;
 }): React.JSX.Element {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [justUploaded, setJustUploaded] = useState<string | null>(null);
 
   async function handleFile(file: File): Promise<void> {
     setBusy(true);
     setLocalError(null);
+    setJustUploaded(null);
 
     try {
       const parseBody = new FormData();
@@ -408,6 +412,13 @@ function DocumentUploader({
           const storeError: unknown = await storeResponse.json().catch(() => null);
           const message = storeError && typeof storeError === 'object' && 'error' in storeError ? String(storeError.error) : 'Uložení dokumentu se nezdařilo';
           setLocalError(message);
+        } else {
+          // 409 (byte-identical file already stored) counts as success here —
+          // the document is attached either way. `existing` won't reflect the
+          // new upload until the server component re-renders, so this local
+          // confirmation is the only immediate feedback the upload landed.
+          setJustUploaded(file.name);
+          router.refresh();
         }
       }
     } catch {
@@ -448,6 +459,8 @@ function DocumentUploader({
         >
           Aktuální soubor: {existing.filename}
         </a>
+      ) : justUploaded ? (
+        <p className="text-xs text-positive">Nahráno: {justUploaded}</p>
       ) : null}
       {localError ? <p className="text-xs text-critical">{localError}</p> : null}
       {!policyId ? <p className="text-xs text-ink-faint">Soubor se uloží po vytvoření pojistky — nejdřív ji uložte, pak dokument nahrajte znovu v úpravě.</p> : null}
@@ -476,13 +489,20 @@ function PolicyForm({
 }): React.JSX.Element {
   const [values, setValues] = useState<InsurancePolicyInput>(initial);
 
+  // Deliberately does NOT touch `startDate`: a green card's "PLATNÁ OD" is
+  // that card's own validity window, not the policy's payment-cadence
+  // anniversary — confirmed with real data this session (the TT policy's
+  // contract start is 2026-01-21, but its green card, reissued after a
+  // mid-term vehicle change, is valid from 2026-03-16). Letting this feed
+  // `startDate` would silently shift the sinking-fund due-date math on
+  // every reissued card. Only the contract parser, which extracts the
+  // policy's actual "účinná od"/"počátkem pojištění" line, may set it.
   function applyGreenCard(fields: GreenCardParsed): void {
     setValues((current) => ({
       ...current,
       policyNumber: fields.policyNumber || current.policyNumber,
       licensePlate: fields.plateOrVin || current.licensePlate,
       vehicleType: fields.vehicleType ?? current.vehicleType,
-      startDate: fields.validFrom || current.startDate,
     }));
   }
 
@@ -491,6 +511,7 @@ function PolicyForm({
       ...current,
       policyNumber: fields.policyNumber ?? current.policyNumber,
       licensePlate: fields.licensePlate ?? current.licensePlate,
+      vehicleName: fields.vehicleName ?? current.vehicleName,
       vehicleType: fields.vehicleType ?? current.vehicleType,
       annualCost: fields.annualCost ?? current.annualCost,
       startDate: fields.startDate ?? current.startDate,

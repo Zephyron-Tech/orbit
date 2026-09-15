@@ -32,6 +32,7 @@ Registrační značka: 4A54321
 MPZ: Česká republika
 Druh vozidla: osobní automobil
 Tovární značka: Škoda
+Typ: Octavia
 
 Výše pojistného 12 345 Kč
 `;
@@ -47,6 +48,22 @@ Registrační značka: 4A11111
 Druh vozidla: osobní automobil
 
 Výše pojistného 20 000 Kč
+`;
+
+const IMPORTED_WITH_NO_REAL_MODEL = `
+NABÍDKA POJISTNÉ SMLOUVY
+sdružené pojištění vozidla 2223334445
+
+Pojistná smlouva se uzavírá na dobu neurčitou s počátkem pojištění 1. 2. 2026 a s ročním pojistným obdobím.
+
+3.3 Údaje o vozidle
+Registrační značka: Neuvedeno
+Druh vozidla: motocykl
+Tovární značka: Honda
+Typ: JINÉ
+Specifikace: RC36/VRF750F
+
+Výše pojistného 800 Kč
 `;
 
 const NOT_YET_REGISTERED = `
@@ -69,6 +86,7 @@ describe('parseGeneraliContract', () => {
     expect(result).toEqual({
       policyNumber: '1234567890',
       licensePlate: '4A12345',
+      vehicleName: null,
       vehicleType: 'MOTORCYCLE',
       annualCost: '9999.00',
       startDate: '2026-06-01',
@@ -76,12 +94,13 @@ describe('parseGeneraliContract', () => {
     });
   });
 
-  it('extracts every field from the "NABÍDKA" offer template', () => {
+  it('extracts every field from the "NABÍDKA" offer template, including vehicleName from make + Typ', () => {
     const result = parseGeneraliContract(OFFER);
 
     expect(result).toEqual({
       policyNumber: '9876543210',
       licensePlate: '4A54321',
+      vehicleName: 'Škoda Octavia',
       vehicleType: 'CAR',
       annualCost: '12345.00',
       startDate: '2026-01-01',
@@ -95,11 +114,18 @@ describe('parseGeneraliContract', () => {
     expect(result).toEqual({
       policyNumber: '5555555555',
       licensePlate: '4A11111',
+      vehicleName: null,
       vehicleType: 'CAR',
       annualCost: '20000.00',
       startDate: '2026-03-15',
       warnings: [],
     });
+  });
+
+  it('leaves vehicleName unguessed when "Typ" is the real document\'s own placeholder "JINÉ" — the real Honda VFR750F case', () => {
+    const result = parseGeneraliContract(IMPORTED_WITH_NO_REAL_MODEL);
+
+    expect(result.vehicleName).toBeNull();
   });
 
   it('treats "Neuvedeno" as no plate, without throwing — the real not-yet-registered case', () => {

@@ -429,11 +429,16 @@ model InsurancePolicyDocument {
   contentType String
   bytes       Bytes
 
-  /// SHA-256 of the raw bytes — a re-upload of the same file is a no-op.
-  sourceFileHash String @unique
+  /// SHA-256 of the raw bytes — a re-upload of the same file to the same
+  /// policy is a no-op. Scoped per policy, not global: a global unique would
+  /// let a document that happens to share bytes with one already attached to
+  /// a *different* policy silently fail to attach here (a real case — a
+  /// green card can cover more than one insured vehicle).
+  sourceFileHash String
 
   uploadedAt DateTime @default(now())
 
+  @@unique([policyId, sourceFileHash])
   @@index([policyId, kind])
 }
 

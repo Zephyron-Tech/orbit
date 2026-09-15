@@ -34,6 +34,10 @@ const LICENSE_PLATE_PATTERN = /Registrační značka:?\s+(\S+)/;
 
 const VEHICLE_TYPE_TEXT_PATTERNS = [/Druh vozidla:?\s+([^\n]+)/, /^Vozidlo\s+([^\n]+)/m];
 
+/** Only present on the "NABÍDKA"/"POJISTNÁ SMLOUVA" templates, not the renewal notice. */
+const MAKE_PATTERN = /Tovární značka:\s*([^\n]+)/;
+const MODEL_PATTERN = /^Typ:\s*([^\n]+)/m;
+
 const ANNUAL_COST_PATTERNS = [/Výše pojistného\s+([\d\s]+)\s*Kč/, /Roční\s+cena pojištění je\s+([\d\s]+)\s*Kč/];
 
 const START_DATE_PATTERNS = [
@@ -54,6 +58,8 @@ const VEHICLE_TYPE_BY_TEXT: { pattern: RegExp; category: VehicleCategory }[] = [
 export interface ContractParseResult {
   policyNumber: string | null;
   licensePlate: string | null;
+  /** "Tovární značka" + "Typ" joined ("Audi TT"), or null — absent from the renewal-notice template. */
+  vehicleName: string | null;
   vehicleType: VehicleCategory | null;
   /** Decimal string, or null when no total-premium line was recognized. */
   annualCost: string | null;
@@ -108,6 +114,14 @@ export function parseGeneraliContract(text: string): ContractParseResult {
     : null;
   if (!vehicleType) warnings.push('Nepodařilo se rozpoznat druh vozidla');
 
+  const make = firstMatch([MAKE_PATTERN], text);
+  const model = firstMatch([MODEL_PATTERN], text);
+  // "Typ: JINÉ" means the document itself has no real model designation
+  // (seen on a vehicle whose real model only appears in "Specifikace", a
+  // free-text field not worth parsing) — better to leave vehicleName
+  // unguessed than prefill "Honda JINÉ".
+  const vehicleName = make && model && model.toUpperCase() !== 'JINÉ' ? `${make} ${model}` : null;
+
   const annualCostRaw = firstMatch(ANNUAL_COST_PATTERNS, text);
   const annualCost = annualCostRaw
     ? (() => {
@@ -124,5 +138,5 @@ export function parseGeneraliContract(text: string): ContractParseResult {
   const startDate = startDateRaw ? toIsoDate(startDateRaw) : null;
   if (!startDate) warnings.push('Nepodařilo se najít počátek pojištění');
 
-  return { policyNumber, licensePlate, vehicleType, annualCost, startDate, warnings };
+  return { policyNumber, licensePlate, vehicleName, vehicleType, annualCost, startDate, warnings };
 }
