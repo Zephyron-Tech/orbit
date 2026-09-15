@@ -5,9 +5,9 @@ import { z } from 'zod';
 
 import { getActiveUser } from '@/lib/auth';
 import { prisma } from '@/lib/db/prisma';
+import { reorderRows } from '@/lib/db/reorder';
 import { Prisma } from '@/lib/generated/prisma/client';
 import { PaymentFrequency, PolicyStatus, VehicleCategory } from '@/lib/generated/prisma/enums';
-import { moveItem } from '@/lib/ui/reorder';
 
 const dateString = z
   .string()
@@ -147,22 +147,16 @@ export async function reorderInsurancePolicy(id: string, direction: -1 | 1): Pro
     return { ok: false, error: 'Neplatná pojistka' };
   }
 
-  const policies = await prisma.insurancePolicy.findMany({
-    orderBy: [{ sortOrder: 'asc' }, { annualCost: 'desc' }],
-    select: { id: true },
-  });
-
-  const index = policies.findIndex((policy) => policy.id === parsedId.data);
-
-  if (index === -1) {
-    return { ok: false, error: 'Neplatná pojistka' };
-  }
-
-  const reordered = moveItem(policies, index, direction);
-
-  await prisma.$transaction(
-    reordered.map((policy, position) => prisma.insurancePolicy.update({ where: { id: policy.id }, data: { sortOrder: position } })),
+  const result = await reorderRows(
+    parsedId.data,
+    direction,
+    (tx) => tx.insurancePolicy.findMany({ orderBy: [{ sortOrder: 'asc' }, { annualCost: 'desc' }], select: { id: true } }),
+    (tx, policyId, position) => tx.insurancePolicy.update({ where: { id: policyId }, data: { sortOrder: position } }),
   );
+
+  if (!result.ok) {
+    return { ok: false, error: result.error === 'CONFLICT' ? 'Někdo jiný právě měnil pořadí, zkuste to znovu.' : 'Neplatná pojistka' };
+  }
 
   revalidatePath('/insurance');
 
