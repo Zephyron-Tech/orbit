@@ -343,6 +343,25 @@ enum PaymentFrequency {
   MONTHLY
 }
 
+/// The COBX green-card vehicle taxonomy (field 6 on every international motor
+/// insurance card, identical across insurers/EU) — reused here rather than
+/// inventing a separate taxonomy, since it's printed verbatim on the document
+/// this app parses.
+enum VehicleCategory {
+  CAR              /// A
+  MOTORCYCLE       /// B
+  TRUCK_OR_TRACTOR /// C
+  MOPED            /// D
+  BUS              /// E
+  TRAILER          /// F
+  OTHER            /// G
+}
+
+enum InsuranceDocumentKind {
+  CONTRACT
+  GREEN_CARD
+}
+
 /// Lifecycle of one insurance contract. `PENDING_RENEWAL` is still in force
 /// and still costs money (an insurer doesn't stop covering a car the day
 /// before renewal) — treated identically to `ACTIVE` everywhere. `PAID`
@@ -371,6 +390,7 @@ model InsurancePolicy {
   licensePlate String
   policyNumber String @unique
   policyHolder String
+  vehicleType  VehicleCategory @default(CAR)
 
   /// Always the full yearly premium, regardless of `paymentFrequency`.
   annualCost       Decimal          @db.Decimal(18, 4)
@@ -381,8 +401,45 @@ model InsurancePolicy {
 
   status PolicyStatus @default(ACTIVE)
 
+  /// Manual display order (mirrors Account.sortOrder). Lower first; ties
+  /// broken by annualCost descending, so a freshly-added policy with no
+  /// explicit order yet still sorts most-expensive-first by default.
+  sortOrder Int @default(0)
+
+  documents InsurancePolicyDocument[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// The source PDF behind a policy — a contract or a green card — kept so it
+/// can be viewed/downloaded without hunting through e-mail. History-capable
+/// (not one field per kind): a green card is reissued every renewal, so an
+/// older one stays queryable even once a newer one exists. Bytes live in
+/// Postgres directly (no object storage anywhere in this app) — volume here
+/// is a handful of files per vehicle per year, and the nightly DB backup
+/// covers it for free.
+model InsurancePolicyDocument {
+  id       String          @id @default(uuid())
+  policyId String
+  policy   InsurancePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  kind        InsuranceDocumentKind
+  filename    String
+  contentType String
+  bytes       Bytes
+
+  /// SHA-256 of the raw bytes — a re-upload of the same file to the same
+  /// policy is a no-op. Scoped per policy, not global: a global unique would
+  /// let a document that happens to share bytes with one already attached to
+  /// a *different* policy silently fail to attach here (a real case — a
+  /// green card can cover more than one insured vehicle).
+  sourceFileHash String
+
+  uploadedAt DateTime @default(now())
+
+  @@unique([policyId, sourceFileHash])
+  @@index([policyId, kind])
 }
 
 /// One row per Orlen Tankarta fuel-card purchase, imported from the

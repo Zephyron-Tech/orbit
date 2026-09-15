@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db/prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
 import { rebuildMonthlyNetWorth } from '@/lib/finance/monthly-net-worth-service';
 import { recordBalanceCheckpoint } from '@/lib/import/checkpoints';
-import { moveItem } from '@/lib/ui/reorder';
+import { reorderRows } from '@/lib/db/reorder';
 
 const ACCOUNT_TYPES = ['CHECKING', 'SAVINGS', 'INVESTMENT', 'CREDIT'] as const;
 const PROVIDERS = ['MONETA', 'REVOLUT', 'TRADING212', 'MANUAL'] as const;
@@ -373,23 +373,16 @@ export async function reorderAccount(id: string, direction: -1 | 1): Promise<Act
     return { ok: false, error: 'Neplatný účet' };
   }
 
-  const accounts = await prisma.account.findMany({
-    where: { isArchived: false },
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    select: { id: true },
-  });
-
-  const index = accounts.findIndex((account) => account.id === parsedId.data);
-
-  if (index === -1) {
-    return { ok: false, error: 'Neplatný účet' };
-  }
-
-  const reordered = moveItem(accounts, index, direction);
-
-  await prisma.$transaction(
-    reordered.map((account, position) => prisma.account.update({ where: { id: account.id }, data: { sortOrder: position } })),
+  const result = await reorderRows(
+    parsedId.data,
+    direction,
+    (tx) => tx.account.findMany({ where: { isArchived: false }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }], select: { id: true } }),
+    (tx, accountId, position) => tx.account.update({ where: { id: accountId }, data: { sortOrder: position } }),
   );
+
+  if (!result.ok) {
+    return { ok: false, error: result.error === 'CONFLICT' ? 'Někdo jiný právě měnil pořadí, zkuste to znovu.' : 'Neplatný účet' };
+  }
 
   revalidateAccountViews();
 

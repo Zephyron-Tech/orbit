@@ -5,6 +5,7 @@ import { MoneyValue } from '@/components/ui/money-value';
 import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { Badge } from '@/components/ui/status';
 import { prisma } from '@/lib/db/prisma';
+import { formatLicensePlate } from '@/lib/finance/license-plate';
 import { nextOccurrenceOnOrAfter } from '@/lib/finance/insurance';
 import { loadInsuranceOverview } from '@/lib/finance/insurance-service';
 import type { PaymentFrequency, PolicyStatus } from '@/lib/generated/prisma/enums';
@@ -38,9 +39,27 @@ const RENEWAL_THRESHOLD_DAYS = 45;
 export default async function InsurancePage(): Promise<React.JSX.Element> {
   const now = new Date();
   const [policies, overview] = await Promise.all([
-    prisma.insurancePolicy.findMany({ orderBy: [{ vehicleName: 'asc' }] }),
+    prisma.insurancePolicy.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { annualCost: 'desc' }],
+      include: {
+        documents: {
+          orderBy: { uploadedAt: 'desc' },
+          select: { id: true, kind: true, filename: true, uploadedAt: true },
+        },
+      },
+    }),
     loadInsuranceOverview(now, RENEWAL_THRESHOLD_DAYS),
   ]);
+  const latestDocuments = new Map(
+    policies.map((policy) => {
+      const toInfo = (document: { id: string; filename: string; uploadedAt: Date } | undefined) =>
+        document ? { id: document.id, filename: document.filename, uploadedAt: document.uploadedAt.toISOString() } : null;
+      const contract = toInfo(policy.documents.find((document) => document.kind === 'CONTRACT'));
+      const greenCard = toInfo(policy.documents.find((document) => document.kind === 'GREEN_CARD'));
+
+      return [policy.id, { contract, greenCard }];
+    }),
+  );
   const progressByPolicy = new Map(overview.policyProgress.map((progress) => [progress.policyId, progress]));
 
   return (
@@ -106,7 +125,7 @@ export default async function InsurancePage(): Promise<React.JSX.Element> {
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
                       <span className="rounded-md border border-line bg-surface-subtle px-2 py-0.5 font-mono text-xs font-semibold tracking-wider text-ink">
-                        {policy.licensePlate}
+                        {formatLicensePlate(policy.licensePlate, policy.vehicleType)}
                       </span>
                       <span className="inline-flex items-center gap-1.5 text-xs text-ink-muted">
                         <FileText size={13} className="text-ink-faint" aria-hidden="true" />
@@ -147,16 +166,20 @@ export default async function InsurancePage(): Promise<React.JSX.Element> {
       </section>
 
       <InsuranceManager
-        policies={policies.map((policy) => ({
+        policies={policies.map((policy, index) => ({
           id: policy.id,
           vehicleName: policy.vehicleName,
           licensePlate: policy.licensePlate,
           policyNumber: policy.policyNumber,
           policyHolder: policy.policyHolder,
+          vehicleType: policy.vehicleType,
           annualCost: policy.annualCost.toFixed(2),
           paymentFrequency: policy.paymentFrequency,
           startDate: policy.startDate.toISOString().slice(0, 10),
           status: policy.status,
+          isFirst: index === 0,
+          isLast: index === policies.length - 1,
+          documents: latestDocuments.get(policy.id) ?? { contract: null, greenCard: null },
         }))}
       />
     </PageShell>

@@ -5,8 +5,9 @@ import { z } from 'zod';
 
 import { getActiveUser } from '@/lib/auth';
 import { prisma } from '@/lib/db/prisma';
+import { reorderRows } from '@/lib/db/reorder';
 import { Prisma } from '@/lib/generated/prisma/client';
-import { PaymentFrequency, PolicyStatus } from '@/lib/generated/prisma/enums';
+import { PaymentFrequency, PolicyStatus, VehicleCategory } from '@/lib/generated/prisma/enums';
 
 const dateString = z
   .string()
@@ -21,6 +22,7 @@ const insurancePolicySchema = z.object({
   licensePlate: z.string().trim().min(1, 'Zadejte SPZ').max(20),
   policyNumber: z.string().trim().min(1, 'Zadejte číslo pojistky').max(60),
   policyHolder: z.string().trim().min(1, 'Zadejte pojistníka').max(120),
+  vehicleType: z.enum(VehicleCategory),
   /** Always the full yearly premium — `paymentFrequency` only changes the installment cadence. */
   annualCost: z
     .string()
@@ -49,6 +51,7 @@ function toPrismaData(input: InsurancePolicyInput) {
     licensePlate: input.licensePlate,
     policyNumber: input.policyNumber,
     policyHolder: input.policyHolder,
+    vehicleType: input.vehicleType,
     annualCost: new Prisma.Decimal(input.annualCost),
     paymentFrequency: input.paymentFrequency,
     startDate: new Date(`${input.startDate}T00:00:00.000Z`),
@@ -125,6 +128,35 @@ export async function deleteInsurancePolicy(id: string): Promise<ActionResult> {
   }
 
   await prisma.insurancePolicy.delete({ where: { id: parsedId.data } });
+
+  revalidatePath('/insurance');
+
+  return { ok: true };
+}
+
+export async function reorderInsurancePolicy(id: string, direction: -1 | 1): Promise<ActionResult> {
+  const user = await getActiveUser();
+
+  if (!user) {
+    return { ok: false, error: 'Přihlaste se prosím' };
+  }
+
+  const parsedId = z.uuid().safeParse(id);
+
+  if (!parsedId.success) {
+    return { ok: false, error: 'Neplatná pojistka' };
+  }
+
+  const result = await reorderRows(
+    parsedId.data,
+    direction,
+    (tx) => tx.insurancePolicy.findMany({ orderBy: [{ sortOrder: 'asc' }, { annualCost: 'desc' }], select: { id: true } }),
+    (tx, policyId, position) => tx.insurancePolicy.update({ where: { id: policyId }, data: { sortOrder: position } }),
+  );
+
+  if (!result.ok) {
+    return { ok: false, error: result.error === 'CONFLICT' ? 'Někdo jiný právě měnil pořadí, zkuste to znovu.' : 'Neplatná pojistka' };
+  }
 
   revalidatePath('/insurance');
 
