@@ -396,3 +396,21 @@ export function setRecurringExpenseActiveViaApi(id: string, isActive: boolean): 
 export function deleteRecurringExpenseViaApi(id: string): Promise<ApiActionResult> {
   return toActionResult(() => apiClient().planning['recurring-expenses'][':id'].$delete({ param: { id } }), 'Fixní výdaj se nepodařilo smazat');
 }
+
+// ---------------------------------------------------------------------------
+// Settlement
+// ---------------------------------------------------------------------------
+
+export function closeSettlementViaApi(input: { year: number; month: number; notes: string | null }): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().settlement.close.$post({ json: input }), 'Vyrovnání se nepodařilo uzavřít');
+}
+
+export function reopenSettlementViaApi(id: string): Promise<ApiActionResult> {
+  const requestOptions = { param: { id } };
+  return toActionResult(() => apiClient().settlement[':id'].reopen.$post(requestOptions), 'Vyrovnání se nepodařilo znovu otevřít');
+}
+
+export function markSettledViaApi(id: string, settled: boolean): Promise<ApiActionResult> {
+  const requestOptions = { param: { id }, json: { settled } };
+  return toActionResult(() => apiClient().settlement[':id'].settled.$post(requestOptions), 'Nepodařilo se uložit');
+}

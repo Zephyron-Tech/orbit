@@ -13,13 +13,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { closeSettlement, markSettled, reopenSettlement } from '@/app/(dashboard)/settlement/actions';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Metric } from '@/components/ui/metric';
 import { MoneyValue } from '@/components/ui/money-value';
 import { MonthSelect } from '@/components/ui/month-select';
 import { SectionHeader } from '@/components/ui/page-container';
 import { Badge, StatusNotice } from '@/components/ui/status';
+import { closeSettlementViaApi as closeSettlement, markSettledViaApi as markSettled, reopenSettlementViaApi as reopenSettlement } from '@/lib/api-client';
 import { formatPeriod } from '@/lib/ui/period';
 
 interface Summary {
