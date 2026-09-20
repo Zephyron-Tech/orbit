@@ -38,7 +38,10 @@ function resolveApiUrl(): string {
   return 'http://localhost:4000';
 }
 
-const API_URL = resolveApiUrl();
+// Exported for the multipart-upload call sites (insurance documents, CSV/fuel
+// imports) that bypass the typed RPC client entirely, since it isn't built to
+// express `multipart/form-data` bodies.
+export const API_URL = resolveApiUrl();
 
 async function authorizedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);

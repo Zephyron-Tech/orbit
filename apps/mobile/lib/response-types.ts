@@ -133,3 +133,157 @@ export interface TransactionsListResponse {
   transactions: TransactionRow[];
   categories: TransactionCategory[];
 }
+
+export type VehicleCategory = 'CAR' | 'MOTORCYCLE' | 'TRUCK_OR_TRACTOR' | 'MOPED' | 'BUS' | 'TRAILER' | 'OTHER';
+export type PaymentFrequency = 'ANNUAL' | 'SEMI_ANNUAL' | 'MONTHLY';
+export type PolicyStatus = 'ACTIVE' | 'PAID' | 'PENDING_RENEWAL' | 'TERMINATED';
+
+export interface InsuranceDocumentInfo {
+  id: string;
+  filename: string;
+  uploadedAt: string;
+}
+
+export interface InsurancePolicyRow {
+  id: string;
+  vehicleName: string;
+  licensePlate: string;
+  policyNumber: string;
+  policyHolder: string;
+  vehicleType: VehicleCategory;
+  annualCost: string;
+  paymentFrequency: PaymentFrequency;
+  startDate: string;
+  status: PolicyStatus;
+  documents: { contract: InsuranceDocumentInfo | null; greenCard: InsuranceDocumentInfo | null };
+}
+
+export interface InsuranceListResponse {
+  policies: InsurancePolicyRow[];
+  // The dashboard-style renewal overview — not rendered in this pass, kept
+  // as `unknown` rather than fully typed since nothing here reads it yet.
+  overview: unknown;
+}
+
+export interface InsurancePolicyInput {
+  vehicleName: string;
+  licensePlate: string;
+  policyNumber: string;
+  policyHolder: string;
+  vehicleType: VehicleCategory;
+  annualCost: string;
+  paymentFrequency: PaymentFrequency;
+  startDate: string;
+  status: PolicyStatus;
+}
+
+export type AccountType = 'CHECKING' | 'SAVINGS' | 'INVESTMENT' | 'CREDIT';
+export type AccountProvider = 'MONETA' | 'REVOLUT' | 'TRADING212' | 'MANUAL';
+
+export interface AccountCreditDetails {
+  limit: string;
+  debt: string;
+  capacity: string;
+  asOf: string | null;
+  invalidCapacitySnapshot: boolean;
+}
+
+export interface AccountRow {
+  id: string;
+  name: string;
+  type: AccountType;
+  provider: AccountProvider;
+  externalId: string | null;
+  currency: string;
+  includeInNetWorth: boolean;
+  creditLimit: string | null;
+  cardLast4: string | null;
+  emergencyReserveMonths: number | null;
+  annualInterestRate: string | null;
+  interestTaxRate: string | null;
+  isArchived: boolean;
+  transactionCount: number;
+  creditDetails: AccountCreditDetails | null;
+  creditNeedsOpeningConfirmation: boolean;
+}
+
+export interface AccountInput {
+  name: string;
+  type: AccountType;
+  provider: AccountProvider;
+  externalId: string | null;
+  currency: string;
+  includeInNetWorth: boolean;
+  creditLimit: string | null;
+  cardLast4: string | null;
+  emergencyReserveMonths: number | null;
+  annualInterestRate: string | null;
+  interestTaxRate: string | null;
+}
+
+export interface PlanningSettingsInfo {
+  monthlySpendingTarget: string | null;
+  transferHistoryFrom: string | null;
+  hideHistoricalBrokerTransfers: boolean;
+}
+
+export interface InvestmentPlanRow {
+  id: string;
+  name: string;
+  sourceAccountId: string | null;
+  sourceAccountName: string | null;
+  brokerAccountId: string;
+  brokerAccountName: string;
+  expectedAmount: string;
+  currency: string;
+  dueDay: number;
+  graceDays: number;
+  isActive: boolean;
+  startsOn: string | null;
+  endsOn: string | null;
+}
+
+export interface IncomeSourceRuleRow {
+  id: string;
+  name: string;
+  merchantKey: string;
+  accountId: string | null;
+  accountName: string | null;
+  isActive: boolean;
+}
+
+export interface RecurringExpenseRow {
+  id: string;
+  name: string;
+  categoryId: string | null;
+  expectedAmount: string;
+  currency: string;
+  isShared: boolean;
+  myShareRatio: number | null;
+  isActive: boolean;
+  dueDay: number | null;
+  graceDays: number;
+  startsOn: string | null;
+  endsOn: string | null;
+  paymentAccountId: string | null;
+  paymentAccountName: string | null;
+  transactionCount: number;
+}
+
+export interface PlanningAccountOption {
+  id: string;
+  name: string;
+  type: AccountType;
+  provider: AccountProvider;
+  currency: string;
+}
+
+export interface PlanningResponse {
+  settings: PlanningSettingsInfo | null;
+  firstBankBatchPeriodFrom: string | null;
+  plans: InvestmentPlanRow[];
+  accounts: PlanningAccountOption[];
+  incomeSourceRules: IncomeSourceRuleRow[];
+  expenses: RecurringExpenseRow[];
+  categories: { id: string; name: string }[];
+}
