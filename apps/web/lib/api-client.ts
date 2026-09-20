@@ -414,3 +414,22 @@ export function markSettledViaApi(id: string, settled: boolean): Promise<ApiActi
   const requestOptions = { param: { id }, json: { settled } };
   return toActionResult(() => apiClient().settlement[':id'].settled.$post(requestOptions), 'Nepodařilo se uložit');
 }
+
+// ---------------------------------------------------------------------------
+// Portfolio
+// ---------------------------------------------------------------------------
+
+export interface RefreshPortfolioResult extends ApiActionResult {
+  capturedAt?: string;
+}
+
+export async function refreshPortfolioViaApi(): Promise<RefreshPortfolioResult> {
+  try {
+    const response = await apiClient().portfolio.refresh.$post();
+    const body = (await response.json().catch(() => null)) as { error?: string; capturedAt?: string } | null;
+    if (!response.ok) return { ok: false, error: body?.error ?? 'Synchronizace selhala' };
+    return { ok: true, capturedAt: body?.capturedAt };
+  } catch {
+    return { ok: false, error: 'Spojení se synchronizací selhalo. Zkontrolujte připojení a zkuste to znovu.' };
+  }
+}

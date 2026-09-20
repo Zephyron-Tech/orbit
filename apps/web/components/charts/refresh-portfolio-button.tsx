@@ -4,9 +4,9 @@ import { ArrowsClockwise } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { refreshPortfolio } from '@/app/(dashboard)/portfolio/actions';
 import { LocalTimestamp } from '@/components/charts/local-timestamp';
 import { StatusNotice } from '@/components/ui/status';
+import { refreshPortfolioViaApi } from '@/lib/api-client';
 
 interface RefreshStatus {
   tone: 'success' | 'danger';
@@ -24,7 +24,7 @@ export function RefreshPortfolioButton({ capturedAt }: { capturedAt?: string }):
 
     startTransition(async () => {
       try {
-        const result = await refreshPortfolio();
+        const result = await refreshPortfolioViaApi();
 
         if (!result.ok) {
           setStatus({

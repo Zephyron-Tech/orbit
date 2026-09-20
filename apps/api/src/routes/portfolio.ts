@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 
+import { prisma } from '@orbit-api/lib/db/prisma';
 import { rebuildMonthlyNetWorth } from '@orbit-api/lib/finance/monthly-net-worth-service';
 import { matchPendingTransfers } from '@orbit-api/lib/import/transfer-sync';
 import { syncTrading212Income } from '@orbit-api/lib/providers/trading212/income-sync';
@@ -10,6 +11,38 @@ import { requireAuth } from '@orbit-api/middleware/auth';
 
 export const portfolio = new Hono<AuthEnv>()
   .use('*', requireAuth)
+  .get('/', async (c) => {
+    const latestSnapshot = await prisma.accountSnapshot.findFirst({
+      where: { account: { provider: 'TRADING212', isArchived: false } },
+      orderBy: { capturedAt: 'desc' },
+      include: { account: { select: { name: true } } },
+    });
+
+    if (!latestSnapshot) return c.json({ snapshots: [] });
+
+    const snapshots = await prisma.accountSnapshot.findMany({
+      where: { accountId: latestSnapshot.accountId },
+      orderBy: { capturedAt: 'desc' },
+      take: 10_000,
+      include: { account: { select: { name: true } } },
+    });
+    snapshots.reverse();
+
+    return c.json({
+      snapshots: snapshots.map((snapshot) => ({
+        accountName: snapshot.account.name,
+        currency: snapshot.currency,
+        rawData: snapshot.rawData,
+        balance: snapshot.balance.toString(),
+        balanceCzk: snapshot.balanceCzk?.toString() ?? null,
+        investedValue: snapshot.investedValue?.toString() ?? null,
+        unrealizedPnl: snapshot.unrealizedPnl?.toString() ?? null,
+        cashBalance: snapshot.cashBalance?.toString() ?? null,
+        capturedAt: snapshot.capturedAt.toISOString(),
+        updatedAt: snapshot.updatedAt.toISOString(),
+      })),
+    });
+  })
   .post('/refresh', async (c) => {
     const env = getEnv();
 

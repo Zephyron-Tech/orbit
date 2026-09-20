@@ -1,4 +1,5 @@
 import { ChartBarHorizontal, GearSix, TrendDown, TrendUp, WarningCircle } from '@phosphor-icons/react/dist/ssr';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 
 import { LocalTimestamp, SnapshotFreshness } from '@/components/charts/local-timestamp';
@@ -9,8 +10,21 @@ import { Metric } from '@/components/ui/metric';
 import { MoneyValue } from '@/components/ui/money-value';
 import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { StatusNotice } from '@/components/ui/status';
-import { prisma } from '@/lib/db/prisma';
+import { apiClient } from '@/lib/api-client';
 import { accountSummarySchema, positionsSchema } from '@/lib/providers/trading212/schemas';
+
+interface ApiSnapshot {
+  accountName: string;
+  currency: string;
+  rawData: unknown;
+  balance: string;
+  balanceCzk: string | null;
+  investedValue: string | null;
+  unrealizedPnl: string | null;
+  cashBalance: string | null;
+  capturedAt: string;
+  updatedAt: string;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -62,18 +76,9 @@ const PERCENT = new Intl.NumberFormat('cs-CZ', { minimumFractionDigits: 1, maxim
 const QUANTITY = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 4 });
 
 export default async function PortfolioPage(): Promise<React.JSX.Element> {
-  const latestSnapshot = await prisma.accountSnapshot.findFirst({
-    where: { account: { provider: 'TRADING212', isArchived: false } },
-    orderBy: { capturedAt: 'desc' },
-    include: { account: { select: { name: true } } },
-  });
-  const snapshots = latestSnapshot ? await prisma.accountSnapshot.findMany({
-    where: { accountId: latestSnapshot.accountId },
-    orderBy: { capturedAt: 'desc' },
-    take: 10_000,
-    include: { account: { select: { name: true } } },
-  }) : [];
-  snapshots.reverse();
+  const cookieHeader = (await headers()).get('cookie') ?? undefined;
+  const response = await apiClient(cookieHeader).portfolio.$get();
+  const { snapshots } = (await response.json()) as { snapshots: ApiSnapshot[] };
   const snapshot = snapshots.at(-1);
 
   if (!snapshot) {
@@ -110,20 +115,20 @@ export default async function PortfolioPage(): Promise<React.JSX.Element> {
   const currency = snapshot.currency.trim().toUpperCase();
   const money = moneyFormatter(currency);
   const moneyPrecise = moneyFormatter(currency, true);
-  const total = snapshot.balance.toNumber();
-  const invested = snapshot.investedValue?.toNumber() ?? 0;
-  const unrealized = snapshot.unrealizedPnl?.toNumber() ?? 0;
+  const total = Number(snapshot.balance);
+  const invested = snapshot.investedValue ? Number(snapshot.investedValue) : 0;
+  const unrealized = snapshot.unrealizedPnl ? Number(snapshot.unrealizedPnl) : 0;
   const cost = totalCost ?? invested - unrealized;
   const changePercent = cost !== 0 ? (unrealized / cost) * 100 : 0;
-  const balanceCzk = snapshot.balanceCzk?.toNumber() ?? null;
+  const balanceCzk = snapshot.balanceCzk ? Number(snapshot.balanceCzk) : null;
   const sortedPositions = [...positions].sort((a, b) => b.value - a.value);
   const instruments = sortedPositions.map((position) => ({ id: position.id, ticker: position.ticker, name: position.name }));
   const history: PortfolioHistoryPoint[] = snapshots.flatMap((item) => {
     if (item.currency.trim().toUpperCase() !== currency) return [];
     const parsed = parseSnapshot(item.rawData);
     return [{
-      capturedAt: item.capturedAt.toISOString(),
-      total: item.balance.toNumber(),
+      capturedAt: item.capturedAt,
+      total: Number(item.balance),
       positions: parsed.integrityIssues.includes('seznam pozic')
         ? {}
         : Object.fromEntries(parsed.positions.map((position) => [position.id, position.value])),
@@ -138,14 +143,14 @@ export default async function PortfolioPage(): Promise<React.JSX.Element> {
         description={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>
-              {snapshot.account.name} · aktualizováno <LocalTimestamp iso={snapshot.updatedAt.toISOString()} />
+              {snapshot.accountName} · aktualizováno <LocalTimestamp iso={snapshot.updatedAt} />
             </span>
-            <SnapshotFreshness iso={snapshot.updatedAt.toISOString()} />
+            <SnapshotFreshness iso={snapshot.updatedAt} />
           </span>
         }
         actions={
           <div className="w-[calc(100vw-2rem)] sm:w-auto">
-            <RefreshPortfolioButton capturedAt={snapshot.capturedAt.toISOString()} />
+            <RefreshPortfolioButton capturedAt={snapshot.capturedAt} />
           </div>
         }
       />
@@ -185,7 +190,7 @@ export default async function PortfolioPage(): Promise<React.JSX.Element> {
           sensitive
         />
         <Metric label="Hodnota otevřených pozic" value={money.format(invested)} detail={`Nativní měna ${currency}`} sensitive />
-        <Metric label="Hotovost" value={money.format(snapshot.cashBalance?.toNumber() ?? 0)} detail="Mimo otevřené pozice" sensitive />
+        <Metric label="Hotovost" value={money.format(snapshot.cashBalance ? Number(snapshot.cashBalance) : 0)} detail="Mimo otevřené pozice" sensitive />
       </section>
 
       {balanceCzk !== null && currency !== 'CZK' ? (
