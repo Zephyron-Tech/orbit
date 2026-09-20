@@ -46,6 +46,11 @@ services:
       TRADING212_API_BASE_URL: ${TRADING212_API_BASE_URL:-https://live.trading212.com}
       REPORTING_CURRENCY: ${REPORTING_CURRENCY:-CZK}
       WEB_ORIGIN: https://orbit.zephyron.tech
+      # Shares the session/refresh cookies with the web app's subdomain —
+      # without this they're host-only to api.orbit.zephyron.tech and the
+      # web app's proxy.ts never sees them, bouncing every login back to
+      # the sign-in page even though it succeeded.
+      COOKIE_DOMAIN: orbit.zephyron.tech
       PORT: '4000'
     depends_on:
       postgres:

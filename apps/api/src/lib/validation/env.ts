@@ -40,6 +40,18 @@ const envSchema = z.object({
 
   REPORTING_CURRENCY: z.string().length(3).default('CZK'),
 
+  /**
+   * Cookie `Domain` attribute for the session/refresh cookies. Unset in
+   * local dev — a host-only cookie already works across localhost's ports
+   * (the `Domain` attribute doesn't consider port at all). In production the
+   * API and the web app are on different subdomains of the same site
+   * (`api.orbit.zephyron.tech` vs `orbit.zephyron.tech`), so the cookie needs
+   * an explicit parent domain (`orbit.zephyron.tech`) or the browser scopes
+   * it host-only to the API's own subdomain — the web app's middleware then
+   * never sees it and bounces every login straight back to the sign-in page.
+   */
+  COOKIE_DOMAIN: z.string().optional(),
+
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
