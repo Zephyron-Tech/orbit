@@ -19,13 +19,17 @@ import { settlement } from '@orbit-api/routes/settlement';
 import { transactions } from '@orbit-api/routes/transactions';
 import { users } from '@orbit-api/routes/users';
 
-const WEB_ORIGIN = process.env.WEB_ORIGIN ?? 'http://localhost:3000';
+// Comma-separated so local dev can allow both apps/web (:3000) and the Expo
+// web target (:8081, used for browser-based verification of apps/mobile —
+// a real native app sends no Origin header at all, CORS never applies to it)
+// without needing per-environment config beyond the one var.
+const WEB_ORIGINS = (process.env.WEB_ORIGIN ?? 'http://localhost:3000,http://localhost:8081').split(',').map((origin) => origin.trim());
 
 const app = new Hono()
   .use(
     '*',
     cors({
-      origin: WEB_ORIGIN,
+      origin: WEB_ORIGINS,
       credentials: true,
     }),
   )
