@@ -449,3 +449,52 @@ export function changeMyPasswordViaApi(input: { currentPassword: string; newPass
 export function updateReportingStartMonthViaApi(month: string | null): Promise<ApiActionResult> {
   return toActionResult(() => apiClient().settings['reporting-start-month'].$patch({ json: { month } }), 'Neplatný měsíc');
 }
+
+// ---------------------------------------------------------------------------
+// Users / invites
+// ---------------------------------------------------------------------------
+
+export interface HouseholdUserInput {
+  id: string;
+  name: string | null;
+  email: string;
+  role: 'OWNER' | 'MEMBER';
+  isActive: boolean;
+}
+
+export function updateHouseholdUserViaApi(input: HouseholdUserInput): Promise<ApiActionResult> {
+  const { id, ...json } = input;
+  const requestOptions = { param: { id }, json };
+  return toActionResult(() => apiClient().users[':id'].$patch(requestOptions), 'Účet se nepodařilo uložit.');
+}
+
+export function revokeInviteViaApi(id: string): Promise<ApiActionResult> {
+  const requestOptions = { param: { id } };
+  return toActionResult(() => apiClient().users.invites[':id'].$delete(requestOptions), 'Pozvánku se nepodařilo zrušit.');
+}
+
+export interface CreateInviteInput {
+  email: string;
+  role: 'OWNER' | 'MEMBER';
+}
+
+export interface CreatedInvite {
+  email: string;
+  url: string;
+  expiresAt: string;
+}
+
+export async function createInviteViaApi(input: CreateInviteInput): Promise<{ ok: true; invite: CreatedInvite } | { ok: false; error: string }> {
+  try {
+    const response = await apiClient().invites.$post({ json: input });
+    const body = (await response.json().catch(() => null)) as (CreatedInvite & { error?: string }) | { error: string } | null;
+    if (!response.ok) return { ok: false, error: (body as { error?: string } | null)?.error ?? 'Pozvánku se nepodařilo vytvořit' };
+    return { ok: true, invite: body as CreatedInvite };
+  } catch {
+    return { ok: false, error: 'Pozvánku se nepodařilo vytvořit' };
+  }
+}
+
+export async function acceptInviteViaApi(input: { token: string; name: string; password: string }): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().invites.accept.$post({ json: input }), 'Registraci se nepodařilo dokončit');
+}

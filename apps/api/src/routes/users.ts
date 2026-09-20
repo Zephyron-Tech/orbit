@@ -17,8 +17,24 @@ const userSchema = z.object({
 });
 
 export const users = new Hono<AuthEnv>()
-  .use('*', requireAuth, requireRole('OWNER'))
-  .patch('/:id', async (c) => {
+  .use('*', requireAuth)
+  .get('/', async (c) => {
+    const claims = c.get('user');
+    const [users, currentUser] = await Promise.all([
+      prisma.user.findMany({
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, email: true, name: true, role: true, isActive: true, lastLogin: true },
+      }),
+      prisma.user.findUnique({ where: { id: claims.sub }, select: { role: true, isActive: true } }),
+    ]);
+    const isOwner = currentUser?.isActive === true && currentUser.role === 'OWNER';
+
+    return c.json({
+      isOwner,
+      users: users.map((user) => ({ ...user, lastLogin: user.lastLogin?.toISOString() ?? null, isCurrentUser: user.id === claims.sub })),
+    });
+  })
+  .patch('/:id', requireRole('OWNER'), async (c) => {
     // requireRole trusts the JWT claim; re-verified against the DB here too,
     // same as the original action's `activeOwner()` — a token can outlive a
     // just-revoked OWNER for up to its 15-minute lifetime otherwise.
@@ -62,7 +78,7 @@ export const users = new Hono<AuthEnv>()
 
     return c.json({ ok: true });
   })
-  .delete('/invites/:id', async (c) => {
+  .delete('/invites/:id', requireRole('OWNER'), async (c) => {
     const parsedId = z.uuid().safeParse(c.req.param('id'));
     if (!parsedId.success) return c.json({ error: 'Neplatná pozvánka.' }, 400);
 

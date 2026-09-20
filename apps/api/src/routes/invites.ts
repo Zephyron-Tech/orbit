@@ -2,21 +2,20 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { MIN_PASSWORD_LENGTH, WeakPasswordError } from '@orbit-api/lib/auth/password';
-import { acceptInvite, createInvite, InviteError } from '@orbit-api/lib/auth/users';
+import { acceptInvite, createInvite, findUsableInvite, InviteError } from '@orbit-api/lib/auth/users';
 import { prisma } from '@orbit-api/lib/db/prisma';
 import type { AuthEnv } from '@orbit-api/middleware/auth';
 import { requireAuth, requireRole } from '@orbit-api/middleware/auth';
 
 /**
- * The API listens behind Traefik/a container network, so `c.req.url` would
- * put an internal hostname into the invitation link. Trust the forwarded
- * headers instead, same as the original Next.js route.
+ * The invite link is opened in a browser against `apps/web` (the
+ * `/invite/[token]` page lives there), never against this API's own origin
+ * — unlike the original single-app Next.js route, where the API and the
+ * page it linked to were the same host by construction. Same env var
+ * `index.ts` already uses for CORS.
  */
-function resolveOrigin(c: import('hono').Context): string {
-  const host = c.req.header('x-forwarded-host') ?? c.req.header('host');
-  if (!host) return new URL(c.req.url).origin;
-  const protocol = c.req.header('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
-  return `${protocol}://${host}`;
+function resolveOrigin(): string {
+  return process.env.WEB_ORIGIN ?? 'http://localhost:3000';
 }
 
 const createSchema = z.object({ email: z.email(), role: z.enum(['OWNER', 'MEMBER']).default('MEMBER') });
@@ -29,7 +28,7 @@ export const invites = new Hono<AuthEnv>()
     if (!parsed.success) return c.json({ error: 'Zadejte platný e-mail' }, 400);
 
     try {
-      const invite = await createInvite({ email: parsed.data.email, role: parsed.data.role, createdById: claims.sub, origin: resolveOrigin(c) });
+      const invite = await createInvite({ email: parsed.data.email, role: parsed.data.role, createdById: claims.sub, origin: resolveOrigin() });
       return c.json(invite, 201);
     } catch (error: unknown) {
       if (error instanceof InviteError) return c.json({ error: error.message, code: error.code }, 409);
@@ -44,6 +43,14 @@ export const invites = new Hono<AuthEnv>()
     });
     // Token hashes are deliberately not selected: nothing here can be replayed.
     return c.json({ invites: inviteRows });
+  })
+  // Public by design, same reasoning as /accept below — this is how the
+  // invite-accept page confirms the token is real and shows whose e-mail
+  // it's for, before the person has any session.
+  .get('/:token', async (c) => {
+    const invite = await findUsableInvite(c.req.param('token'));
+    if (!invite) return c.json({ error: 'Pozvánka je neplatná nebo vypršela' }, 404);
+    return c.json({ email: invite.email });
   })
   // Public by design — this is how a person gets an account in the first
   // place, gated by the (single-use) token itself rather than a session.

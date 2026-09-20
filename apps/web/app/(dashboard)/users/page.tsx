@@ -1,39 +1,43 @@
 import { UsersThree } from '@phosphor-icons/react/dist/ssr';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { InviteManager } from '@/components/auth/invite-manager';
-import { HouseholdManager } from '@/components/auth/household-manager';
+import { HouseholdManager, type HouseholdUser } from '@/components/auth/household-manager';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { StatusNotice } from '@/components/ui/status';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db/prisma';
+import { apiClient } from '@/lib/api-client';
 
 export const dynamic = 'force-dynamic';
 
-export default async function UsersPage(): Promise<React.JSX.Element> {
-  const session = await auth();
+interface ApiInvite {
+  id: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+}
 
-  if (!session?.user) {
+export default async function UsersPage(): Promise<React.JSX.Element> {
+  const cookieHeader = (await headers()).get('cookie') ?? undefined;
+  const client = apiClient(cookieHeader);
+
+  const usersResponse = await client.users.$get();
+  if (!usersResponse.ok) {
     redirect('/signin');
   }
+  const { users, isOwner } = (await usersResponse.json()) as { users: HouseholdUser[]; isOwner: boolean };
 
-  const [users, invites, databaseTime, currentUser] = await Promise.all([
-    prisma.user.findMany({
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, email: true, name: true, role: true, isActive: true, lastLogin: true },
-    }),
-    prisma.invite.findMany({
-      where: { acceptedAt: null },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, email: true, role: true, expiresAt: true },
-    }),
-    prisma.$queryRaw<Array<{ now: Date }>>`SELECT NOW() AS now`,
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { role: true, isActive: true } }),
-  ]);
-
-  const isOwner = currentUser?.isActive === true && currentUser.role === 'OWNER';
-  const now = databaseTime[0]?.now;
+  let pendingInvites: { id: string; email: string; role: string; expiresAt: string; isExpired: boolean }[] = [];
+  if (isOwner) {
+    const invitesResponse = await client.invites.$get();
+    const { invites } = (await invitesResponse.json()) as { invites: ApiInvite[] };
+    const now = new Date();
+    pendingInvites = invites
+      .filter((invite) => invite.acceptedAt === null)
+      .map((invite) => ({ ...invite, isExpired: new Date(invite.expiresAt) <= now }));
+  }
 
   return (
     <PageShell>
@@ -50,14 +54,7 @@ export default async function UsersPage(): Promise<React.JSX.Element> {
       <section className="flex flex-col gap-3">
         <SectionHeader title="Členové" description={`${users.length} ${users.length === 1 ? 'osoba' : 'osoby'} s přístupem`} />
         {users.length > 0 ? (
-          <HouseholdManager
-            canManage={isOwner}
-            users={users.map((user) => ({
-              ...user,
-              lastLogin: user.lastLogin?.toISOString() ?? null,
-              isCurrentUser: user.id === session.user.id,
-            }))}
-          />
+          <HouseholdManager canManage={isOwner} users={users} />
         ) : (
           <EmptyState
             icon={<UsersThree size={21} aria-hidden="true" />}
@@ -68,13 +65,7 @@ export default async function UsersPage(): Promise<React.JSX.Element> {
       </section>
 
       {isOwner ? (
-        <InviteManager
-          pendingInvites={invites.map((invite) => ({
-            ...invite,
-            expiresAt: invite.expiresAt.toISOString(),
-            isExpired: now ? invite.expiresAt <= now : false,
-          }))}
-        />
+        <InviteManager pendingInvites={pendingInvites} />
       ) : (
         <section className="flex flex-col gap-3">
           <SectionHeader title="Pozvánky" />

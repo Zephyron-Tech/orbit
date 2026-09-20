@@ -2,8 +2,8 @@ import { PlanetIcon as Planet } from '@phosphor-icons/react/dist/ssr';
 import Link from 'next/link';
 
 import { AccountSetupForm } from '@/components/auth/account-setup-form';
+import { apiClient } from '@/lib/api-client';
 import { MIN_PASSWORD_LENGTH } from '@/lib/auth/password';
-import { findUsableInvite } from '@/lib/auth/users';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +13,8 @@ export default async function InvitePage({
   params: Promise<{ token: string }>;
 }): Promise<React.JSX.Element> {
   const { token } = await params;
-  const invite = await findUsableInvite(token);
+  const response = await apiClient().invites[':token'].$get({ param: { token } });
+  const invite = response.ok ? ((await response.json()) as { email: string }) : null;
 
   if (!invite) {
     return (
@@ -75,12 +76,7 @@ export default async function InvitePage({
               Zvolte jméno a bezpečné heslo. E-mail je pevně spojený s pozvánkou.
             </p>
           </header>
-          <AccountSetupForm
-            token={token}
-            email={invite.email}
-            endpoint="/api/invites/accept"
-            minPasswordLength={MIN_PASSWORD_LENGTH}
-          />
+          <AccountSetupForm token={token} email={invite.email} minPasswordLength={MIN_PASSWORD_LENGTH} />
         </section>
       </div>
     </main>

@@ -4,9 +4,9 @@ import { PencilSimple, UserCircle } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { updateHouseholdUser } from '@/app/(dashboard)/users/actions';
 import { SelectField } from '@/components/ui/select-field';
 import { Badge, StatusNotice } from '@/components/ui/status';
+import { updateHouseholdUserViaApi } from '@/lib/api-client';
 
 export interface HouseholdUser {
   id: string;
@@ -32,7 +32,7 @@ export function HouseholdManager({ users, canManage }: { users: HouseholdUser[];
     setMessage(null);
     startTransition(async () => {
       try {
-        const result = await updateHouseholdUser(user);
+        const result = await updateHouseholdUserViaApi(user);
         if (!result.ok) {
           setError(result.error ?? 'Účet se nepodařilo uložit.');
           return;

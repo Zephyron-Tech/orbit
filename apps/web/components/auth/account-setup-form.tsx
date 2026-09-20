@@ -5,17 +5,17 @@ import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
+import { acceptInviteViaApi, apiClient } from '@/lib/api-client';
+
 interface Props {
-  /** Invitation token, or null when creating the very first owner account. */
-  token: string | null;
+  token: string;
   email: string;
-  endpoint: string;
   minPasswordLength: number;
 }
 
 const INPUT_CLASS_NAME = 'w-full px-3 py-2.5 text-base sm:text-sm';
 
-export function AccountSetupForm({ token, email, endpoint, minPasswordLength }: Props): React.JSX.Element {
+export function AccountSetupForm({ token, email, minPasswordLength }: Props): React.JSX.Element {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -40,31 +40,25 @@ export function AccountSetupForm({ token, email, endpoint, minPasswordLength }: 
         return;
       }
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          token,
-          email,
-          name: String(form.get('name') ?? ''),
-          password,
-        }),
-      });
+      const result = await acceptInviteViaApi({ token, name: String(form.get('name') ?? ''), password });
 
-      if (!response.ok) {
-        const payload: unknown = await response.json().catch(() => null);
-        const message =
-          typeof payload === 'object' && payload !== null && 'error' in payload && typeof payload.error === 'string'
-            ? payload.error
-            : 'Registraci se nepodařilo dokončit. Zkuste to znovu.';
-
-        setError(message);
+      if (!result.ok) {
+        setError(result.error ?? 'Registraci se nepodařilo dokončit. Zkuste to znovu.');
         return;
       }
 
-      const result = await signIn('credentials', { email, password, redirect: false });
+      // Transitional dual-write (monorepo migration): the new API doesn't
+      // issue its own session on account creation, so we sign in against it
+      // right away, alongside Auth.js — same pattern as sign-in-form.tsx.
+      try {
+        await apiClient().auth.login.$post({ json: { email, password } });
+      } catch (apiError: unknown) {
+        console.error('apps/api login after invite acceptance failed', apiError);
+      }
 
-      if (result?.error) {
+      const signInResult = await signIn('credentials', { email, password, redirect: false });
+
+      if (signInResult?.error) {
         setDone(true);
         router.push('/signin');
         return;

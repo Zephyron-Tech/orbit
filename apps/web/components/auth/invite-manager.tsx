@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState, type FormEvent } from 'react';
 
 import { EmptyState } from '@/components/ui/empty-state';
-import { revokeInvite } from '@/app/(dashboard)/users/actions';
 import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
 import { Badge, StatusNotice } from '@/components/ui/status';
+import { createInviteViaApi, revokeInviteViaApi, type CreatedInvite } from '@/lib/api-client';
 
 interface PendingInvite {
   id: string;
@@ -16,12 +16,6 @@ interface PendingInvite {
   role: string;
   expiresAt: string;
   isExpired: boolean;
-}
-
-interface CreatedInvite {
-  email: string;
-  url: string;
-  expiresAt: string;
 }
 
 export function InviteManager({ pendingInvites }: { pendingInvites: PendingInvite[] }): React.JSX.Element {
@@ -44,27 +38,17 @@ export function InviteManager({ pendingInvites }: { pendingInvites: PendingInvit
 
     try {
       const form = new FormData(formElement);
-      const response = await fetch('/api/invites', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          email: String(form.get('email') ?? ''),
-          role,
-        }),
+      const result = await createInviteViaApi({
+        email: String(form.get('email') ?? ''),
+        role: role === 'OWNER' ? 'OWNER' : 'MEMBER',
       });
-      const payload: unknown = await response.json().catch(() => null);
 
-      if (!response.ok) {
-        setError(readApiError(payload));
+      if (!result.ok) {
+        setError(result.error);
         return;
       }
 
-      if (!isCreatedInvite(payload)) {
-        setError('Server vrátil neplatnou odpověď. Pozvánku vytvořte znovu.');
-        return;
-      }
-
-      setCreated(payload);
+      setCreated(result.invite);
       setRole('MEMBER');
       formElement.reset();
       router.refresh();
@@ -93,7 +77,7 @@ export function InviteManager({ pendingInvites }: { pendingInvites: PendingInvit
   function removeInvite(id: string): void {
     setPending(true);
     setError(null);
-    void revokeInvite(id)
+    void revokeInviteViaApi(id)
       .then((result) => {
         if (!result.ok) setError(result.error ?? 'Pozvánku se nepodařilo zrušit.');
         else router.refresh();
@@ -244,21 +228,3 @@ export function InviteManager({ pendingInvites }: { pendingInvites: PendingInvit
   );
 }
 
-function readApiError(payload: unknown): string {
-  return typeof payload === 'object' && payload !== null && 'error' in payload && typeof payload.error === 'string'
-    ? payload.error
-    : 'Pozvánku se nepodařilo vytvořit.';
-}
-
-function isCreatedInvite(payload: unknown): payload is CreatedInvite {
-  return (
-    typeof payload === 'object' &&
-    payload !== null &&
-    'email' in payload &&
-    typeof payload.email === 'string' &&
-    'url' in payload &&
-    typeof payload.url === 'string' &&
-    'expiresAt' in payload &&
-    typeof payload.expiresAt === 'string'
-  );
-}
