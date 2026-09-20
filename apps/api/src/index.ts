@@ -23,7 +23,7 @@ import { users } from '@orbit-api/routes/users';
 // web target (:8081, used for browser-based verification of apps/mobile —
 // a real native app sends no Origin header at all, CORS never applies to it)
 // without needing per-environment config beyond the one var.
-const WEB_ORIGINS = (process.env.WEB_ORIGIN ?? 'http://localhost:3000,http://localhost:8081').split(',').map((origin) => origin.trim());
+const WEB_ORIGINS = (process.env.WEB_ORIGIN ?? 'http://localhost:3000,http://localhost:8081').split(',').map((origin: string) => origin.trim());
 
 const app = new Hono()
   .use(

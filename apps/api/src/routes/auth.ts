@@ -69,7 +69,11 @@ export const auth = new Hono()
     return c.json({ ok: true });
   })
   .post('/logout', async (c) => {
-    const presented = getCookie(c, REFRESH_COOKIE);
+    // Mobile has no cookie jar — it sends the refresh token in the body,
+    // same as /auth/refresh already does. Web never sends a body here, so
+    // the cookie fallback still covers it.
+    const body = await c.req.json().catch(() => ({}));
+    const presented = (typeof body?.refreshToken === 'string' && body.refreshToken) || getCookie(c, REFRESH_COOKIE);
     if (presented) await revokeRefreshToken(presented);
     const domain = getEnv().COOKIE_DOMAIN;
     deleteCookie(c, SESSION_COOKIE, { path: '/', domain });
