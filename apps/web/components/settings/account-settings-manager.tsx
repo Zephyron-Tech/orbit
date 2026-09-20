@@ -3,14 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import {
-  changeMyEmail,
-  changeMyPassword,
-  updateReportingStartMonth,
-} from '@/app/(dashboard)/settings/actions';
 import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
 import { StatusNotice } from '@/components/ui/status';
+import { changeMyEmailViaApi, changeMyPasswordViaApi, updateReportingStartMonthViaApi } from '@/lib/api-client';
 import { formatPeriod } from '@/lib/ui/period';
 
 function useFormAction() {
@@ -51,7 +47,7 @@ function EmailForm({ email }: { email: string }): React.JSX.Element {
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        run(() => changeMyEmail(value), 'E-mail byl změněn.');
+        run(() => changeMyEmailViaApi(value), 'E-mail byl změněn.');
       }}
       className="surface flex flex-col gap-4 p-4 sm:p-5"
     >
@@ -87,7 +83,7 @@ function PasswordForm(): React.JSX.Element {
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        run(() => changeMyPassword({ currentPassword, newPassword }), 'Heslo bylo změněno.', () => {
+        run(() => changeMyPasswordViaApi({ currentPassword, newPassword }), 'Heslo bylo změněno.', () => {
           setCurrentPassword('');
           setNewPassword('');
         });
@@ -150,7 +146,7 @@ function ReportingStartMonthForm({
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        run(() => updateReportingStartMonth(value || null), 'Rozsah zobrazovaných dat byl uložen.');
+        run(() => updateReportingStartMonthViaApi(value || null), 'Rozsah zobrazovaných dat byl uložen.');
       }}
       className="surface flex flex-col gap-4 p-4 sm:p-5"
     >
@@ -178,7 +174,7 @@ function ReportingStartMonthForm({
             disabled={isPending}
             onClick={() => {
               setValue('');
-              run(() => updateReportingStartMonth(null), 'Omezení bylo zrušeno.');
+              run(() => updateReportingStartMonthViaApi(null), 'Omezení bylo zrušeno.');
             }}
             className="ui-button ui-button-secondary"
           >

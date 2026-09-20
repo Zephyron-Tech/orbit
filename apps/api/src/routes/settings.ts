@@ -16,8 +16,36 @@ function isPeriod(value: string | null | undefined): value is string {
   return typeof value === 'string' && PERIOD_PATTERN.test(value);
 }
 
+/** Every calendar month from the earliest transaction through the current one, newest first. */
+function monthsSince(earliestDate: Date | null): string[] {
+  const now = new Date();
+  const start = earliestDate ?? now;
+  const startKey = start.getUTCFullYear() * 12 + start.getUTCMonth();
+  const nowKey = now.getUTCFullYear() * 12 + now.getUTCMonth();
+  const months: string[] = [];
+
+  for (let key = nowKey; key >= startKey; key -= 1) {
+    const year = Math.floor(key / 12);
+    const month = key % 12;
+    months.push(`${year}-${String(month + 1).padStart(2, '0')}`);
+  }
+
+  return months;
+}
+
 export const settings = new Hono<AuthEnv>()
   .use('*', requireAuth)
+  .get('/', async (c) => {
+    const [settingsRow, earliest] = await Promise.all([
+      prisma.planningSettings.findUnique({ where: { id: 'household' } }),
+      prisma.transaction.aggregate({ _min: { date: true } }),
+    ]);
+
+    return c.json({
+      reportingStartMonth: settingsRow?.reportingStartMonth?.toISOString().slice(0, 7) ?? null,
+      availableMonths: monthsSince(earliest._min.date),
+    });
+  })
   .patch('/email', async (c) => {
     const claims = c.get('user');
     const parsed = emailSchema.safeParse((await c.req.json())?.email);

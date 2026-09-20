@@ -433,3 +433,19 @@ export async function refreshPortfolioViaApi(): Promise<RefreshPortfolioResult> 
     return { ok: false, error: 'Spojení se synchronizací selhalo. Zkontrolujte připojení a zkuste to znovu.' };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+export function changeMyEmailViaApi(email: string): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().settings.email.$patch({ json: { email } }), 'Zadejte platný e-mail');
+}
+
+export function changeMyPasswordViaApi(input: { currentPassword: string; newPassword: string }): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().settings.password.$patch({ json: input }), 'Neplatný vstup');
+}
+
+export function updateReportingStartMonthViaApi(month: string | null): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().settings['reporting-start-month'].$patch({ json: { month } }), 'Neplatný měsíc');
+}
