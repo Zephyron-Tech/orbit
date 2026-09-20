@@ -4,8 +4,8 @@ import { CaretDown, CaretUp, PencilSimple, Plus, Tag } from '@phosphor-icons/rea
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { createCategory, updateCategory } from '@/app/(dashboard)/transactions/category-actions';
 import { Badge, StatusNotice } from '@/components/ui/status';
+import { createCategoryViaApi, updateCategoryViaApi } from '@/lib/api-client';
 
 export interface CategoryRow {
   id: string;
@@ -57,12 +57,12 @@ export function CategoryManager({ categories }: { categories: CategoryRow[] }): 
             <p className="text-sm text-ink-muted">Systémové klíče zůstávají stabilní i po přejmenování českého názvu.</p>
             <button type="button" disabled={isPending} onClick={() => { setCreating(true); setEditing(null); }} className="ui-button ui-button-primary"><Plus size={17} /> Nová kategorie</button>
           </div>
-          {creating ? <CategoryForm submitLabel="Vytvořit kategorii" pending={isPending} onCancel={() => setCreating(false)} onSubmit={(value) => run(() => createCategory(value), () => setCreating(false))} /> : null}
+          {creating ? <CategoryForm submitLabel="Vytvořit kategorii" pending={isPending} onCancel={() => setCreating(false)} onSubmit={(value) => run(() => createCategoryViaApi(value), () => setCreating(false))} /> : null}
           <ul className="mt-4 grid gap-2 md:grid-cols-2">
             {categories.map((category) => (
               <li key={category.id} className="rounded-xl border border-line bg-[var(--surface-raised)] p-3">
                 {editing === category.id ? (
-                  <CategoryForm key={category.id} initial={category} submitLabel="Uložit kategorii" pending={isPending} onCancel={() => setEditing(null)} onSubmit={(value) => run(() => updateCategory({ id: category.id, ...value, isActive: value.isActive }), () => setEditing(null))} />
+                  <CategoryForm key={category.id} initial={category} submitLabel="Uložit kategorii" pending={isPending} onCancel={() => setEditing(null)} onSubmit={(value) => run(() => updateCategoryViaApi({ id: category.id, ...value, isActive: value.isActive }), () => setEditing(null))} />
                 ) : (
                   <div className="flex min-w-0 items-start gap-3">
                     <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="break-words font-semibold">{category.name}</p>{!category.isActive ? <Badge tone="warning">Skrytá</Badge> : null}{category.defaultIsShared ? <Badge tone="info">Sdílená výchozí</Badge> : null}</div><p className="mt-1 text-xs text-ink-muted">{category.transactionCount} {category.transactionCount === 1 ? 'transakce' : 'transakcí'} · {category.key.startsWith('custom-') ? 'vlastní' : 'systémová'}</p></div>

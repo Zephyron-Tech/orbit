@@ -139,3 +139,118 @@ export function confirmCreditRepaymentViaApi(creditTransactionId: string, source
     'Splacení se nepodařilo potvrdit',
   );
 }
+
+// ---------------------------------------------------------------------------
+// Transactions
+// ---------------------------------------------------------------------------
+
+export interface UpdateTransactionInput {
+  id: string;
+  categoryId: string | null;
+  bucketId: string | null;
+  recurringExpenseId: string | null;
+  kind: 'NORMAL' | 'INTERNAL_TRANSFER' | 'PENDING_TRANSFER' | 'SETTLEMENT';
+  isShared: boolean;
+  paidBy: 'ME' | 'PARTNER';
+  myShareRatio: number | null;
+  notes: string | null;
+}
+
+export function updateTransactionViaApi(input: UpdateTransactionInput): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().transactions.$patch({ json: input }), 'Neplatná data');
+}
+
+export function bulkCategorizeViaApi(ids: string[], categoryId: string | null): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().transactions['bulk-categorize'].$post({ json: { ids, categoryId } }), 'Neplatná data');
+}
+
+export function dismissUnmatchedTransferViaApi(id: string): Promise<ApiActionResult> {
+  const requestOptions = { param: { id } };
+  return toActionResult(
+    () => apiClient().transactions[':id']['dismiss-unmatched-transfer'].$post(requestOptions),
+    'Převod už není nespárovaný, nebo byl už dříve skryt.',
+  );
+}
+
+export interface TransferMatchResult extends ApiActionResult {
+  matched?: number;
+  ambiguous?: number;
+}
+
+export async function runTransferMatchingViaApi(): Promise<TransferMatchResult> {
+  try {
+    const response = await apiClient().transactions['match-transfers'].$post();
+    if (!response.ok) return { ok: false, error: 'Párování se nezdařilo.' };
+    const body = (await response.json()) as { matched: number; ambiguous: number };
+    return { ok: true, matched: body.matched, ambiguous: body.ambiguous };
+  } catch {
+    return { ok: false, error: 'Párování se nezdařilo.' };
+  }
+}
+
+export interface CreateCategoryInput {
+  name: string;
+  isShared: boolean;
+}
+
+export function createCategoryViaApi(input: CreateCategoryInput): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().transactions.categories.$post({ json: input }), 'Kategorii se nepodařilo vytvořit.');
+}
+
+export interface UpdateCategoryInput extends CreateCategoryInput {
+  id: string;
+  isActive: boolean;
+}
+
+export function updateCategoryViaApi(input: UpdateCategoryInput): Promise<ApiActionResult> {
+  const { id, ...json } = input;
+  const requestOptions = { param: { id }, json };
+  return toActionResult(() => apiClient().transactions.categories[':id'].$patch(requestOptions), 'Kategorii se nepodařilo uložit.');
+}
+
+export interface ApplyMerchantCategoryInput {
+  accountId: string;
+  categoryId: string;
+  merchantKey: string;
+  from: string;
+  to: string;
+}
+
+export async function applyMerchantCategoryViaApi(input: ApplyMerchantCategoryInput): Promise<ApiActionResult & { updated?: number }> {
+  try {
+    const response = await apiClient().transactions['apply-merchant-category'].$post({ json: input });
+    const body = (await response.json().catch(() => null)) as { ok?: boolean; error?: string; updated?: number } | null;
+    if (!response.ok) return { ok: false, error: body?.error ?? 'Návrh kategorie už není platný.' };
+    return { ok: true, updated: body?.updated };
+  } catch {
+    return { ok: false, error: 'Návrh kategorie už není platný.' };
+  }
+}
+
+export async function countMerchantCategoryTargetsViaApi(input: ApplyMerchantCategoryInput): Promise<ApiActionResult & { count?: number }> {
+  try {
+    const response = await apiClient().transactions['count-merchant-category-targets'].$post({ json: input });
+    const body = (await response.json().catch(() => null)) as { ok?: boolean; error?: string; count?: number } | null;
+    if (!response.ok) return { ok: false, error: body?.error ?? 'Návrh kategorie už není platný.' };
+    return { ok: true, count: body?.count };
+  } catch {
+    return { ok: false, error: 'Návrh kategorie už není platný.' };
+  }
+}
+
+export interface SplitLineInput {
+  amount: string;
+  categoryId: string | null;
+  isShared: boolean;
+  myShareRatio: number | null;
+  notes: string | null;
+}
+
+export function splitTransactionViaApi(input: { parentId: string; lines: SplitLineInput[] }): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().transactions.split.$post({ json: input }), 'Neplatná data');
+}
+
+export function mergeSplitViaApi(parentId: string): Promise<ApiActionResult> {
+  const requestOptions = { param: { id: parentId } };
+  return toActionResult(() => apiClient().transactions[':id']['merge-split'].$post(requestOptions), 'Neplatná transakce');
+}

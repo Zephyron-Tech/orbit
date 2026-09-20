@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { dismissUnmatchedTransfer } from '@/app/(dashboard)/transactions/actions';
+import { dismissUnmatchedTransferViaApi } from '@/lib/api-client';
 
 /** "This will never find a match" — see dismissUnmatchedTransfer for what it does and doesn't change. */
 export function DismissTransferButton({ transactionId }: { transactionId: string }): React.JSX.Element {
@@ -14,7 +14,7 @@ export function DismissTransferButton({ transactionId }: { transactionId: string
   function run(): void {
     setError(null);
     startTransition(async () => {
-      const result = await dismissUnmatchedTransfer(transactionId);
+      const result = await dismissUnmatchedTransferViaApi(transactionId);
 
       if (!result.ok) {
         setError(result.error ?? 'Akce se nezdařila.');

@@ -13,13 +13,19 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState, useTransition } from 'react';
 
-import { bulkCategorize, runTransferMatching, updateTransaction } from '@/app/(dashboard)/transactions/actions';
-import { applyMerchantCategory, countMerchantCategoryTargets } from '@/app/(dashboard)/transactions/category-actions';
-import { mergeSplit, splitTransaction } from '@/app/(dashboard)/transactions/split-actions';
 import { AmountField } from '@/components/ui/amount-field';
 import { MoneyValue } from '@/components/ui/money-value';
 import { SelectField, type SelectOption } from '@/components/ui/select-field';
 import { Badge } from '@/components/ui/status';
+import {
+  applyMerchantCategoryViaApi,
+  bulkCategorizeViaApi,
+  countMerchantCategoryTargetsViaApi,
+  mergeSplitViaApi,
+  runTransferMatchingViaApi,
+  splitTransactionViaApi,
+  updateTransactionViaApi,
+} from '@/lib/api-client';
 import type { TransactionKind } from '@/lib/generated/prisma/enums';
 import { formatPeriod } from '@/lib/ui/period';
 import { normalizeMerchant } from '@/lib/finance/idempotency';
@@ -258,7 +264,7 @@ export function TransactionTable({
       }
 
       startTransition(async () => {
-        const result = await bulkCategorize([...selected], categoryId || null);
+        const result = await bulkCategorizeViaApi([...selected], categoryId || null);
 
         if (!result.ok) {
           setError(result.error ?? 'Uložení selhalo');
@@ -275,7 +281,7 @@ export function TransactionTable({
 
   const onMatchTransfers = useCallback(() => {
     startTransition(async () => {
-      const result = await runTransferMatching();
+      const result = await runTransferMatchingViaApi();
 
       if (!result.ok) {
         setError(result.error ?? 'Párování selhalo');
@@ -296,7 +302,7 @@ export function TransactionTable({
       const merchantKey = normalizeMerchant(transaction.merchant);
       const categoryName = categoryNames.get(categoryId);
       if (!merchantKey || !categoryName) return;
-      void countMerchantCategoryTargets({
+      void countMerchantCategoryTargetsViaApi({
         accountId: transaction.accountId,
         categoryId,
         merchantKey,
@@ -676,7 +682,7 @@ function MerchantRecommendationCard({
 
   function apply(): void {
     startTransition(async () => {
-      const result = await applyMerchantCategory({
+      const result = await applyMerchantCategoryViaApi({
         accountId: recommendation.accountId,
         categoryId: recommendation.categoryId,
         merchantKey: recommendation.merchantKey,
@@ -757,7 +763,7 @@ function TransactionRowView({
           return;
         }
 
-        const result = await updateTransaction({
+        const result = await updateTransactionViaApi({
           id: next.id,
           categoryId: next.categoryId,
           bucketId: next.bucketId,
@@ -791,7 +797,7 @@ function TransactionRowView({
     }
 
     startTransition(async () => {
-      const result = await mergeSplit(draft.parentId as string);
+      const result = await mergeSplitViaApi(draft.parentId as string);
 
       if (!result.ok) {
         onError(result.error ?? 'Zrušení rozdělení selhalo');
@@ -1108,7 +1114,7 @@ function SplitEditor({
     }
 
     startTransition(async () => {
-      const result = await splitTransaction({
+      const result = await splitTransactionViaApi({
         parentId,
         lines: lines.map((line) => ({
           amount: line.amount,
