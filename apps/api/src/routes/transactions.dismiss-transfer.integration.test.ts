@@ -40,8 +40,8 @@ async function makeTransaction(overrides: {
   });
 }
 
-function dismiss(id: string): Promise<Response> {
-  return transactions.request(`/${id}/dismiss-unmatched-transfer`, {
+async function dismiss(id: string): Promise<Response> {
+  return await transactions.request(`/${id}/dismiss-unmatched-transfer`, {
     method: 'POST',
     headers: { Authorization: authHeader },
   });

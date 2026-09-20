@@ -35,7 +35,8 @@
     "pdf-parse": "^2.4.5",
     "fast-xml-parser": "^5.11.0",
     "csv-parse": "^7.0.2",
-    "@napi-rs/canvas": "^1.0.8"
+    "@napi-rs/canvas": "^1.0.8",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz"
   },
   "devDependencies": {
     "typescript": "^5",
