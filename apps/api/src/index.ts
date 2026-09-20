@@ -3,8 +3,12 @@ import { cors } from 'hono/cors';
 
 import { accounts } from '@orbit-api/routes/accounts';
 import { auth } from '@orbit-api/routes/auth';
+import { cron } from '@orbit-api/routes/cron';
 import { health } from '@orbit-api/routes/health';
+import { importRouter } from '@orbit-api/routes/import';
+import { ingest } from '@orbit-api/routes/ingest';
 import { insurance } from '@orbit-api/routes/insurance';
+import { invites } from '@orbit-api/routes/invites';
 import { planning } from '@orbit-api/routes/planning';
 import { portfolio } from '@orbit-api/routes/portfolio';
 import { settings } from '@orbit-api/routes/settings';
@@ -31,7 +35,11 @@ const app = new Hono()
   .route('/settlement', settlement)
   .route('/portfolio', portfolio)
   .route('/settings', settings)
-  .route('/users', users);
+  .route('/users', users)
+  .route('/invites', invites)
+  .route('/import', importRouter)
+  .route('/ingest', ingest)
+  .route('/cron', cron);
 
 export type AppType = typeof app;
 export default app;

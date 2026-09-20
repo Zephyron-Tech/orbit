@@ -31,7 +31,11 @@ export const users = new Hono<AuthEnv>()
 
     try {
       await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(742021)`;
+        // $executeRaw, not $queryRaw: pg_advisory_xact_lock returns void, and
+        // the pg driver adapter cannot deserialize a void column back through
+        // $queryRaw (Prisma 7 + @prisma/adapter-pg — P2010/UnsupportedNativeDataType).
+        // The lock is taken purely for its side effect; no result is read.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(742021)`;
         const target = await tx.user.findUnique({ where: { id: parsed.data.id } });
         if (!target) throw new UserManagementError('Uživatel už neexistuje.');
         if (target.id === actor.id && (parsed.data.role !== 'OWNER' || !parsed.data.isActive)) {
