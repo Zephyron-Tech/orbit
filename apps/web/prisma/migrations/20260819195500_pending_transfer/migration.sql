@@ -1,0 +1,1 @@
+ALTER TYPE "TransactionKind" ADD VALUE 'PENDING_TRANSFER';

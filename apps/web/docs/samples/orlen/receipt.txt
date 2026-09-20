@@ -1,0 +1,40 @@
+ORLEN
+ORLEN UNIPETROL RPA s.r.o. – BENZINA,
+odštěpný závod
+ČS 190 - Prachatice,Nebahovská
+Milevská 2095/5,14000 Praha 4 - Krč
+Datum (DUZP): 20.08.2026 12:27:25
+Doklad: 190900000000001
+----------------------------------------
+### Daňový doklad ###
+----------------------------------------
+ST CK Název Celkem
+DPH% Množství Cena/Mj
+Bez DPH/MJ DPH Bez DPH
+----------------------------------------
+* 3 110141 VERVA 100 1462,30*
+*21,0 (31,180 l x 46,90 CZK)[A] *
+* ( 38,76| 253,79| 1208,51) *
+Sleva Karta EASY -62,36
+----------------------------------------
+DPH % Bez DPH DPH Celkem
+21,0 1156,98 242,96 1399,94
+----------------------------------------
+Kód: AAAA00000000000000000000:
+========================================
+Suma: 1399,94 CZK
+========================================
+Benzina TANK Easy s PIN 1399,94 CZK
+Karta: 9000000000000006983
+Označeno [A] se prodává na jméno a účet:
+ORLEN Unipetrol RPA s.r.o.
+Záluží 1, 43670 Litvínov
+DIČ: CZ27597075, IČ: 27597075
+DIČ k DPH: CZ699000139
+V ceně minerálních olejů je započítána
+spotřební daň
+Děkujeme za návštěvu a šťastnou cestu!
+----------------------------------------
+
+-- 1 of 1 --
+

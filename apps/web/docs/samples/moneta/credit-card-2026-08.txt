@@ -1,0 +1,134 @@
+Výpis ke kreditní kartě MoneyCard Smart
+Výpis za období:
+Výpis ke dni:
+Předchozí výpis ze dne:
+Strana:
+01.08.2026-31.08.2026
+31.08.2026
+31.07.2026
+1/2
+
+BM/V00000000000000001
+Jan Novák
+PŘÍKLADOVÁ 123
+383 01 PRACHATICE
+
+Název balíčku Platnost od
+Elektronika 10.08.2026
+
+Celkový K dispozici
+Úvěrový rámec
+Z toho Hotovostní rámec
+50 000
+50 000
+36 616,14
+36 616,14
+
+Co musím zaplatit Zúčtování aktuálního období
+
+Minimální splátka za aktuální období 251,74
+Minimální splátka k úhradě 252,00
+Datum splatnosti do 21.09.2026
+Splátky po splatnosti (splatné ihned) 0,00
+
+Počáteční zůstatek
+Celkem transakce za období
+Přijaté splátky
+Získané odměny
+0,00
+- 12 603,50
+0,00
+16,64
+
+Celkem dlužná částka - 12 586,86
+
+QR kód pro úhradu minimální splátky
+
+Jak mám zaplatit
+Na účet číslo
+Variabilní symbol (Číslo Vaší smlouvy)
+111222333/0600
+1010774842
+
+Přehled transakcí
+JAN NOVÁK - karta číslo xxxx xxxx xxxx 1234
+20.08.2026
+19.08.2026
+Orlen Litvinov CZ - 2 000,00
+20.08.2026
+19.08.2026
+KAUFLAND CZ 1510 PLZEN BORY CZ - 128,50
+21.08.2026
+20.08.2026
+prg.aero Praha 6 CZ - 1 364,00
+24.08.2026
+23.08.2026
+Alza.cz Prague CZ - 379,00
+24.08.2026
+23.08.2026
+RUNDER.CZ KRACUNOVCE SK - 2 563,00
+28.08.2026
+27.08.2026
+EDALNICE Praha 9 CZ - 2 570,00
+28.08.2026
+27.08.2026
+GLOBDAT*GLOBDATA a.s. Praha 1 CZ - 10,00
+28.08.2026
+27.08.2026
+Orlen Litvinov CZ - 1 000,00
+28.08.2026
+27.08.2026
+THE GIFTED COMPANY AB STOCKHOLM SE - 930,00
+28.08.2026
+27.08.2026
+SPORTOVNI ZARIZENI PRA PRACHATICE II CZ - 140,00
+29.08.2026
+28.08.2026
+Disney Plus Hoofddorp NL - 219,00
+31.08.2026
+29.08.2026
+prg.aero Praha 6 CZ - 300,00
+31.08.2026
+30.08.2026
+Revolut**3415* Dublin IE - 1 000,00
+výpis pokračuje na další stránce
+Datum
+zaúčtování /
+valuta
+Popis transakce
+Bankovní spojení /
+Cizí měna částka
+VS
+KS
+SS
+Kč
+částka
+www.moneta.cz | zákaznický servis: 224 443 636
+MONETA Money Bank, a. s., Vyskočilova 1442/1b, 140 28 Praha 4 - Michle
+IČO: 25672720, Zapsáno u MS v Praze, odd. B, vl. 5403
+
+-- 1 of 2 --
+
+Výpis ke kreditní kartě MoneyCard Smart
+Strana: 2/2
+Přehled transakcí
+OSTATNÍ ÚHRADY O
+31.08.2026
+31.08.2026
+ODMĚNA BALÍČKU VÝHOD 12,85
+31.08.2026
+31.08.2026
+ODMĚNA BALÍČKU VÝHOD 3,79
+Datum
+zaúčtování /
+valuta
+Popis transakce
+Bankovní spojení /
+Cizí měna částka
+VS
+KS
+SS
+Kč
+částka
+
+-- 2 of 2 --

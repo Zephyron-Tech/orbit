@@ -1,0 +1,48 @@
+{
+  "name": "@orbit/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./app-type": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc --noEmit",
+    "start": "tsx src/server.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "hono": "^4.9.10",
+    "@hono/node-server": "^1.14.0",
+    "@prisma/client": "^7.9.1",
+    "@prisma/adapter-pg": "^7.9.1",
+    "prisma": "^7.9.1",
+    "pg": "^8.23.0",
+    "zod": "^4.4.3",
+    "pdf-parse": "^2.4.5",
+    "fast-xml-parser": "^5.11.0",
+    "csv-parse": "^7.0.2",
+    "@napi-rs/canvas": "^1.0.8"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "tsx": "^4.23.12",
+    "vitest": "^4.1.10",
+    "dotenv": "^17.4.2",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.11.0"
+  }
+}
