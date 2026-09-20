@@ -30,6 +30,13 @@
     "plugins": [
       "expo-secure-store",
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "46f4dbdb-eb34-4fe6-89bc-6934138a2ba2"
+      }
+    },
+    "owner": "vandl"
   }
 }
