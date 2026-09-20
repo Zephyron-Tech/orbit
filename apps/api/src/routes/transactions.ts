@@ -107,6 +107,53 @@ function toDecimal(raw: string): Prisma.Decimal | null {
   }
 }
 
+const transactionSelect = {
+  id: true,
+  accountId: true,
+  date: true,
+  amount: true,
+  currency: true,
+  merchant: true,
+  description: true,
+  categoryId: true,
+  bucketId: true,
+  recurringExpenseId: true,
+  kind: true,
+  isShared: true,
+  paidBy: true,
+  myShareRatio: true,
+  notes: true,
+  settlementId: true,
+  parentId: true,
+  transferId: true,
+  account: { select: { name: true } },
+  transfer: { select: { legs: { select: { id: true, account: { select: { name: true } } } } } },
+} as const;
+
+function serializeTransaction(transaction: Prisma.TransactionGetPayload<{ select: typeof transactionSelect }>) {
+  return {
+    id: transaction.id,
+    accountId: transaction.accountId,
+    date: transaction.date.toISOString().slice(0, 10),
+    amount: transaction.amount.toFixed(2),
+    currency: transaction.currency,
+    merchant: transaction.merchant,
+    description: transaction.description,
+    accountName: transaction.account.name,
+    categoryId: transaction.categoryId,
+    bucketId: transaction.bucketId,
+    recurringExpenseId: transaction.recurringExpenseId,
+    kind: transaction.kind,
+    isShared: transaction.isShared,
+    paidBy: transaction.paidBy,
+    myShareRatio: transaction.myShareRatio ? transaction.myShareRatio.toNumber() : null,
+    notes: transaction.notes,
+    isSettled: transaction.settlementId !== null,
+    parentId: transaction.parentId,
+    transferCounterpartyAccount: transaction.transfer?.legs.find((leg) => leg.id !== transaction.id)?.account.name ?? null,
+  };
+}
+
 export const transactions = new Hono<AuthEnv>()
   .use('*', requireAuth)
   .get('/', async (c) => {
@@ -146,29 +193,6 @@ export const transactions = new Hono<AuthEnv>()
     const totalCount = await prisma.transaction.count({ where });
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
     const page = Math.min(parsePage(q.page), totalPages);
-
-    const transactionSelect = {
-      id: true,
-      accountId: true,
-      date: true,
-      amount: true,
-      currency: true,
-      merchant: true,
-      description: true,
-      categoryId: true,
-      bucketId: true,
-      recurringExpenseId: true,
-      kind: true,
-      isShared: true,
-      paidBy: true,
-      myShareRatio: true,
-      notes: true,
-      settlementId: true,
-      parentId: true,
-      transferId: true,
-      account: { select: { name: true } },
-      transfer: { select: { legs: { select: { id: true, account: { select: { name: true } } } } } },
-    } as const;
 
     let orderedTransactionIds: string[] | null = null;
     if (absoluteAmount) {
@@ -295,27 +319,7 @@ export const transactions = new Hono<AuthEnv>()
       balance: balance.toString(),
       income: income.toString(),
       expenses: expenses.toString(),
-      transactions: orderedTransactions.map((transaction) => ({
-        id: transaction.id,
-        accountId: transaction.accountId,
-        date: transaction.date.toISOString().slice(0, 10),
-        amount: transaction.amount.toFixed(2),
-        currency: transaction.currency,
-        merchant: transaction.merchant,
-        description: transaction.description,
-        accountName: transaction.account.name,
-        categoryId: transaction.categoryId,
-        bucketId: transaction.bucketId,
-        recurringExpenseId: transaction.recurringExpenseId,
-        kind: transaction.kind,
-        isShared: transaction.isShared,
-        paidBy: transaction.paidBy,
-        myShareRatio: transaction.myShareRatio ? transaction.myShareRatio.toNumber() : null,
-        notes: transaction.notes,
-        isSettled: transaction.settlementId !== null,
-        parentId: transaction.parentId,
-        transferCounterpartyAccount: transaction.transfer?.legs.find((leg) => leg.id !== transaction.id)?.account.name ?? null,
-      })),
+      transactions: orderedTransactions.map(serializeTransaction),
       categories: categories.map((category) => ({ ...category, transactionCount: category._count.transactions })),
       buckets,
       recurringExpenses,
@@ -328,6 +332,19 @@ export const transactions = new Hono<AuthEnv>()
       absoluteAmount,
       flow,
     });
+  })
+  // Single-transaction read — mobile's detail screen navigates by id
+  // (push/back/deep-link/refresh) rather than web's in-list modal, so it
+  // needs a real endpoint to refetch a specific transaction rather than
+  // scanning the paginated list for it.
+  .get('/:id', async (c) => {
+    const parsedId = z.uuid().safeParse(c.req.param('id'));
+    if (!parsedId.success) return c.json({ error: 'Neplatná transakce' }, 400);
+
+    const transaction = await prisma.transaction.findUnique({ where: { id: parsedId.data }, select: transactionSelect });
+    if (!transaction) return c.json({ error: 'Transakce nenalezena' }, 404);
+
+    return c.json(serializeTransaction(transaction));
   })
   .patch('/', async (c) => {
     const parsed = updateSchema.safeParse(await c.req.json());

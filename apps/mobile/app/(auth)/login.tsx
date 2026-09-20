@@ -1,9 +1,12 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 
-import { login } from '../lib/api-client';
+import { useAuth } from '../../lib/auth-context';
 
-export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): React.JSX.Element {
+export default function LoginScreen(): React.JSX.Element {
+  const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +25,7 @@ export function LoginScreen({ onLoggedIn }: { onLoggedIn: () => void }): React.J
     }
 
     setPending(false);
-    onLoggedIn();
+    router.replace('/(tabs)/dashboard');
   }
 
   return (

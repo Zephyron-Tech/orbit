@@ -5,6 +5,13 @@ import type { AppType } from '@orbit/api-types';
 
 import { clearTokens, getAccessToken, getRefreshToken, setAccessToken, setRefreshToken } from './auth-storage';
 
+/** Thrown by a hook's query function when a request is unauthorized even after `authorizedFetch`'s own refresh-and-retry — the session is genuinely gone, not just a transient failure. */
+export class UnauthorizedError extends Error {
+  constructor() {
+    super('UNAUTHORIZED');
+  }
+}
+
 /**
  * Resolves the API's base URL for dev.
  *
@@ -31,7 +38,10 @@ function resolveApiUrl(): string {
   return 'http://localhost:4000';
 }
 
-const API_URL = resolveApiUrl();
+// Exported for the multipart-upload call sites (insurance documents, CSV/fuel
+// imports) that bypass the typed RPC client entirely, since it isn't built to
+// express `multipart/form-data` bodies.
+export const API_URL = resolveApiUrl();
 
 async function authorizedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);
@@ -55,8 +65,15 @@ async function authorizedFetch(input: RequestInfo | URL, init?: RequestInit): Pr
 
 let refreshInFlight: Promise<string | null> | null = null;
 
-/** Rotates the refresh token and stores the new pair. Coalesces concurrent callers into one request. */
-async function tryRefresh(): Promise<string | null> {
+/**
+ * Rotates the refresh token and stores the new pair. Coalesces concurrent
+ * callers into one request. Exported so `auth-context.tsx` can attempt a
+ * silent refresh on cold start — the in-memory access token is always null
+ * right after the app launches, so `authorizedFetch`'s own retry-on-401
+ * never fires for the very first request (it only retries a request that
+ * HAD a token and got rejected, never a bare unauthenticated one).
+ */
+export async function tryRefresh(): Promise<string | null> {
   if (refreshInFlight) return refreshInFlight;
 
   refreshInFlight = (async () => {
@@ -115,5 +132,22 @@ export async function login(email: string, password: string): Promise<LoginResul
 }
 
 export async function logout(): Promise<void> {
+  // Best-effort server-side revoke — matches apps/web's /auth/logout call,
+  // so a leaked refresh token doesn't stay valid for its full 30-day
+  // lifetime just because the request race-loses or the device is offline.
+  // Local tokens are cleared regardless, since that's what actually signs
+  // the user out of this device.
+  const refreshToken = await getRefreshToken();
+  if (refreshToken) {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Client': 'mobile' },
+        body: JSON.stringify({ refreshToken }),
+      });
+    } catch {
+      // Ignore — local sign-out must not be blocked by a network failure.
+    }
+  }
   await clearTokens();
 }
