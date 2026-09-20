@@ -498,3 +498,41 @@ export async function createInviteViaApi(input: CreateInviteInput): Promise<{ ok
 export async function acceptInviteViaApi(input: { token: string; name: string; password: string }): Promise<ApiActionResult> {
   return toActionResult(() => apiClient().invites.accept.$post({ json: input }), 'Registraci se nepodařilo dokončit');
 }
+
+// ---------------------------------------------------------------------------
+// Import
+// ---------------------------------------------------------------------------
+
+export interface ImportAccountOption {
+  id: string;
+  name: string;
+  externalId: string | null;
+}
+
+export interface ImportBatchRow {
+  id: string;
+  filename: string;
+  statementNumber: string | null;
+  insertedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  createdAt: string;
+  account: { name: string };
+}
+
+export async function loadImportBatchesViaApi(cookieHeader?: string): Promise<{ accounts: ImportAccountOption[]; batches: ImportBatchRow[] }> {
+  const response = await apiClient(cookieHeader).import.batches.$get();
+  if (!response.ok) return { accounts: [], batches: [] };
+  return (await response.json()) as { accounts: ImportAccountOption[]; batches: ImportBatchRow[] };
+}
+
+/**
+ * File uploads bypass the typed RPC client (`hc`) — it has no first-class
+ * support for `multipart/form-data`, and every upload route on the API
+ * already takes a plain `FormData` body, so a direct `fetch` against the
+ * API's own origin is simpler than fighting the client for something it
+ * isn't built to do.
+ */
+export async function uploadToApi(path: string, formData: FormData): Promise<Response> {
+  return fetch(`${apiBaseUrl()}${path}`, { method: 'POST', credentials: 'include', body: formData });
+}

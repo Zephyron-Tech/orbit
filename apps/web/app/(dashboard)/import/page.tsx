@@ -1,23 +1,14 @@
+import { headers } from 'next/headers';
+
 import { CsvDropzone } from '@/components/import/csv-dropzone';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
-import { prisma } from '@/lib/db/prisma';
+import { loadImportBatchesViaApi } from '@/lib/api-client';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ImportPage(): Promise<React.JSX.Element> {
-  const [accounts, batches] = await Promise.all([
-    prisma.account.findMany({
-      where: { isArchived: false },
-      select: { id: true, name: true, externalId: true },
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    }),
-    prisma.importBatch.findMany({
-      take: 10,
-      orderBy: { createdAt: 'desc' },
-      include: { account: { select: { name: true } } },
-    }),
-  ]);
+  const { accounts, batches } = await loadImportBatchesViaApi((await headers()).get('cookie') ?? undefined);
 
   return (
     <PageShell>
@@ -45,7 +36,7 @@ export default async function ImportPage(): Promise<React.JSX.Element> {
                   <span><strong className="font-semibold text-positive tabular">{batch.insertedCount}</strong> nových</span>
                   <span><strong className="font-semibold text-ink tabular">{batch.skippedCount}</strong> duplicit</span>
                   <span><strong className="font-semibold text-critical tabular">{batch.failedCount}</strong> chyb</span>
-                  <time dateTime={batch.createdAt.toISOString()}>{batch.createdAt.toISOString().slice(0, 10)}</time>
+                  <time dateTime={batch.createdAt}>{batch.createdAt.slice(0, 10)}</time>
                 </div>
               </li>
             ))}

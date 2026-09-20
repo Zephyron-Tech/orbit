@@ -7,6 +7,7 @@ import { useRef, useState } from 'react';
 import { Metric } from '@/components/ui/metric';
 import { MoneyValue } from '@/components/ui/money-value';
 import { Badge, StatusNotice } from '@/components/ui/status';
+import { apiBaseUrl, uploadToApi } from '@/lib/api-client';
 
 interface MonthlyRow {
   month: string;
@@ -146,7 +147,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
       formData.set('file', file);
       formData.set('dryRun', String(dryRun));
 
-      const response = await fetch('/api/import/fuel', { method: 'POST', body: formData });
+      const response = await uploadToApi('/import/fuel', formData);
       const payload: unknown = await response.json().catch(() => null);
 
       if (!response.ok) {
@@ -193,7 +194,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
       formData.set('file', file);
       formData.set('dryRun', String(dryRun));
 
-      const response = await fetch('/api/import/fuel-topups', { method: 'POST', body: formData });
+      const response = await uploadToApi('/import/fuel-topups', formData);
       const payload: unknown = await response.json().catch(() => null);
 
       if (!response.ok) {
@@ -240,7 +241,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
       for (const file of files) formData.append('file', file);
       formData.set('dryRun', String(dryRun));
 
-      const response = await fetch('/api/import/fuel-receipt', { method: 'POST', body: formData });
+      const response = await uploadToApi('/import/fuel-receipt', formData);
       const payload: unknown = await response.json().catch(() => null);
 
       if (!response.ok) {
@@ -276,7 +277,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
     setRematchResult(null);
 
     try {
-      const response = await fetch('/api/import/fuel-receipt/rematch', { method: 'POST' });
+      const response = await fetch(`${apiBaseUrl()}/import/fuel-receipt/rematch`, { method: 'POST', credentials: 'include' });
       const payload: unknown = await response.json().catch(() => null);
 
       if (!response.ok) {

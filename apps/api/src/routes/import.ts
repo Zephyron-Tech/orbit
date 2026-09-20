@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 
+import { prisma } from '@orbit-api/lib/db/prisma';
 import { ImportError, processCsvImport } from '@orbit-api/lib/import/process-csv';
 import { FuelReceiptError, processFuelReceiptUpload, rematchFuelReceipts, type FuelReceiptSummary } from '@orbit-api/lib/import/process-fuel-receipt';
 import { FuelTopUpImportError, processFuelTopUpsImport } from '@orbit-api/lib/import/process-fuel-topups';
@@ -17,6 +18,21 @@ type FuelReceiptFileResult = ({ ok: true } & FuelReceiptSummary & { filename: st
 
 export const importRouter = new Hono<AuthEnv>()
   .use('*', requireAuth)
+  .get('/batches', async (c) => {
+    const [accounts, batches] = await Promise.all([
+      prisma.account.findMany({
+        where: { isArchived: false },
+        select: { id: true, name: true, externalId: true },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      }),
+      prisma.importBatch.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        include: { account: { select: { name: true } } },
+      }),
+    ]);
+    return c.json({ accounts, batches });
+  })
   .post('/csv', async (c) => {
     const formData = await c.req.formData().catch(() => null);
     if (!formData) return c.json({ error: 'Očekáván multipart/form-data' }, 400);

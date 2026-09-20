@@ -7,6 +7,7 @@ import { useCallback, useRef, useState } from 'react';
 import { AmountField } from '@/components/ui/amount-field';
 import { SelectField } from '@/components/ui/select-field';
 import { Badge, StatusNotice } from '@/components/ui/status';
+import { uploadToApi } from '@/lib/api-client';
 
 interface AccountOption {
   id: string;
@@ -201,7 +202,7 @@ async function upload(
   let response: Response;
 
   try {
-    response = await fetch('/api/import/csv', { method: 'POST', body });
+    response = await uploadToApi('/import/csv', body);
   } catch {
     throw new Error('Server není dostupný. Zkontrolujte připojení a zkuste to znovu.');
   }
