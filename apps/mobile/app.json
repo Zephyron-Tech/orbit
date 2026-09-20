@@ -10,14 +10,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "tech.zephyron.orbit",
-      "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "tech.zephyron.orbit",
-      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
