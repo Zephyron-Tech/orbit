@@ -209,6 +209,84 @@ async function validatePaymentAccount(paymentAccountId: string | null): Promise<
 
 export const planning = new Hono<AuthEnv>()
   .use('*', requireAuth)
+  .get('/', async (c) => {
+    const [settings, plans, accounts, incomeSourceRules, expenses, categories, firstBankBatch] = await Promise.all([
+      prisma.planningSettings.findUnique({ where: { id: 'household' } }),
+      prisma.recurringInvestmentPlan.findMany({
+        orderBy: [{ isActive: 'desc' }, { expectedAmount: 'desc' }, { name: 'asc' }],
+        include: { sourceAccount: { select: { name: true } }, brokerAccount: { select: { name: true } } },
+      }),
+      prisma.account.findMany({
+        where: { isArchived: false },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, type: true, provider: true, currency: true },
+      }),
+      prisma.incomeSourceRule.findMany({ orderBy: [{ isActive: 'desc' }, { name: 'asc' }], include: { account: { select: { name: true } } } }),
+      prisma.recurringExpense.findMany({
+        orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+        include: { _count: { select: { transactions: true } }, paymentAccount: { select: { name: true } } },
+      }),
+      prisma.category.findMany({ where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+      prisma.importBatch.findFirst({
+        where: { status: 'COMPLETED', account: { provider: { not: 'TRADING212' } }, periodFrom: { not: null } },
+        orderBy: { periodFrom: 'asc' },
+        select: { periodFrom: true },
+      }),
+    ]);
+
+    return c.json({
+      settings: settings
+        ? {
+            monthlySpendingTarget: settings.monthlySpendingTarget?.toString() ?? null,
+            transferHistoryFrom: settings.transferHistoryFrom?.toISOString().slice(0, 10) ?? null,
+            hideHistoricalBrokerTransfers: settings.hideHistoricalBrokerTransfers,
+          }
+        : null,
+      firstBankBatchPeriodFrom: firstBankBatch?.periodFrom?.toISOString().slice(0, 10) ?? null,
+      plans: plans.map((plan) => ({
+        id: plan.id,
+        name: plan.name,
+        sourceAccountId: plan.sourceAccountId,
+        sourceAccountName: plan.sourceAccount?.name ?? null,
+        brokerAccountId: plan.brokerAccountId,
+        brokerAccountName: plan.brokerAccount.name,
+        expectedAmount: plan.expectedAmount.toString(),
+        currency: plan.currency,
+        dueDay: plan.dueDay,
+        graceDays: plan.graceDays,
+        isActive: plan.isActive,
+        startsOn: plan.startsOn?.toISOString().slice(0, 10) ?? null,
+        endsOn: plan.endsOn?.toISOString().slice(0, 10) ?? null,
+      })),
+      accounts,
+      incomeSourceRules: incomeSourceRules.map((rule) => ({
+        id: rule.id,
+        name: rule.name,
+        merchantKey: rule.merchantKey,
+        accountId: rule.accountId,
+        accountName: rule.account?.name ?? null,
+        isActive: rule.isActive,
+      })),
+      expenses: expenses.map((expense) => ({
+        id: expense.id,
+        name: expense.name,
+        categoryId: expense.categoryId,
+        expectedAmount: expense.expectedAmount.toFixed(2),
+        currency: expense.currency,
+        isShared: expense.isShared,
+        myShareRatio: expense.myShareRatio ? expense.myShareRatio.toNumber() : null,
+        isActive: expense.isActive,
+        dueDay: expense.dueDay,
+        graceDays: expense.graceDays,
+        startsOn: expense.startsOn?.toISOString().slice(0, 10) ?? null,
+        endsOn: expense.endsOn?.toISOString().slice(0, 10) ?? null,
+        paymentAccountId: expense.paymentAccountId,
+        paymentAccountName: expense.paymentAccount?.name ?? null,
+        transactionCount: expense._count.transactions,
+      })),
+      categories,
+    });
+  })
   .post('/spending-target', async (c) => {
     const parsed = spendingTargetSchema.safeParse(await c.req.json());
     if (!parsed.success) return c.json({ error: firstIssue(parsed.error) }, 400);

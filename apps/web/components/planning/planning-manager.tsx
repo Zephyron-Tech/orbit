@@ -4,7 +4,6 @@ import { Plus, TrendUp, X } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { createIncomeSourceRule, createInvestmentPlan, deleteIncomeSourceRule, deleteInvestmentPlan, saveSpendingTarget, setIncomeSourceRuleActive, setInvestmentPlanActive, updateIncomeSourceRule, updateInvestmentPlan, type IncomeSourceRuleInput, type InvestmentPlanInput } from '@/app/(dashboard)/planning/actions';
 import { AmountField } from '@/components/ui/amount-field';
 import { DateField } from '@/components/ui/date-field';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -12,6 +11,19 @@ import { MoneyValue } from '@/components/ui/money-value';
 import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
 import { Badge, StatusNotice } from '@/components/ui/status';
+import {
+  createIncomeSourceRuleViaApi as createIncomeSourceRule,
+  createInvestmentPlanViaApi as createInvestmentPlan,
+  deleteIncomeSourceRuleViaApi as deleteIncomeSourceRule,
+  deleteInvestmentPlanViaApi as deleteInvestmentPlan,
+  saveSpendingTargetViaApi as saveSpendingTarget,
+  setIncomeSourceRuleActiveViaApi as setIncomeSourceRuleActive,
+  setInvestmentPlanActiveViaApi as setInvestmentPlanActive,
+  updateIncomeSourceRuleViaApi as updateIncomeSourceRule,
+  updateInvestmentPlanViaApi as updateInvestmentPlan,
+  type IncomeSourceRuleInput,
+  type InvestmentPlanInput,
+} from '@/lib/api-client';
 
 interface Account { id: string; name: string; type: 'CHECKING' | 'SAVINGS' | 'INVESTMENT' | 'CREDIT'; provider: 'MONETA' | 'REVOLUT' | 'TRADING212' | 'MANUAL'; currency: string }
 export interface InvestmentPlanRow extends InvestmentPlanInput { id: string; sourceAccountName: string | null; brokerAccountName: string }

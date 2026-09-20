@@ -4,13 +4,6 @@ import { Plus, Repeat, WarningCircle, X } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import {
-  createRecurringExpense,
-  deleteRecurringExpense,
-  setRecurringExpenseActive,
-  updateRecurringExpense,
-  type RecurringExpenseInput,
-} from '@/app/(dashboard)/planning/recurring-actions';
 import { AmountField } from '@/components/ui/amount-field';
 import { DateField } from '@/components/ui/date-field';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -18,6 +11,13 @@ import { MoneyValue } from '@/components/ui/money-value';
 import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
 import { Badge, StatusNotice } from '@/components/ui/status';
+import {
+  createRecurringExpenseViaApi as createRecurringExpense,
+  deleteRecurringExpenseViaApi as deleteRecurringExpense,
+  setRecurringExpenseActiveViaApi as setRecurringExpenseActive,
+  updateRecurringExpenseViaApi as updateRecurringExpense,
+  type RecurringExpenseInput,
+} from '@/lib/api-client';
 
 interface Category {
   id: string;

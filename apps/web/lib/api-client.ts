@@ -294,3 +294,105 @@ export function deleteInsurancePolicyViaApi(id: string): Promise<ApiActionResult
 export function reorderInsurancePolicyViaApi(id: string, direction: -1 | 1): Promise<ApiActionResult> {
   return toActionResult(() => apiClient().insurance.reorder.$post({ json: { id, direction } }), 'Pořadí se nepodařilo změnit');
 }
+
+// ---------------------------------------------------------------------------
+// Planning (spending target, investment plans, income source rules, recurring expenses)
+// ---------------------------------------------------------------------------
+
+export interface SpendingTargetInput {
+  monthlySpendingTarget: string | null;
+  transferHistoryFrom: string | null;
+  hideHistoricalBrokerTransfers: boolean;
+}
+
+export interface InvestmentPlanInput {
+  name: string;
+  sourceAccountId: string | null;
+  brokerAccountId: string;
+  expectedAmount: string;
+  currency: string;
+  dueDay: number;
+  graceDays: number;
+  isActive: boolean;
+  startsOn: string | null;
+  endsOn: string | null;
+}
+
+export interface IncomeSourceRuleInput {
+  name: string;
+  merchantText: string;
+  accountId: string | null;
+}
+
+export interface RecurringExpenseInput {
+  name: string;
+  categoryId: string | null;
+  expectedAmount: string;
+  currency: string;
+  isShared: boolean;
+  myShareRatio: number | null;
+  isActive: boolean;
+  dueDay: number | null;
+  graceDays: number;
+  startsOn: string | null;
+  endsOn: string | null;
+  paymentAccountId: string | null;
+}
+
+export function saveSpendingTargetViaApi(input: SpendingTargetInput): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().planning['spending-target'].$post({ json: input }), 'Nastavení se nepodařilo uložit');
+}
+
+export function createInvestmentPlanViaApi(input: InvestmentPlanInput): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().planning['investment-plans'].$post({ json: input }), 'Plán se nepodařilo vytvořit');
+}
+
+export function updateInvestmentPlanViaApi(id: string, input: InvestmentPlanInput): Promise<ApiActionResult> {
+  const requestOptions = { param: { id }, json: input };
+  return toActionResult(() => apiClient().planning['investment-plans'][':id'].$patch(requestOptions), 'Plán se nepodařilo uložit');
+}
+
+export function setInvestmentPlanActiveViaApi(id: string, isActive: boolean): Promise<ApiActionResult> {
+  const requestOptions = { param: { id }, json: { isActive } };
+  return toActionResult(() => apiClient().planning['investment-plans'][':id'].active.$post(requestOptions), 'Plán se nepodařilo změnit');
+}
+
+export function deleteInvestmentPlanViaApi(id: string): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().planning['investment-plans'][':id'].$delete({ param: { id } }), 'Plán se nepodařilo smazat');
+}
+
+export function createIncomeSourceRuleViaApi(input: IncomeSourceRuleInput): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().planning['income-source-rules'].$post({ json: input }), 'Pravidlo se nepodařilo vytvořit');
+}
+
+export function updateIncomeSourceRuleViaApi(id: string, input: IncomeSourceRuleInput): Promise<ApiActionResult> {
+  const requestOptions = { param: { id }, json: input };
+  return toActionResult(() => apiClient().planning['income-source-rules'][':id'].$patch(requestOptions), 'Pravidlo se nepodařilo uložit');
+}
+
+export function setIncomeSourceRuleActiveViaApi(id: string, isActive: boolean): Promise<ApiActionResult> {
+  const requestOptions = { param: { id }, json: { isActive } };
+  return toActionResult(() => apiClient().planning['income-source-rules'][':id'].active.$post(requestOptions), 'Pravidlo se nepodařilo změnit');
+}
+
+export function deleteIncomeSourceRuleViaApi(id: string): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().planning['income-source-rules'][':id'].$delete({ param: { id } }), 'Pravidlo se nepodařilo smazat');
+}
+
+export function createRecurringExpenseViaApi(input: RecurringExpenseInput): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().planning['recurring-expenses'].$post({ json: input }), 'Fixní výdaj se nepodařilo vytvořit');
+}
+
+export function updateRecurringExpenseViaApi(id: string, input: RecurringExpenseInput): Promise<ApiActionResult> {
+  const requestOptions = { param: { id }, json: input };
+  return toActionResult(() => apiClient().planning['recurring-expenses'][':id'].$patch(requestOptions), 'Fixní výdaj se nepodařilo uložit');
+}
+
+export function setRecurringExpenseActiveViaApi(id: string, isActive: boolean): Promise<ApiActionResult> {
+  const requestOptions = { param: { id }, json: { isActive } };
+  return toActionResult(() => apiClient().planning['recurring-expenses'][':id'].active.$post(requestOptions), 'Fixní výdaj se nepodařilo změnit');
+}
+
+export function deleteRecurringExpenseViaApi(id: string): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().planning['recurring-expenses'][':id'].$delete({ param: { id } }), 'Fixní výdaj se nepodařilo smazat');
+}
