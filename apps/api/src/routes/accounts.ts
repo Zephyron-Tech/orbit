@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { prisma } from '@orbit-api/lib/db/prisma';
 import { reorderRows } from '@orbit-api/lib/db/reorder';
+import { loadNetWorth } from '@orbit-api/lib/finance/net-worth-service';
 import { rebuildMonthlyNetWorth } from '@orbit-api/lib/finance/monthly-net-worth-service';
 import { Prisma } from '@orbit-api/lib/generated/prisma/client';
 import { recordBalanceCheckpoint } from '@orbit-api/lib/import/checkpoints';
@@ -68,8 +69,53 @@ function accountData(input: z.infer<typeof accountSchema>) {
 export const accounts = new Hono<AuthEnv>()
   .use('*', requireAuth)
   .get('/', async (c) => {
-    const rows = await prisma.account.findMany({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });
-    return c.json(rows);
+    const [rows, netWorth] = await Promise.all([
+      prisma.account.findMany({
+        orderBy: [{ isArchived: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+        include: {
+          _count: { select: { transactions: true } },
+          snapshots: { orderBy: { capturedAt: 'desc' }, take: 1, select: { balance: true, capturedAt: true, source: true } },
+        },
+      }),
+      loadNetWorth(),
+    ]);
+    const derivedBalances = new Map(netWorth.accounts.map((entry) => [entry.accountId, entry.balance]));
+
+    const result = rows.map((account) => {
+      const snapshot = account.snapshots[0];
+      const derivedBalance = derivedBalances.get(account.id);
+      const creditDetails =
+        account.type === 'CREDIT' && account.creditLimit && derivedBalance
+          ? {
+              limit: account.creditLimit.toString(),
+              debt: derivedBalance.lessThan(0) ? derivedBalance.negated().toString() : '0',
+              capacity: account.creditLimit.minus(derivedBalance.lessThan(0) ? derivedBalance.negated() : 0).toString(),
+              asOf: snapshot?.capturedAt.toISOString() ?? null,
+              invalidCapacitySnapshot: snapshot?.source === 'MANUAL' && snapshot.balance.isPositive(),
+            }
+          : null;
+
+      return {
+        id: account.id,
+        name: account.name,
+        type: account.type,
+        provider: account.provider,
+        externalId: account.externalId,
+        currency: account.currency,
+        includeInNetWorth: account.includeInNetWorth,
+        creditLimit: account.creditLimit?.toString() ?? null,
+        cardLast4: account.cardLast4,
+        emergencyReserveMonths: account.type === 'SAVINGS' ? account.emergencyReserveMonths : null,
+        annualInterestRate: account.type === 'SAVINGS' ? (account.annualInterestRate?.times(100).toString() ?? null) : null,
+        interestTaxRate: account.type === 'SAVINGS' ? (account.interestTaxRate?.times(100).toString() ?? null) : null,
+        isArchived: account.isArchived,
+        transactionCount: account._count.transactions,
+        creditDetails,
+        creditNeedsOpeningConfirmation: account.type === 'CREDIT' && account.snapshots.length === 0 && account._count.transactions > 0,
+      };
+    });
+
+    return c.json(result);
   })
   .get('/:id', async (c) => {
     const parsedId = z.uuid().safeParse(c.req.param('id'));

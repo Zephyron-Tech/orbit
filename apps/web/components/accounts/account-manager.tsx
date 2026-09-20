@@ -4,19 +4,6 @@ import { Archive, ArrowDown, ArrowUp, Bank, Plus, X } from '@phosphor-icons/reac
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import {
-  createAccount,
-  deleteAccount,
-  recordCreditDebt,
-  confirmCreditZeroStart,
-  clearCreditCapacitySnapshot,
-  confirmCreditRepayment,
-  confirmCreditPayoffFromChecking,
-  setAccountArchived,
-  updateAccount,
-  type AccountInput,
-  type CreditRepaymentCandidate,
-} from '@/app/(dashboard)/accounts/actions';
 import { AmountField } from '@/components/ui/amount-field';
 import { DateField } from '@/components/ui/date-field';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -24,7 +11,20 @@ import { MoneyValue } from '@/components/ui/money-value';
 import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
 import { Badge, StatusNotice } from '@/components/ui/status';
-import { reorderAccountViaApi } from '@/lib/api-client';
+import {
+  clearCreditCapacitySnapshotViaApi,
+  confirmCreditPayoffFromCheckingViaApi,
+  confirmCreditRepaymentViaApi,
+  confirmCreditZeroStartViaApi,
+  createAccountViaApi,
+  deleteAccountViaApi,
+  recordCreditDebtViaApi,
+  reorderAccountViaApi,
+  setAccountArchivedViaApi,
+  updateAccountViaApi,
+  type AccountInput,
+  type CreditRepaymentCandidate,
+} from '@/lib/api-client';
 
 export interface AccountRow extends AccountInput {
   id: string;
@@ -129,7 +129,7 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
             pendingLabel="Ukládám…"
             onCancel={() => setEditingId(null)}
             onSubmit={(values) =>
-              run(() => updateAccount(account.id, values), 'Změny účtu byly uloženy.', () => setEditingId(null))
+              run(() => updateAccountViaApi(account.id, values), 'Změny účtu byly uloženy.', () => setEditingId(null))
             }
             disabled={isPending}
           />
@@ -237,16 +237,16 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
               </button>
             ) : null}
             {account.creditNeedsOpeningConfirmation ? (
-              <button type="button" onClick={() => run(() => confirmCreditZeroStart(account.id), 'Nulový stav před první importovanou platbou byl potvrzen.')} disabled={isPending} className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs">Potvrdit nulový start</button>
+              <button type="button" onClick={() => run(() => confirmCreditZeroStartViaApi(account.id), 'Nulový stav před první importovanou platbou byl potvrzen.')} disabled={isPending} className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs">Potvrdit nulový start</button>
             ) : null}
             {account.creditDetails?.invalidCapacitySnapshot ? (
-              <button type="button" onClick={() => run(() => clearCreditCapacitySnapshot(account.id), 'Chybný dostupný limit byl odstraněn.')} disabled={isPending} className="ui-button ui-button-ghost min-h-9 px-3 py-2 text-xs text-warning">Odstranit chybný zůstatek</button>
+              <button type="button" onClick={() => run(() => clearCreditCapacitySnapshotViaApi(account.id), 'Chybný dostupný limit byl odstraněn.')} disabled={isPending} className="ui-button ui-button-ghost min-h-9 px-3 py-2 text-xs text-warning">Odstranit chybný zůstatek</button>
             ) : null}
             <button
               type="button"
               onClick={() => {
                 if (account.isArchived) {
-                  run(() => setAccountArchived(account.id, false), 'Účet byl obnoven.');
+                  run(() => setAccountArchivedViaApi(account.id, false), 'Účet byl obnoven.');
                 } else {
                   setConfirmation({ id: account.id, action: 'archive' });
                 }
@@ -304,8 +304,8 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
                   type="button"
                   onClick={() =>
                     pendingConfirmation === 'archive'
-                      ? run(() => setAccountArchived(account.id, true), 'Účet byl archivován.')
-                      : run(() => deleteAccount(account.id), 'Účet byl smazán.')
+                      ? run(() => setAccountArchivedViaApi(account.id, true), 'Účet byl archivován.')
+                      : run(() => deleteAccountViaApi(account.id), 'Účet byl smazán.')
                   }
                   disabled={isPending}
                   className={`ui-button min-h-9 px-3 py-2 text-xs ${
@@ -332,7 +332,7 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
               onCancel={() => setRecordingDebtId(null)}
               onSubmit={(values) =>
                 run(
-                  () => recordCreditDebt({ accountId: account.id, ...values }),
+                  () => recordCreditDebtViaApi({ accountId: account.id, ...values }),
                   'Aktuální dluh byl uložen.',
                   () => setRecordingDebtId(null),
                 )
@@ -402,7 +402,7 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
               pendingLabel="Vytvářím…"
               onCancel={() => setCreating(false)}
               onSubmit={(values) =>
-                run(() => createAccount(values), 'Účet byl vytvořen.', () => setCreating(false))
+                run(() => createAccountViaApi(values), 'Účet byl vytvořen.', () => setCreating(false))
               }
               disabled={isPending}
             />
@@ -448,8 +448,8 @@ export function AccountManager({ accounts, repaymentCandidates }: { accounts: Ac
                     run(
                       () =>
                         candidate.matchedBy === 'VARIABLE_SYMBOL' && candidate.creditAccountId
-                          ? confirmCreditPayoffFromChecking(candidate.sourceTransactionId, candidate.creditAccountId)
-                          : confirmCreditRepayment(candidate.creditTransactionId as string, candidate.sourceTransactionId),
+                          ? confirmCreditPayoffFromCheckingViaApi(candidate.sourceTransactionId, candidate.creditAccountId)
+                          : confirmCreditRepaymentViaApi(candidate.creditTransactionId as string, candidate.sourceTransactionId),
                       'Splacení kreditky bylo potvrzeno jako interní převod.',
                     )
                   }
