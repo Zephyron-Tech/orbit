@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 
 import { AppShell } from '@/components/layout/app-shell';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/db/prisma';
+import { apiClient } from '@/lib/api-client';
 import { isPeriod, PERIOD_COOKIE } from '@/lib/ui/period';
 
 export default async function DashboardLayout({
@@ -11,22 +10,22 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }): Promise<React.JSX.Element> {
-  const session = await auth();
+  const cookieHeader = (await headers()).get('cookie') ?? undefined;
+  const sessionResponse = await apiClient(cookieHeader).auth.session.$get();
 
-  // proxy.ts already guards these routes; this keeps the layout honest when
-  // rendered directly and gives the header a name to show.
-  if (!session?.user) {
+  // proxy.ts already guards these routes on cookie presence alone; this is
+  // the real check (the API re-verifies the JWT and re-reads `isActive` from
+  // the DB on every call) and gives the header a name to show.
+  if (!sessionResponse.ok) {
     redirect('/signin');
   }
-
-  const currentUser = await prisma.user.findUnique({ where: { id: session.user.id }, select: { isActive: true } });
-  if (!currentUser?.isActive) redirect('/signin');
+  const { user } = (await sessionResponse.json()) as { user: { name: string | null; email: string } };
 
   const storedPeriod = (await cookies()).get(PERIOD_COOKIE)?.value;
 
   return (
     <AppShell
-      userLabel={session.user.name ?? session.user.email ?? 'Uživatel'}
+      userLabel={user.name ?? user.email ?? 'Uživatel'}
       preferredPeriod={isPeriod(storedPeriod) ? storedPeriod : null}
     >
       {children}

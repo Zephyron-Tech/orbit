@@ -75,7 +75,12 @@ export const auth = new Hono()
   })
   .get('/session', requireAuth, async (c) => {
     const claims = c.get('user');
-    return c.json({ user: { id: claims.sub, email: claims.email, role: claims.role } });
+    // Re-checked against the DB (not just the JWT claims) so a deactivated
+    // account is rejected here even before its access token expires — the
+    // same guard `apps/web`'s old dashboard layout used to run itself.
+    const user = await prisma.user.findUnique({ where: { id: claims.sub }, select: { id: true, email: true, name: true, role: true, isActive: true } });
+    if (!user || !user.isActive) return c.json({ error: 'Přihlaste se prosím' }, 401);
+    return c.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   })
   .post('/setup', async (c) => {
     if (!(await needsFirstUser())) {
