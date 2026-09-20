@@ -1,0 +1,17 @@
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/out
+.git
+.env
+**/.env
+**/.env.local
+npm-debug.log*
+**/lib/generated
+**/src/lib/generated
+coverage
+.DS_Store
+README.md
+docs
+backups

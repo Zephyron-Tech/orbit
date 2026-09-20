@@ -5,7 +5,7 @@
 # (docker-compose.prod.yml) — this tunnel is the only way in.
 #
 # Never run `docker compose up` against the tunneled DATABASE_URL: the local
-# `migrate` service unconditionally runs `prisma migrate deploy` before `app`
+# `migrate` service unconditionally runs `prisma migrate deploy` before `api`
 # starts, which would apply schema migrations against production with no
 # confirmation step. Migrations only ever happen through the real deploy
 # pipeline. Run a one-off script (`DATABASE_URL=... npx tsx scripts/x.ts`) or

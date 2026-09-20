@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-command wrapper around the docs/prod-db-access.md workflow: opens the
 # SSH tunnel to production Postgres in the background, waits for it, then
-# starts the local `app` container against it via docker-compose.prod-local.yml.
+# starts the local `api` container against it via docker-compose.prod-local.yml.
 # `down` reverses both — stops the container and kills the tunnel.
 #
 # Usage:
@@ -47,8 +47,8 @@ up() {
   fi
 
   echo "Tunneled into PRODUCTION — every write through this container is real."
-  PROD_DB_PASSWORD="$PROD_DB_PASSWORD" "${COMPOSE[@]}" up -d --no-deps --build app
-  "${COMPOSE[@]}" ps app
+  PROD_DB_PASSWORD="$PROD_DB_PASSWORD" "${COMPOSE[@]}" up -d --no-deps --build api
+  "${COMPOSE[@]}" ps api
 }
 
 down() {

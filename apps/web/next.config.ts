@@ -1,27 +1,28 @@
+import path from 'node:path';
+
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   // Emit .next/standalone so the Docker runtime image does not need node_modules.
   output: 'standalone',
-
+  // In a pnpm workspace, file tracing has to be told the real monorepo root —
+  // without it, Next traces relative to apps/web alone and silently drops
+  // packages that live in pnpm's content-addressable store one level up
+  // (e.g. @swc/helpers), which only fails at container startup ("Cannot find
+  // module"), never during `next build` itself or in `next dev`.
+  outputFileTracingRoot: path.join(import.meta.dirname, '../..'),
+  // Next's own `@swc/helpers` dependency ships both a `cjs/` and an `esm/`
+  // build; the static file tracer only follows the one Next's own webpack
+  // bundle statically imports (cjs) and drops `esm/` even though Node's
+  // require-hook falls back to it at runtime for some module shapes — a
+  // standalone-build-only failure, invisible in `next dev` or `next build`
+  // itself, only surfacing as "Cannot find module ... @swc/helpers" the
+  // moment `node server.js` actually runs. Same class of gap this app's
+  // tracer has hit before (see git history for the pdf-parse/@napi-rs/canvas
+  // case that existed before the Prisma/parsers moved to apps/api) — the fix
+  // is the same: tell the tracer about the file by hand.
   outputFileTracingIncludes: {
-    // The Prisma client is generated outside node_modules, so file tracing cannot
-    // discover it from imports alone. Include it explicitly for every route.
-    '/**/*': ['./lib/generated/prisma/**/*'],
-    // pdf-parse's pdfjs-dist dependency loads @napi-rs/canvas via a
-    // try/catch dynamic require (it's an optional peer, used for Node's
-    // missing DOMMatrix/ImageData/Path2D polyfills) — Next's static tracer
-    // never sees that require and drops it from the standalone build,
-    // which crashes with "DOMMatrix is not defined" only in Docker, never
-    // in plain `next dev` (full node_modules) or a standalone tsx script.
-    '/api/import/fuel-receipt/**/*': [
-      './node_modules/@napi-rs/canvas*/**/*',
-      // pdfjs-dist's worker script, resolved manually at runtime — see the
-      // comment in lib/import/process-fuel-receipt.ts. The tracer only
-      // follows static imports, and this file is reached via
-      // require.resolve() at runtime, so it needs an explicit include too.
-      './node_modules/pdf-parse/dist/pdf-parse/cjs/pdf.worker.mjs',
-    ],
+    '/**/*': ['../../node_modules/.pnpm/@swc+helpers@*/node_modules/@swc/helpers/**/*'],
   },
 };
 
