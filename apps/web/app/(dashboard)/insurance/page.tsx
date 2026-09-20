@@ -1,14 +1,14 @@
+import { headers } from 'next/headers';
+
 import { FileTextIcon as FileText, UserIcon as User } from '@phosphor-icons/react/dist/ssr';
 
 import { InsuranceManager } from '@/components/insurance/insurance-manager';
 import { MoneyValue } from '@/components/ui/money-value';
 import { PageHeader, PageShell, SectionHeader } from '@/components/ui/page-container';
 import { Badge } from '@/components/ui/status';
-import { prisma } from '@/lib/db/prisma';
+import { apiClient, type PaymentFrequency, type PolicyStatus } from '@/lib/api-client';
 import { formatLicensePlate } from '@/lib/finance/license-plate';
 import { nextOccurrenceOnOrAfter } from '@/lib/finance/insurance';
-import { loadInsuranceOverview } from '@/lib/finance/insurance-service';
-import type { PaymentFrequency, PolicyStatus } from '@/lib/generated/prisma/enums';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,33 +34,43 @@ const STATUS_TONE: Record<PolicyStatus, 'success' | 'neutral' | 'warning'> = {
   TERMINATED: 'neutral',
 };
 
-const RENEWAL_THRESHOLD_DAYS = 45;
+/** "2026-07-21" -> the same UTC-midnight Date the old direct-Prisma page worked with. */
+function toDate(isoDate: string): Date {
+  return new Date(`${isoDate}T00:00:00.000Z`);
+}
 
 export default async function InsurancePage(): Promise<React.JSX.Element> {
   const now = new Date();
-  const [policies, overview] = await Promise.all([
-    prisma.insurancePolicy.findMany({
-      orderBy: [{ sortOrder: 'asc' }, { annualCost: 'desc' }],
-      include: {
-        documents: {
-          orderBy: { uploadedAt: 'desc' },
-          select: { id: true, kind: true, filename: true, uploadedAt: true },
-        },
-      },
-    }),
-    loadInsuranceOverview(now, RENEWAL_THRESHOLD_DAYS),
-  ]);
-  const latestDocuments = new Map(
-    policies.map((policy) => {
-      const toInfo = (document: { id: string; filename: string; uploadedAt: Date } | undefined) =>
-        document ? { id: document.id, filename: document.filename, uploadedAt: document.uploadedAt.toISOString() } : null;
-      const contract = toInfo(policy.documents.find((document) => document.kind === 'CONTRACT'));
-      const greenCard = toInfo(policy.documents.find((document) => document.kind === 'GREEN_CARD'));
+  const cookieHeader = (await headers()).get('cookie') ?? undefined;
 
-      return [policy.id, { contract, greenCard }];
-    }),
-  );
+  const response = await apiClient(cookieHeader).insurance.$get();
+  const { policies, overview } = (await response.json()) as {
+    policies: {
+      id: string;
+      vehicleName: string;
+      licensePlate: string;
+      policyNumber: string;
+      policyHolder: string;
+      vehicleType: import('@/lib/api-client').VehicleType;
+      annualCost: string;
+      paymentFrequency: PaymentFrequency;
+      startDate: string;
+      status: PolicyStatus;
+      documents: { contract: { id: string; filename: string; uploadedAt: string } | null; greenCard: { id: string; filename: string; uploadedAt: string } | null };
+    }[];
+    overview: {
+      monthlyAccrualCost: string;
+      sinkingFundRequirement: string;
+      sinkingFundCovered: boolean;
+      savingsSurplus: string;
+      sinkingFundShortfall: string;
+      upcomingRenewals: unknown[];
+      policyProgress: { policyId: string; dueAmount: string; backedAmount: string; backedPercent: number }[];
+    };
+  };
+
   const progressByPolicy = new Map(overview.policyProgress.map((progress) => [progress.policyId, progress]));
+  const RENEWAL_THRESHOLD_DAYS = 45;
 
   return (
     <PageShell>
@@ -109,7 +119,7 @@ export default async function InsurancePage(): Promise<React.JSX.Element> {
         <SectionHeader title="Smlouvy" description={`${policies.length} evidovaných smluv.`} />
         <div className="grid gap-3">
           {policies.map((policy) => {
-            const nextDue = nextOccurrenceOnOrAfter(policy.startDate, policy.paymentFrequency, now);
+            const nextDue = nextOccurrenceOnOrAfter(toDate(policy.startDate), policy.paymentFrequency, now);
             const progress = progressByPolicy.get(policy.id);
             const dueAmount = progress ? Number(progress.dueAmount) : 0;
             const backedAmount = progress ? Number(progress.backedAmount) : 0;
@@ -167,19 +177,9 @@ export default async function InsurancePage(): Promise<React.JSX.Element> {
 
       <InsuranceManager
         policies={policies.map((policy, index) => ({
-          id: policy.id,
-          vehicleName: policy.vehicleName,
-          licensePlate: policy.licensePlate,
-          policyNumber: policy.policyNumber,
-          policyHolder: policy.policyHolder,
-          vehicleType: policy.vehicleType,
-          annualCost: policy.annualCost.toFixed(2),
-          paymentFrequency: policy.paymentFrequency,
-          startDate: policy.startDate.toISOString().slice(0, 10),
-          status: policy.status,
+          ...policy,
           isFirst: index === 0,
           isLast: index === policies.length - 1,
-          documents: latestDocuments.get(policy.id) ?? { contract: null, greenCard: null },
         }))}
       />
     </PageShell>

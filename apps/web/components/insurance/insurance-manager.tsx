@@ -4,19 +4,20 @@ import { ArrowDown, ArrowUp, Car, CloudArrowUp, DownloadSimple, Plus, X } from '
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition } from 'react';
 
-import {
-  createInsurancePolicy,
-  deleteInsurancePolicy,
-  reorderInsurancePolicy,
-  updateInsurancePolicy,
-  type InsurancePolicyInput,
-} from '@/app/(dashboard)/insurance/actions';
 import { AmountField } from '@/components/ui/amount-field';
 import { DateField } from '@/components/ui/date-field';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/page-container';
 import { SelectField } from '@/components/ui/select-field';
 import { StatusNotice } from '@/components/ui/status';
+import {
+  apiBaseUrl,
+  createInsurancePolicyViaApi,
+  deleteInsurancePolicyViaApi,
+  reorderInsurancePolicyViaApi,
+  updateInsurancePolicyViaApi,
+  type InsurancePolicyInput,
+} from '@/lib/api-client';
 import { formatLicensePlate } from '@/lib/finance/license-plate';
 
 export interface InsuranceDocumentInfo {
@@ -131,7 +132,7 @@ export function InsuranceManager({ policies }: { policies: InsurancePolicyRow[] 
             onCancel={() => setEditingId(null)}
             onSubmit={(values) =>
               run(
-                () => updateInsurancePolicy(policy.id, values),
+                () => updateInsurancePolicyViaApi(policy.id, values),
                 'Změny pojistky byly uloženy.',
                 () => setEditingId(null),
               )
@@ -164,7 +165,7 @@ export function InsuranceManager({ policies }: { policies: InsurancePolicyRow[] 
           <div className="flex w-full min-w-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
             <button
               type="button"
-              onClick={() => run(() => reorderInsurancePolicy(policy.id, -1), 'Pořadí bylo změněno.')}
+              onClick={() => run(() => reorderInsurancePolicyViaApi(policy.id, -1), 'Pořadí bylo změněno.')}
               disabled={isPending || policy.isFirst}
               aria-label="Posunout výš"
               title="Posunout výš"
@@ -174,7 +175,7 @@ export function InsuranceManager({ policies }: { policies: InsurancePolicyRow[] 
             </button>
             <button
               type="button"
-              onClick={() => run(() => reorderInsurancePolicy(policy.id, 1), 'Pořadí bylo změněno.')}
+              onClick={() => run(() => reorderInsurancePolicyViaApi(policy.id, 1), 'Pořadí bylo změněno.')}
               disabled={isPending || policy.isLast}
               aria-label="Posunout níž"
               title="Posunout níž"
@@ -220,7 +221,7 @@ export function InsuranceManager({ policies }: { policies: InsurancePolicyRow[] 
                 </button>
                 <button
                   type="button"
-                  onClick={() => run(() => deleteInsurancePolicy(policy.id), 'Pojistka byla smazána.')}
+                  onClick={() => run(() => deleteInsurancePolicyViaApi(policy.id), 'Pojistka byla smazána.')}
                   disabled={isPending}
                   className="ui-button ui-button-danger min-h-9 px-3 py-2 text-xs"
                 >
@@ -294,7 +295,7 @@ export function InsuranceManager({ policies }: { policies: InsurancePolicyRow[] 
               pendingLabel="Vytvářím…"
               onCancel={() => setCreating(false)}
               onSubmit={(values) =>
-                run(() => createInsurancePolicy(values), 'Pojistka byla vytvořena.', () => setCreating(false))
+                run(() => createInsurancePolicyViaApi(values), 'Pojistka byla vytvořena.', () => setCreating(false))
               }
               disabled={isPending}
             />
@@ -332,7 +333,7 @@ function DocumentLink({
 }): React.JSX.Element {
   return (
     <a
-      href={`/api/insurance/${policyId}/documents/${document.id}`}
+      href={`${apiBaseUrl()}/insurance/${policyId}/documents/${document.id}`}
       target="_blank"
       rel="noreferrer"
       className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface-subtle px-2 py-1 text-xs text-ink-muted hover:text-ink"
@@ -390,7 +391,7 @@ function DocumentUploader({
       parseBody.set('file', file);
       parseBody.set('kind', kind);
 
-      const parseResponse = await fetch('/api/insurance/documents/parse', { method: 'POST', body: parseBody });
+      const parseResponse = await fetch(`${apiBaseUrl()}/insurance/documents/parse`, { method: 'POST', body: parseBody, credentials: 'include' });
       const parsed: unknown = await parseResponse.json();
 
       if (!parseResponse.ok) {
@@ -406,7 +407,7 @@ function DocumentUploader({
         storeBody.set('file', file);
         storeBody.set('kind', kind);
 
-        const storeResponse = await fetch(`/api/insurance/${policyId}/documents`, { method: 'POST', body: storeBody });
+        const storeResponse = await fetch(`${apiBaseUrl()}/insurance/${policyId}/documents`, { method: 'POST', body: storeBody, credentials: 'include' });
 
         if (!storeResponse.ok && storeResponse.status !== 409) {
           const storeError: unknown = await storeResponse.json().catch(() => null);
@@ -452,7 +453,7 @@ function DocumentUploader({
       </button>
       {existing ? (
         <a
-          href={policyId ? `/api/insurance/${policyId}/documents/${existing.id}` : undefined}
+          href={policyId ? `${apiBaseUrl()}/insurance/${policyId}/documents/${existing.id}` : undefined}
           target="_blank"
           rel="noreferrer"
           className="text-xs text-ink-muted hover:text-ink"

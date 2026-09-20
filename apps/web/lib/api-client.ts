@@ -10,10 +10,13 @@ import type { AppType } from '@orbit/api-types';
  * fetch); a browser-side call sends its own cookies automatically via
  * `credentials: 'include'`.
  */
-export function apiClient(cookieHeader?: string) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+/** The API's own origin — for the rare call that bypasses the typed RPC client (file uploads, a browser-navigated download link). */
+export function apiBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+}
 
-  return hc<AppType>(apiUrl, {
+export function apiClient(cookieHeader?: string) {
+  return hc<AppType>(apiBaseUrl(), {
     init: {
       credentials: 'include',
       headers: cookieHeader ? { cookie: cookieHeader } : {},
@@ -253,4 +256,41 @@ export function splitTransactionViaApi(input: { parentId: string; lines: SplitLi
 export function mergeSplitViaApi(parentId: string): Promise<ApiActionResult> {
   const requestOptions = { param: { id: parentId } };
   return toActionResult(() => apiClient().transactions[':id']['merge-split'].$post(requestOptions), 'Neplatná transakce');
+}
+
+// ---------------------------------------------------------------------------
+// Insurance
+// ---------------------------------------------------------------------------
+
+export type VehicleType = 'CAR' | 'MOTORCYCLE' | 'TRUCK_OR_TRACTOR' | 'MOPED' | 'BUS' | 'TRAILER' | 'OTHER';
+export type PaymentFrequency = 'ANNUAL' | 'SEMI_ANNUAL' | 'MONTHLY';
+export type PolicyStatus = 'ACTIVE' | 'PAID' | 'PENDING_RENEWAL' | 'TERMINATED';
+
+export interface InsurancePolicyInput {
+  vehicleName: string;
+  licensePlate: string;
+  policyNumber: string;
+  policyHolder: string;
+  vehicleType: VehicleType;
+  annualCost: string;
+  paymentFrequency: PaymentFrequency;
+  startDate: string;
+  status: PolicyStatus;
+}
+
+export function createInsurancePolicyViaApi(input: InsurancePolicyInput): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().insurance.$post({ json: input }), 'Pojistku se nepodařilo vytvořit');
+}
+
+export function updateInsurancePolicyViaApi(id: string, input: InsurancePolicyInput): Promise<ApiActionResult> {
+  const requestOptions = { param: { id }, json: input };
+  return toActionResult(() => apiClient().insurance[':id'].$patch(requestOptions), 'Pojistku se nepodařilo uložit');
+}
+
+export function deleteInsurancePolicyViaApi(id: string): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().insurance[':id'].$delete({ param: { id } }), 'Pojistku se nepodařilo smazat');
+}
+
+export function reorderInsurancePolicyViaApi(id: string, direction: -1 | 1): Promise<ApiActionResult> {
+  return toActionResult(() => apiClient().insurance.reorder.$post({ json: { id, direction } }), 'Pořadí se nepodařilo změnit');
 }

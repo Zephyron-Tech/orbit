@@ -8,6 +8,7 @@ import { prisma } from '@orbit-api/lib/db/prisma';
 import { reorderRows } from '@orbit-api/lib/db/reorder';
 import { Prisma } from '@orbit-api/lib/generated/prisma/client';
 import { PaymentFrequency, PolicyStatus, VehicleCategory } from '@orbit-api/lib/generated/prisma/enums';
+import { loadInsuranceOverview } from '@orbit-api/lib/finance/insurance-service';
 import { CsvStructureError } from '@orbit-api/lib/parsers/csv/types';
 import { parseGeneraliContract } from '@orbit-api/lib/parsers/pdf/generali-contract';
 import { parseGreenCard } from '@orbit-api/lib/parsers/pdf/generali-green-card';
@@ -83,8 +84,41 @@ async function readUploadedFile(c: import('hono').Context): Promise<{ kind: 'CON
 export const insurance = new Hono<AuthEnv>()
   .use('*', requireAuth)
   .get('/', async (c) => {
-    const rows = await prisma.insurancePolicy.findMany({ orderBy: [{ sortOrder: 'asc' }, { annualCost: 'desc' }] });
-    return c.json(rows);
+    const [rows, overview] = await Promise.all([
+      prisma.insurancePolicy.findMany({
+        orderBy: [{ sortOrder: 'asc' }, { annualCost: 'desc' }],
+        include: {
+          documents: {
+            orderBy: { uploadedAt: 'desc' },
+            select: { id: true, kind: true, filename: true, uploadedAt: true },
+          },
+        },
+      }),
+      loadInsuranceOverview(new Date(), 45),
+    ]);
+
+    const policies = rows.map((policy) => {
+      const toInfo = (document: { id: string; filename: string; uploadedAt: Date } | undefined) =>
+        document ? { id: document.id, filename: document.filename, uploadedAt: document.uploadedAt.toISOString() } : null;
+      const contract = toInfo(policy.documents.find((document) => document.kind === 'CONTRACT'));
+      const greenCard = toInfo(policy.documents.find((document) => document.kind === 'GREEN_CARD'));
+
+      return {
+        id: policy.id,
+        vehicleName: policy.vehicleName,
+        licensePlate: policy.licensePlate,
+        policyNumber: policy.policyNumber,
+        policyHolder: policy.policyHolder,
+        vehicleType: policy.vehicleType,
+        annualCost: policy.annualCost.toFixed(2),
+        paymentFrequency: policy.paymentFrequency,
+        startDate: policy.startDate.toISOString().slice(0, 10),
+        status: policy.status,
+        documents: { contract, greenCard },
+      };
+    });
+
+    return c.json({ policies, overview });
   })
   .post('/', async (c) => {
     const parsed = insurancePolicySchema.safeParse(await c.req.json());
