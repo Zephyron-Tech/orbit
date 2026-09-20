@@ -5,8 +5,13 @@ on:
     branches: [main]
 
 env:
-  APP_IMAGE: ghcr.io/zephyron-tech/orbit-app
-  MIGRATE_IMAGE: ghcr.io/zephyron-tech/orbit-migrate
+  API_IMAGE: ghcr.io/zephyron-tech/orbit-api
+  API_MIGRATE_IMAGE: ghcr.io/zephyron-tech/orbit-api-migrate
+  WEB_IMAGE: ghcr.io/zephyron-tech/orbit-web
+  # Not secrets — public hostnames, baked into the web image at build time
+  # (NEXT_PUBLIC_API_URL) and read by the api service for CORS (WEB_ORIGIN).
+  WEB_URL: https://orbit.zephyron.tech
+  API_URL: https://api.orbit.zephyron.tech
   PROJECT_DIR: /opt/docker/orbit
 
 jobs:
@@ -25,25 +30,43 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push app image
+      # Build context is the monorepo root for every image — `turbo prune`
+      # inside each Dockerfile needs the whole workspace graph to see what
+      # each app actually depends on, not just its own directory.
+      - name: Build and push api image
         uses: docker/build-push-action@v7
         with:
           context: .
+          file: apps/api/Dockerfile
           target: runner
           push: true
           tags: |
-            ${{ env.APP_IMAGE }}:latest
-            ${{ env.APP_IMAGE }}:${{ github.sha }}
+            ${{ env.API_IMAGE }}:latest
+            ${{ env.API_IMAGE }}:${{ github.sha }}
 
-      - name: Build and push migrate image
+      - name: Build and push api-migrate image
         uses: docker/build-push-action@v7
         with:
           context: .
+          file: apps/api/Dockerfile
           target: migrator
           push: true
           tags: |
-            ${{ env.MIGRATE_IMAGE }}:latest
-            ${{ env.MIGRATE_IMAGE }}:${{ github.sha }}
+            ${{ env.API_MIGRATE_IMAGE }}:latest
+            ${{ env.API_MIGRATE_IMAGE }}:${{ github.sha }}
+
+      - name: Build and push web image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          target: runner
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.API_URL }}
+          tags: |
+            ${{ env.WEB_IMAGE }}:latest
+            ${{ env.WEB_IMAGE }}:${{ github.sha }}
 
       # Same pattern as zephyron-deck-microservice: a fresh deploy target
       # doesn't need any manual server prep.
@@ -80,6 +103,10 @@ jobs:
       # .env never touches the runner's disk and is never echoed — appleboy/ssh-action
       # forwards the listed GitHub Secrets straight into the remote script's environment,
       # and Actions auto-masks any secret value that shows up in logs.
+      #
+      # NEXT_PUBLIC_API_URL is NOT here: it's a Next.js build-time value
+      # already baked into the web image, not something the running
+      # container reads — putting it in the runtime .env would do nothing.
       - name: Write .env on server
         uses: appleboy/ssh-action@v1.2.5
         env:

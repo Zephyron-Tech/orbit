@@ -1,0 +1,64 @@
+Výpis ze spořicího účtu
+MONETA Money
+Číslo výpisu:
+Výpis ze dne:
+Předchozí výpis ze dne:
+Periodicita výpisu:
+Strana:
+2026/1
+31.08.2026
+1/1
+měsíční
+Jan Novák
+Příkladová 123
+383 01 Prachatice - Prachatice II
+Informace o účtu
+Obchodní místo: MMB, a. s. PRACHATICE
+ZAHRADNÍ 126
+383 01 PRACHATICE
+Bankovní spojení:
+Číslo účtu IBAN:
+SWIFT kód BIC:
+111222333 / 0600
+CZ46 0600 0000 0001 1122 2333
+AGBACZPP
+Označení měny: CZK
+Souhrnné zúčtování v měně účtu
+Počáteční zůstatek:
+Konečný zůstatek:
+0,00
+125 092,85
+Obrat kredit:
+Obrat debet:
+Roční kreditní obrat:
+Roční debetní obrat:
+125 109,24
+-16,39
+125 109,24
+16,39
+Výše úrokové sazby: 2,90 % p.a.
+Typ spořicího účtu:
+Název spoření:
+Výše uvedená úroková sazba je platná k datu generování tohoto výpisu (viz Výpis ze dne)
+Spoření Gold Plus
+Počáteční zůstatek 0,00	Přehled transakcí
+Datum Bankovní spojení Kód transakce VS Debetní obrat Kreditní obrat
+zpracování / Popis Datum zaúčtování / KS Částka Částka
+Valuta odepsání SS
+20.08.2026 111222444/0600 260820XSB4228315073 125 000,00
+NOVÁK JAN 20.08.2026
+20.08.2026
+31.08.2026 260831GTA900001 109,24
+KREDITNÍ ÚROKY 31.08.2026
+31.08.2026
+31.08.2026 260831GTA900001 - 16,39
+Daň z úroku 31.08.2026 144
+31.08.2026
+Celkový počet transakcí: 3 Součet obratů na výpisu: 16,39 125 109,24
+Konečný zůstatek 125 092,85
+Žádáme Vás o překontrolování uvedených údajů. V případě nesouhlasu informujte obchodní místo spravující Váš účet.
+www.moneta.cz | zákaznický servis: 224 443 636
+MONETA Money Bank, a. s., Vyskočilova 1442/1b, 140 28 Praha 4 - Michle
+IČO: 25672720, Zapsáno u MS v Praze, odd. B, vl. 5403
+
+-- 1 of 1 --

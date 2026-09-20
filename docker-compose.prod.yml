@@ -19,9 +19,9 @@ services:
       timeout: 5s
       retries: 10
 
-  # One-shot: applies migrations and seeds, then exits. The app waits for it.
+  # One-shot: applies migrations and seeds, then exits. The api service waits for it.
   migrate:
-    image: ghcr.io/zephyron-tech/orbit-migrate:latest
+    image: ghcr.io/zephyron-tech/orbit-api-migrate:latest
     container_name: orbit-migrate
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
@@ -30,14 +30,13 @@ services:
         condition: service_healthy
     restart: 'no'
 
-  app:
-    image: ghcr.io/zephyron-tech/orbit-app:latest
-    container_name: orbit-app
+  api:
+    image: ghcr.io/zephyron-tech/orbit-api:latest
+    container_name: orbit-api
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
-      AUTH_TRUST_HOST: 'true'
       INGESTION_SECRET: ${INGESTION_SECRET:?INGESTION_SECRET is required}
       FUEL_INGESTION_SECRET: ${FUEL_INGESTION_SECRET:?FUEL_INGESTION_SECRET is required}
       BANK_STATEMENT_INGESTION_SECRET: ${BANK_STATEMENT_INGESTION_SECRET:?BANK_STATEMENT_INGESTION_SECRET is required}
@@ -46,11 +45,40 @@ services:
       TRADING212_API_SECRET: ${TRADING212_API_SECRET:-}
       TRADING212_API_BASE_URL: ${TRADING212_API_BASE_URL:-https://live.trading212.com}
       REPORTING_CURRENCY: ${REPORTING_CURRENCY:-CZK}
+      WEB_ORIGIN: https://orbit.zephyron.tech
+      PORT: '4000'
     depends_on:
       postgres:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:4000/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - default
+      - web_proxy
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=web_proxy'
+      - 'traefik.http.routers.orbit-api.rule=Host(`api.orbit.zephyron.tech`)'
+      - 'traefik.http.routers.orbit-api.entrypoints=websecure'
+      - 'traefik.http.routers.orbit-api.tls.certresolver=myresolver'
+      - 'traefik.http.services.orbit-api.loadbalancer.server.port=4000'
+
+  web:
+    # NEXT_PUBLIC_API_URL is baked into this image at build time (it has to
+    # be — Next.js inlines NEXT_PUBLIC_* into the client bundle), pointed at
+    # https://api.orbit.zephyron.tech. No runtime env var needed for it here.
+    image: ghcr.io/zephyron-tech/orbit-web:latest
+    container_name: orbit-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
     healthcheck:
       test: ['CMD-SHELL', 'curl -fsS http://localhost:3000/api/health || exit 1']
       interval: 10s
@@ -63,10 +91,10 @@ services:
     labels:
       - 'traefik.enable=true'
       - 'traefik.docker.network=web_proxy'
-      - 'traefik.http.routers.orbit.rule=Host(`orbit.zephyron.tech`)'
-      - 'traefik.http.routers.orbit.entrypoints=websecure'
-      - 'traefik.http.routers.orbit.tls.certresolver=myresolver'
-      - 'traefik.http.services.orbit.loadbalancer.server.port=3000'
+      - 'traefik.http.routers.orbit-web.rule=Host(`orbit.zephyron.tech`)'
+      - 'traefik.http.routers.orbit-web.entrypoints=websecure'
+      - 'traefik.http.routers.orbit-web.tls.certresolver=myresolver'
+      - 'traefik.http.services.orbit-web.loadbalancer.server.port=3000'
 
   # Calls the Trading 212 sync every hour. A sleep loop rather than a cron
   # daemon: one dependency-free image, and the interval is the whole config.
@@ -78,16 +106,16 @@ services:
     command:
       - |
         while true; do
-          curl -fsS -X POST -H "Authorization: Bearer $$INGESTION_SECRET" http://app:3000/api/cron/sync-trading212 \
+          curl -fsS -X POST -H "Authorization: Bearer $$INGESTION_SECRET" http://api:4000/cron/sync-trading212 \
             || echo "trading212 sync failed"
-          curl -fsS -X POST -H "Authorization: Bearer $$INGESTION_SECRET" http://app:3000/api/cron/net-worth-snapshot \
+          curl -fsS -X POST -H "Authorization: Bearer $$INGESTION_SECRET" http://api:4000/cron/net-worth-snapshot \
             || echo "net worth snapshot failed"
           sleep 3600
         done
     environment:
       INGESTION_SECRET: ${INGESTION_SECRET:?INGESTION_SECRET is required}
     depends_on:
-      app:
+      api:
         condition: service_healthy
 
   # Nightly pg_dump, kept 30 days. A host bind mount (not the named pgdata

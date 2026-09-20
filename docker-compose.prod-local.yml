@@ -1,9 +1,9 @@
-# Override for running the local `app` container against PRODUCTION data via
+# Override for running the local `api` container against PRODUCTION data via
 # scripts/prod-db-tunnel.sh, instead of the local `postgres`/`migrate`
 # services. See docs/prod-db-access.md for the full walkthrough — do not use
 # this file on its own without reading that first.
 services:
-  app:
+  api:
     # Clears the local postgres/migrate dependency entirely — this container
     # must never trigger `prisma migrate deploy` against production, and it
     # has no reason to wait for a local postgres it isn't using. Compose
