@@ -287,3 +287,159 @@ export interface PlanningResponse {
   expenses: RecurringExpenseRow[];
   categories: { id: string; name: string }[];
 }
+
+// ---------------------------------------------------------------------------
+// Settlement
+// ---------------------------------------------------------------------------
+
+export interface SettlementLine {
+  id: string;
+  date: string;
+  merchant: string;
+  total: string;
+  paidBy: 'ME' | 'PARTNER';
+  myShare: string | null;
+  partnerShare: string | null;
+  currency: string;
+  kind: 'EXPENSE' | 'SETTLEMENT' | 'UNCONVERTED';
+}
+
+export interface SettlementSummary {
+  paidByMe: string;
+  paidByPartner: string;
+  dueFromMe: string | null;
+  dueFromPartner: string | null;
+  settlementReceived: string | null;
+  settlementSent: string | null;
+  balance: string;
+  exactBalance: string | null;
+  direction: string;
+  sharedCount: number;
+}
+
+export interface SettlementResponse {
+  period: { year: number; month: number };
+  isClosed: boolean;
+  closedId: string | null;
+  settledAt: string | null;
+  closedNotes: string | null;
+  summary: SettlementSummary;
+  lines: SettlementLine[];
+  lockedCount: number;
+  unconvertedCount: number;
+  months: string[];
+  history: { id: string; period: string; balance: string; settledAt: string | null }[];
+}
+
+// ---------------------------------------------------------------------------
+// Portfolio
+// ---------------------------------------------------------------------------
+
+export interface PortfolioSnapshot {
+  accountName: string;
+  currency: string;
+  balance: string;
+  balanceCzk: string | null;
+  investedValue: string | null;
+  unrealizedPnl: string | null;
+  cashBalance: string | null;
+  capturedAt: string;
+  updatedAt: string;
+}
+
+export interface PortfolioResponse {
+  snapshots: PortfolioSnapshot[];
+}
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+export interface SettingsResponse {
+  reportingStartMonth: string | null;
+  availableMonths: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Users / invites
+// ---------------------------------------------------------------------------
+
+export interface HouseholdUserRow {
+  id: string;
+  email: string;
+  name: string | null;
+  role: 'OWNER' | 'MEMBER';
+  isActive: boolean;
+  lastLogin: string | null;
+  isCurrentUser: boolean;
+}
+
+export interface UsersResponse {
+  isOwner: boolean;
+  users: HouseholdUserRow[];
+}
+
+export interface InviteRow {
+  id: string;
+  email: string;
+  role: 'OWNER' | 'MEMBER';
+  expiresAt: string;
+  acceptedAt: string | null;
+  createdAt: string;
+}
+
+export interface InvitesListResponse {
+  invites: InviteRow[];
+}
+
+export interface CreatedInvite {
+  id: string;
+  email: string;
+  url: string;
+  expiresAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Import
+// ---------------------------------------------------------------------------
+
+export interface ImportAccountOption {
+  id: string;
+  name: string;
+  externalId: string | null;
+}
+
+export interface ImportBatchRow {
+  id: string;
+  createdAt: string;
+  status: string;
+  account: { name: string };
+}
+
+export interface ImportBatchesResponse {
+  accounts: ImportAccountOption[];
+  batches: ImportBatchRow[];
+}
+
+// ---------------------------------------------------------------------------
+// Fuel
+// ---------------------------------------------------------------------------
+
+export interface FuelMonthlyRow {
+  month: string;
+  totalCzk: string;
+  liters: string;
+}
+
+export interface FuelReceiptRow {
+  id: string;
+  purchasedAt: string;
+  liters: string | number;
+  totalCzk: string | number;
+  stationName: string | null;
+}
+
+export interface FuelResponse {
+  overview: { monthly: FuelMonthlyRow[] } & Record<string, unknown>;
+  receipts: FuelReceiptRow[];
+}
