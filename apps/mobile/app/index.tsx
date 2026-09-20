@@ -3,9 +3,13 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '../lib/auth-context';
 
-/** Entry redirect — waits for the cold-start silent-refresh check, then routes to the right stack. */
+/** Entry redirect — waits for the cold-start check, then routes to the right stack. */
 export default function Index(): React.JSX.Element {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, locked } = useAuth();
+
+  if (locked) {
+    return <Redirect href="/(auth)/unlock" />;
+  }
 
   if (isAuthenticated === null) {
     return (

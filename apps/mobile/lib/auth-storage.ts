@@ -21,7 +21,9 @@ const webStore = {
   },
 };
 
-const store = Platform.OS === 'web' ? webStore : SecureStore;
+// Exported so lib/biometric-auth.ts can persist its own preference key
+// through the same web-fallback-aware storage instead of duplicating it.
+export const store = Platform.OS === 'web' ? webStore : SecureStore;
 
 /**
  * Access token lives in memory only — it's short-lived (15 min) and never

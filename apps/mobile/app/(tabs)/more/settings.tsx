@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 
 import { useChangeEmail, useChangePassword, useSettings, useUpdateReportingStartMonth } from '../../../hooks/use-settings';
 import { useAuth } from '../../../lib/auth-context';
+import { isBiometricAuthAvailable, isBiometricLockEnabled, promptBiometricUnlock, setBiometricLockEnabled } from '../../../lib/biometric-auth';
 
 export default function SettingsScreen(): React.JSX.Element {
   const { user } = useAuth();
@@ -17,6 +18,36 @@ export default function SettingsScreen(): React.JSX.Element {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabledState] = useState(false);
+  const [biometricMessage, setBiometricMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const [available, enabled] = await Promise.all([isBiometricAuthAvailable(), isBiometricLockEnabled()]);
+      setBiometricAvailable(available);
+      setBiometricEnabledState(enabled);
+    })();
+  }, []);
+
+  async function handleToggleBiometric(next: boolean): Promise<void> {
+    setBiometricMessage(null);
+
+    // Confirm the sensor actually works before relying on it as the app's
+    // lock screen — turning this on with a broken prompt would otherwise
+    // lock the user out of their own app on next launch.
+    if (next) {
+      const result = await promptBiometricUnlock();
+      if (!result.ok) {
+        setBiometricMessage(result.error ?? 'Ověření se nezdařilo, zkuste to znovu');
+        return;
+      }
+    }
+
+    await setBiometricLockEnabled(next);
+    setBiometricEnabledState(next);
+  }
 
   useEffect(() => {
     if (user?.email) setEmail(user.email);
@@ -104,6 +135,17 @@ export default function SettingsScreen(): React.JSX.Element {
           </View>
         )}
       </View>
+
+      {biometricAvailable ? (
+        <View className="gap-2 border-t border-neutral-100 pt-6">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-sm font-medium text-neutral-500">Face ID / Touch ID</Text>
+            <Switch value={biometricEnabled} onValueChange={(next) => void handleToggleBiometric(next)} />
+          </View>
+          <Text className="text-xs text-neutral-400">Appka bude při otevření vyžadovat biometrické ověření místo automatického přihlášení.</Text>
+          {biometricMessage ? <Text className="text-sm text-red-600">{biometricMessage}</Text> : null}
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

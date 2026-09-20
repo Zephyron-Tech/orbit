@@ -11,7 +11,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "tech.zephyron.orbit",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "Orbit používá Face ID k rychlému a bezpečnému odemčení appky místo opětovného zadávání hesla."
       }
     },
     "android": {

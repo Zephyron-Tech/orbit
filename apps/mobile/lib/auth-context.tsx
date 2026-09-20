@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import { apiClient, login as apiLogin, logout as apiLogout, tryRefresh, UnauthorizedError } from './api-client';
 import { setAccessToken } from './auth-storage';
+import { isBiometricAuthAvailable, isBiometricLockEnabled, promptBiometricUnlock } from './biometric-auth';
 
 export interface SessionUser {
   id: string;
@@ -11,10 +12,18 @@ export interface SessionUser {
 }
 
 interface AuthContextValue {
-  /** `null` while the cold-start silent-refresh check is still in flight. */
+  /** `null` while the cold-start check is still in flight. */
   isAuthenticated: boolean | null;
+  /**
+   * A stored session exists but the biometric gate hasn't been passed yet —
+   * the app must render the unlock screen instead of either the tabs or the
+   * password login form. Always `false` once `isAuthenticated` is non-null.
+   */
+  locked: boolean;
   user: SessionUser | null;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Resolves the deferred silent-refresh + session fetch after a successful Face ID / Touch ID prompt. */
+  unlockWithBiometrics: () => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -28,18 +37,29 @@ async function fetchSession(): Promise<SessionUser | null> {
   return body.user;
 }
 
+/** The part shared by a fresh password login and a completed biometric unlock. */
+async function completeSignIn(setUser: (u: SessionUser | null) => void, setIsAuthenticated: (v: boolean) => void): Promise<void> {
+  try {
+    const sessionUser = await fetchSession();
+    setUser(sessionUser);
+    setIsAuthenticated(sessionUser !== null);
+  } catch {
+    setIsAuthenticated(false);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [locked, setLocked] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function bootstrap(): Promise<void> {
-      // The in-memory access token is always null right after launch — a
-      // silent refresh (backed by the persisted refresh token) is the only
-      // way to know whether a previous login is still valid, before making
-      // any authenticated call at all.
+      // A refresh token existing is the only signal a previous login might
+      // still be valid — checked before deciding whether to show the
+      // biometric gate at all (no point locking an app nobody's logged into).
       const accessToken = await tryRefresh();
       if (cancelled) return;
 
@@ -48,14 +68,19 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         return;
       }
 
-      try {
-        const sessionUser = await fetchSession();
-        if (cancelled) return;
-        setUser(sessionUser);
-        setIsAuthenticated(sessionUser !== null);
-      } catch {
-        if (!cancelled) setIsAuthenticated(false);
+      const [available, enabled] = await Promise.all([isBiometricAuthAvailable(), isBiometricLockEnabled()]);
+      if (cancelled) return;
+
+      if (available && enabled) {
+        // Stop here — completeSignIn runs later, from unlockWithBiometrics,
+        // once the user actually passes the prompt. isAuthenticated stays
+        // null so index.tsx keeps showing the loading spinner for an
+        // instant, then locked flips it to the unlock screen.
+        setLocked(true);
+        return;
       }
+
+      await completeSignIn(setUser, setIsAuthenticated);
     }
 
     void bootstrap();
@@ -68,14 +93,16 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     const result = await apiLogin(email, password);
     if (!result.ok) return result;
 
-    try {
-      const sessionUser = await fetchSession();
-      setUser(sessionUser);
-      setIsAuthenticated(sessionUser !== null);
-    } catch {
-      setIsAuthenticated(false);
-    }
+    await completeSignIn(setUser, setIsAuthenticated);
+    return result;
+  }, []);
 
+  const unlockWithBiometrics = useCallback(async () => {
+    const result = await promptBiometricUnlock();
+    if (!result.ok) return result;
+
+    await completeSignIn(setUser, setIsAuthenticated);
+    setLocked(false);
     return result;
   }, []);
 
@@ -84,9 +111,13 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     setAccessToken(null);
     setUser(null);
     setIsAuthenticated(false);
+    setLocked(false);
   }, []);
 
-  const value = useMemo<AuthContextValue>(() => ({ isAuthenticated, user, login, logout }), [isAuthenticated, user, login, logout]);
+  const value = useMemo<AuthContextValue>(
+    () => ({ isAuthenticated, locked, user, login, unlockWithBiometrics, logout }),
+    [isAuthenticated, locked, user, login, unlockWithBiometrics, logout],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
