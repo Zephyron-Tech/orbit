@@ -7,13 +7,15 @@ import { hashPassword, verifyPassword, WeakPasswordError } from '@orbit-api/lib/
 import { needsFirstUser } from '@orbit-api/lib/auth/users';
 import { prisma } from '@orbit-api/lib/db/prisma';
 import { SESSION_COOKIE, requireAuth } from '@orbit-api/middleware/auth';
+import { getEnv } from '@orbit-api/lib/validation/env';
 
 const REFRESH_COOKIE = 'orbit_refresh';
 const isProd = process.env.NODE_ENV === 'production';
 
 function setSessionCookies(c: Context, access: string, refresh: string): void {
-  setCookie(c, SESSION_COOKIE, access, { httpOnly: true, secure: isProd, sameSite: 'Lax', path: '/', maxAge: 15 * 60 });
-  setCookie(c, REFRESH_COOKIE, refresh, { httpOnly: true, secure: isProd, sameSite: 'Lax', path: '/', maxAge: 30 * 24 * 60 * 60 });
+  const domain = getEnv().COOKIE_DOMAIN;
+  setCookie(c, SESSION_COOKIE, access, { httpOnly: true, secure: isProd, sameSite: 'Lax', path: '/', domain, maxAge: 15 * 60 });
+  setCookie(c, REFRESH_COOKIE, refresh, { httpOnly: true, secure: isProd, sameSite: 'Lax', path: '/', domain, maxAge: 30 * 24 * 60 * 60 });
 }
 
 const loginSchema = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(1) });
@@ -69,8 +71,9 @@ export const auth = new Hono()
   .post('/logout', async (c) => {
     const presented = getCookie(c, REFRESH_COOKIE);
     if (presented) await revokeRefreshToken(presented);
-    deleteCookie(c, SESSION_COOKIE, { path: '/' });
-    deleteCookie(c, REFRESH_COOKIE, { path: '/' });
+    const domain = getEnv().COOKIE_DOMAIN;
+    deleteCookie(c, SESSION_COOKIE, { path: '/', domain });
+    deleteCookie(c, REFRESH_COOKIE, { path: '/', domain });
     return c.json({ ok: true });
   })
   .get('/session', requireAuth, async (c) => {
