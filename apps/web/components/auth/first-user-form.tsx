@@ -1,9 +1,10 @@
 'use client';
 
 import { Eye, EyeSlash } from '@phosphor-icons/react';
-import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+
+import { apiClient } from '@/lib/api-client';
 
 const INPUT_CLASS_NAME = 'w-full px-3 py-2.5 text-base sm:text-sm';
 
@@ -32,14 +33,8 @@ export function FirstUserForm({ minPasswordLength }: { minPasswordLength: number
         return;
       }
 
-      const response = await fetch('/api/setup', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          name: String(form.get('name') ?? ''),
-          password,
-        }),
+      const response = await apiClient().auth.setup.$post({
+        json: { email, name: String(form.get('name') ?? ''), password },
       });
 
       if (!response.ok) {
@@ -50,13 +45,6 @@ export function FirstUserForm({ minPasswordLength }: { minPasswordLength: number
             ? payload.error
             : 'Účet se nepodařilo vytvořit. Zkuste to znovu.',
         );
-        return;
-      }
-
-      const result = await signIn('credentials', { email, password, redirect: false });
-
-      if (result?.error) {
-        router.push('/signin');
         return;
       }
 

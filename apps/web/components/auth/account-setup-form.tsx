@@ -1,7 +1,6 @@
 'use client';
 
 import { Eye, EyeSlash } from '@phosphor-icons/react';
-import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
@@ -47,18 +46,11 @@ export function AccountSetupForm({ token, email, minPasswordLength }: Props): Re
         return;
       }
 
-      // Transitional dual-write (monorepo migration): the new API doesn't
-      // issue its own session on account creation, so we sign in against it
-      // right away, alongside Auth.js — same pattern as sign-in-form.tsx.
-      try {
-        await apiClient().auth.login.$post({ json: { email, password } });
-      } catch (apiError: unknown) {
-        console.error('apps/api login after invite acceptance failed', apiError);
-      }
+      // The API doesn't issue its own session on invite acceptance, so log
+      // in right away with the credentials just set.
+      const loginResponse = await apiClient().auth.login.$post({ json: { email, password } });
 
-      const signInResult = await signIn('credentials', { email, password, redirect: false });
-
-      if (signInResult?.error) {
+      if (!loginResponse.ok) {
         setDone(true);
         router.push('/signin');
         return;

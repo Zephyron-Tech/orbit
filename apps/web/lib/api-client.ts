@@ -147,6 +147,8 @@ export function confirmCreditRepaymentViaApi(creditTransactionId: string, source
 // Transactions
 // ---------------------------------------------------------------------------
 
+export type TransactionKind = 'NORMAL' | 'INTERNAL_TRANSFER' | 'PENDING_TRANSFER' | 'SETTLEMENT' | 'SPLIT_PARENT';
+
 export interface UpdateTransactionInput {
   id: string;
   categoryId: string | null;
@@ -535,4 +537,13 @@ export async function loadImportBatchesViaApi(cookieHeader?: string): Promise<{ 
  */
 export async function uploadToApi(path: string, formData: FormData): Promise<Response> {
   return fetch(`${apiBaseUrl()}${path}`, { method: 'POST', credentials: 'include', body: formData });
+}
+
+/** Revokes the refresh token and clears both session cookies. Best-effort — the caller navigates away regardless. */
+export async function logoutViaApi(): Promise<void> {
+  try {
+    await apiClient().auth.logout.$post();
+  } catch {
+    // Navigating to /signin without a valid cookie has the same net effect.
+  }
 }

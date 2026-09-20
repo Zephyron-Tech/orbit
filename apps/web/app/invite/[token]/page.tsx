@@ -3,9 +3,11 @@ import Link from 'next/link';
 
 import { AccountSetupForm } from '@/components/auth/account-setup-form';
 import { apiClient } from '@/lib/api-client';
-import { MIN_PASSWORD_LENGTH } from '@/lib/auth/password';
 
 export const dynamic = 'force-dynamic';
+
+/** Mirrors the API's own `lib/auth/password.ts`'s `MIN_PASSWORD_LENGTH` — only the API needs the hashing logic that constant lives next to. */
+const MIN_PASSWORD_LENGTH = 10;
 
 export default async function InvitePage({
   params,

@@ -82,6 +82,9 @@ export const auth = new Hono()
     if (!user || !user.isActive) return c.json({ error: 'Přihlaste se prosím' }, 401);
     return c.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   })
+  .get('/setup', async (c) => {
+    return c.json({ needsFirstUser: await needsFirstUser() });
+  })
   .post('/setup', async (c) => {
     if (!(await needsFirstUser())) {
       return c.json({ error: 'Účet už existuje' }, 409);

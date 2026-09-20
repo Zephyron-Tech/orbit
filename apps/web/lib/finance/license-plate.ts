@@ -1,4 +1,4 @@
-import type { VehicleCategory } from '@/lib/generated/prisma/enums';
+import type { VehicleType as VehicleCategory } from '@/lib/api-client';
 
 /**
  * Cosmetic display grouping for a Czech registration plate (SPZ/RZ).

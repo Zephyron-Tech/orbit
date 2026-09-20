@@ -2,7 +2,7 @@ import 'dotenv/config';
 
 import { PrismaPg } from '@prisma/adapter-pg';
 
-import { PrismaClient } from '../lib/generated/prisma/client';
+import { PrismaClient } from '../src/lib/generated/prisma/client';
 
 // Keys are provider contracts; Czech names remain user-editable display copy.
 const CATEGORIES: ReadonlyArray<{ key: string; name: string; icon: string; defaultIsShared: boolean }> = [

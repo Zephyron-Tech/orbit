@@ -26,7 +26,7 @@ import {
   splitTransactionViaApi,
   updateTransactionViaApi,
 } from '@/lib/api-client';
-import type { TransactionKind } from '@/lib/generated/prisma/enums';
+import type { TransactionKind } from '@/lib/api-client';
 import { formatPeriod } from '@/lib/ui/period';
 import { normalizeMerchant } from '@/lib/finance/idempotency';
 

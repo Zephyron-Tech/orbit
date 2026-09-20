@@ -1,7 +1,6 @@
 'use client';
 
 import { Eye, EyeSlash } from '@phosphor-icons/react';
-import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent, type KeyboardEvent } from 'react';
 
@@ -35,24 +34,13 @@ export function SignInForm(): React.JSX.Element {
     const redirectTo = searchParams.get('callbackUrl') ?? '/dashboard';
 
     try {
-      const result = await signIn('credentials', { email, password, redirectTo, redirect: false });
+      const response = await apiClient().auth.login.$post({ json: { email, password } });
 
-      if (result?.error) {
+      if (!response.ok) {
         // Keep message vague to avoid revealing whether e-mail exists.
         setCredentialsInvalid(true);
         setError('Nesprávný e-mail nebo heslo. Zkontrolujte údaje a zkuste to znovu.');
         return;
-      }
-
-      // Transitional dual-write (monorepo migration, Phase 1): also logs
-      // into the new apps/api so its `orbit_session`/`orbit_refresh` cookies
-      // exist for the pages that have been ported to the Hono RPC client.
-      // Best-effort — a failure here must not block sign-in, since every
-      // page except the ported ones still runs on the Auth.js session alone.
-      try {
-        await apiClient().auth.login.$post({ json: { email, password } });
-      } catch (apiError: unknown) {
-        console.error('apps/api login (transitional dual-write) failed', apiError);
       }
 
       router.push(redirectTo);

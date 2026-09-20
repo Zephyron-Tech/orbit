@@ -2,13 +2,15 @@ import { PlanetIcon as Planet } from '@phosphor-icons/react/dist/ssr';
 import { redirect } from 'next/navigation';
 
 import { SignInForm } from '@/components/auth/sign-in-form';
-import { needsFirstUser } from '@/lib/auth/users';
+import { apiClient } from '@/lib/api-client';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SignInPage(): Promise<React.JSX.Element> {
   // With an empty user table nobody could ever sign in; send them to setup.
-  if (await needsFirstUser()) {
+  const response = await apiClient().auth.setup.$get();
+  const needsFirstUser = response.ok && (await response.json()).needsFirstUser;
+  if (needsFirstUser) {
     redirect('/setup');
   }
 

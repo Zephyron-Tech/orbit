@@ -2,13 +2,17 @@ import { PlanetIcon as Planet } from '@phosphor-icons/react/dist/ssr';
 import { redirect } from 'next/navigation';
 
 import { FirstUserForm } from '@/components/auth/first-user-form';
-import { MIN_PASSWORD_LENGTH } from '@/lib/auth/password';
-import { needsFirstUser } from '@/lib/auth/users';
+import { apiClient } from '@/lib/api-client';
 
 export const dynamic = 'force-dynamic';
 
+/** The API's own source of truth is `lib/auth/password.ts`'s `MIN_PASSWORD_LENGTH` — mirrored here since only the API needs the hashing logic that constant lives next to. */
+const MIN_PASSWORD_LENGTH = 10;
+
 export default async function SetupPage(): Promise<React.JSX.Element> {
-  if (!(await needsFirstUser())) {
+  const response = await apiClient().auth.setup.$get();
+  const { needsFirstUser } = response.ok ? await response.json() : { needsFirstUser: false };
+  if (!needsFirstUser) {
     redirect('/signin');
   }
 

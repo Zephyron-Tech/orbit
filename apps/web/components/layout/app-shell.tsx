@@ -2,15 +2,20 @@
 
 import { List, PlanetIcon as Planet, SignOut, X } from '@phosphor-icons/react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { signOut } from 'next-auth/react';
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PrivacyToggle } from '@/components/ui/privacy-toggle';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { apiClient, logoutViaApi } from '@/lib/api-client';
 import { isPeriod, PERIOD_EVENT } from '@/lib/ui/period';
 import { ALL_NAV_ITEMS, getOrderedNavItems, PRIMARY, subscribeNavOrder, type NavItem } from '@/lib/ui/nav-items';
+
+async function signOutAndRedirect(router: { push: (href: string) => void }): Promise<void> {
+  await logoutViaApi();
+  router.push('/signin');
+}
 
 function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -66,6 +71,7 @@ function Navigation({ preferredPeriod, onNavigate }: { preferredPeriod: string |
 
 export function AppShell({ children, userLabel, preferredPeriod }: { children: ReactNode; userLabel: string; preferredPeriod: string | null }): React.JSX.Element {
   const pathname = usePathname();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [activePeriod, setActivePeriod] = useState(preferredPeriod);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
@@ -82,10 +88,8 @@ export function AppShell({ children, userLabel, preferredPeriod }: { children: R
   useEffect(() => {
     async function verifyAccess(): Promise<void> {
       try {
-        const response = await fetch('/api/session/status', { cache: 'no-store' });
-        const payload: unknown = await response.json().catch(() => null);
-        const active = typeof payload === 'object' && payload !== null && 'active' in payload && payload.active === true;
-        if (!active) await signOut({ callbackUrl: '/signin' });
+        const response = await apiClient().auth.session.$get();
+        if (!response.ok) await signOutAndRedirect(router);
       } catch {
         // Temporary network errors must not sign a user out.
       }
@@ -101,7 +105,7 @@ export function AppShell({ children, userLabel, preferredPeriod }: { children: R
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', onVisibility);
     };
-  }, []);
+  }, [router]);
 
   return (
     <div className="min-h-[100dvh] bg-canvas">
@@ -209,7 +213,7 @@ export function AppShell({ children, userLabel, preferredPeriod }: { children: R
         description="Opravdu se chcete odhlásit?"
         confirmLabel="Odhlásit se"
         onCancel={() => setSignOutConfirmOpen(false)}
-        onConfirm={() => void signOut({ callbackUrl: '/signin' })}
+        onConfirm={() => void signOutAndRedirect(router)}
       />
     </div>
   );

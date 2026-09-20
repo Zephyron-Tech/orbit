@@ -1,52 +1,43 @@
-import NextAuth from 'next-auth';
-
-import { authConfig } from '@/lib/auth/config';
-
-const { auth } = NextAuth(authConfig);
+import { NextResponse, type NextRequest } from 'next/server';
 
 /**
  * Routes reachable without a session.
  *
- * `/api/setup` and `/api/invites/accept` must be here by construction: they are
- * how a person gets an account in the first place. `/api/setup` guards itself by
- * refusing once any user exists, and `/api/invites/accept` requires a valid
- * single-use token. `/api/invites` (creating them) stays protected.
+ * `/setup` and `/invite` must be here by construction: they are how a
+ * person gets an account in the first place.
  */
-const PUBLIC_PREFIXES = [
-  '/signin',
-  '/setup',
-  '/invite',
-  '/api/auth',
-  '/api/setup',
-  '/api/invites/accept',
-  '/api/health',
-  '/api/cron',
-  '/api/ingest',
-];
+const PUBLIC_PREFIXES = ['/signin', '/setup', '/invite'];
 
-// Next.js 16 renamed the `middleware` convention to `proxy`; the default export
-// is still the handler. Auth.js wraps it so `request.auth` carries the session.
-export default auth((request) => {
+const SESSION_COOKIE = 'orbit_session';
+
+/**
+ * Next.js 16 renamed the `middleware` convention to `proxy`; the default
+ * export is still the handler.
+ *
+ * This is a UX-only redirect, not the real security boundary: it only checks
+ * that the API's session cookie is *present*, not that it's still valid —
+ * the API itself re-verifies the JWT (and re-reads `isActive` from the DB,
+ * see `GET /auth/session`) on every real request regardless. Checking here
+ * only avoids rendering a page that would immediately fail its own API
+ * calls; a stale or expired cookie still gets redirected the first time a
+ * page's data fetch 401s.
+ */
+export default function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
-    return undefined;
+    return NextResponse.next();
   }
 
-  if (request.auth) {
-    return undefined;
-  }
-
-  // An API client wants a status code, not a login page.
-  if (pathname.startsWith('/api/')) {
-    return Response.json({ error: 'Přihlaste se prosím' }, { status: 401 });
+  if (request.cookies.has(SESSION_COOKIE)) {
+    return NextResponse.next();
   }
 
   const signInUrl = new URL('/signin', request.nextUrl.origin);
   signInUrl.searchParams.set('callbackUrl', pathname);
 
-  return Response.redirect(signInUrl);
-});
+  return NextResponse.redirect(signInUrl);
+}
 
 export const config = {
   // Skip Next.js internals and static assets.
