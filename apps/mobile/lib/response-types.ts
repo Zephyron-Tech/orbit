@@ -244,6 +244,17 @@ export interface AccountInput {
   interestTaxRate: string | null;
 }
 
+export interface CreditRepaymentCandidate {
+  creditTransactionId: string | null;
+  sourceTransactionId: string;
+  amount: string;
+  date: string;
+  sourceAccountName: string;
+  matchedBy: 'AMOUNT_DATE' | 'VARIABLE_SYMBOL';
+  creditAccountId?: string;
+  creditAccountName?: string;
+}
+
 export interface PlanningSettingsInfo {
   monthlySpendingTarget: string | null;
   transferHistoryFrom: string | null;

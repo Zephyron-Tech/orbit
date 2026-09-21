@@ -117,13 +117,6 @@ export const accounts = new Hono<AuthEnv>()
 
     return c.json(result);
   })
-  .get('/:id', async (c) => {
-    const parsedId = z.uuid().safeParse(c.req.param('id'));
-    if (!parsedId.success) return c.json({ error: 'Neplatný účet' }, 400);
-    const account = await prisma.account.findUnique({ where: { id: parsedId.data } });
-    if (!account) return c.json({ error: 'Účet nenalezen' }, 404);
-    return c.json(account);
-  })
   .post('/', async (c) => {
     const parsed = accountSchema.safeParse(await c.req.json());
     if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'Neplatná data' }, 400);
@@ -412,6 +405,21 @@ export const accounts = new Hono<AuthEnv>()
     }
 
     return c.json(candidates);
+  })
+  // Registered after every other static GET route on this router
+  // (/, /credit-repayment-candidates) — Hono matches GET routes in
+  // registration order for this pattern, so a `/:id` declared earlier
+  // shadows any static GET route that comes after it and swallows its
+  // requests as an (always-invalid) `id` param instead. Confirmed by a
+  // real failure: GET /credit-repayment-candidates returned this route's
+  // own "Neplatný účet" 400 instead of ever running its own handler,
+  // because `.get('/:id')` used to be declared right above `.get('/')`.
+  .get('/:id', async (c) => {
+    const parsedId = z.uuid().safeParse(c.req.param('id'));
+    if (!parsedId.success) return c.json({ error: 'Neplatný účet' }, 400);
+    const account = await prisma.account.findUnique({ where: { id: parsedId.data } });
+    if (!account) return c.json({ error: 'Účet nenalezen' }, 404);
+    return c.json(account);
   })
   .post('/credit-payoff-from-checking', async (c) => {
     const parsed = z.object({ sourceTransactionId: z.uuid(), creditAccountId: z.uuid() }).safeParse(await c.req.json());

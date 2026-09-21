@@ -6,6 +6,7 @@ export default function AccountsLayout(): React.JSX.Element {
     <Stack>
       <Stack.Screen name="index" options={{ title: 'Účty' }} />
       <Stack.Screen name="[id]" options={{ title: 'Účet' }} />
+      <Stack.Screen name="credit-repayment" options={{ title: 'Splacení kreditky' }} />
     </Stack>
   );
 }
