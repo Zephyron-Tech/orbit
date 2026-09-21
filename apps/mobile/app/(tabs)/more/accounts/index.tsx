@@ -1,6 +1,8 @@
 import { Link, useRouter } from 'expo-router';
+import { ArchiveIcon, ArrowDownIcon, ArrowUpIcon, BankIcon, PlusIcon } from 'phosphor-react-native';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
+import { Badge } from '../../../../components/badge';
 import { useAccountsList, useCreditRepaymentCandidates, useReorderAccount } from '../../../../hooks/use-accounts';
 import type { AccountRow } from '../../../../lib/response-types';
 
@@ -29,23 +31,28 @@ function AccountListItem({
   reorderPending: boolean;
 }): React.JSX.Element {
   return (
-    <View className="flex-row items-center border-b border-neutral-100 px-4 py-3">
-      <Pressable onPress={onPress} className="flex-1">
-        <View className="flex-row items-center justify-between">
-          <Text className="font-medium text-neutral-900" numberOfLines={1}>
+    <View className="flex-row items-center gap-3 border-b border-line bg-surface px-4 py-3">
+      <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
+        <BankIcon color="#17647c" size={18} weight="regular" />
+      </View>
+      <Pressable onPress={onPress} className="flex-1 active:opacity-70">
+        <View className="flex-row items-center justify-between gap-2">
+          <Text className="flex-1 font-sans-semibold text-ink" numberOfLines={1}>
             {account.name}
           </Text>
-          <Text className="text-xs text-neutral-500">{account.currency}</Text>
+          {account.isArchived ? <Badge tone="neutral">Archivováno</Badge> : null}
         </View>
-        <Text className="mt-1 text-xs text-neutral-500">{TYPE_LABELS[account.type]}</Text>
+        <Text className="mt-1 text-xs text-ink-muted">
+          {TYPE_LABELS[account.type]} · {account.currency}
+        </Text>
       </Pressable>
       {!account.isArchived ? (
         <View className="flex-row gap-1">
-          <Pressable onPress={onMoveUp} disabled={isFirst || reorderPending} className="p-2" hitSlop={8}>
-            <Text className={isFirst ? 'text-neutral-300' : 'text-neutral-700'}>↑</Text>
+          <Pressable onPress={onMoveUp} disabled={isFirst || reorderPending} className="rounded-lg p-2 active:bg-surface-subtle" hitSlop={8}>
+            <ArrowUpIcon color={isFirst ? '#bdcac6' : '#5d6c68'} size={16} weight="regular" />
           </Pressable>
-          <Pressable onPress={onMoveDown} disabled={isLast || reorderPending} className="p-2" hitSlop={8}>
-            <Text className={isLast ? 'text-neutral-300' : 'text-neutral-700'}>↓</Text>
+          <Pressable onPress={onMoveDown} disabled={isLast || reorderPending} className="rounded-lg p-2 active:bg-surface-subtle" hitSlop={8}>
+            <ArrowDownIcon color={isLast ? '#bdcac6' : '#5d6c68'} size={16} weight="regular" />
           </Pressable>
         </View>
       ) : null}
@@ -61,16 +68,16 @@ export default function AccountsListScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }
 
   if (isError) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">{error instanceof Error ? error.message : 'Účty se nepodařilo načíst'}</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">{error instanceof Error ? error.message : 'Účty se nepodařilo načíst'}</Text>
       </View>
     );
   }
@@ -80,22 +87,30 @@ export default function AccountsListScreen(): React.JSX.Element {
 
   return (
     <ScrollView
-      className="flex-1 bg-white"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
+      className="flex-1 bg-canvas"
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
     >
       {repaymentCandidates && repaymentCandidates.length > 0 ? (
         <Link href="/(tabs)/more/accounts/credit-repayment" asChild>
-          <Pressable className="mx-4 mb-2 mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
-            <Text className="font-medium text-amber-900">
+          <Pressable className="mx-4 mb-2 mt-4 rounded-xl border border-accent/25 bg-accent-soft px-4 py-3 active:opacity-80">
+            <Text className="font-sans-medium text-accent">
               {repaymentCandidates.length} {repaymentCandidates.length === 1 ? 'nalezené splacení' : 'nalezená splacení'} kreditky →
             </Text>
           </Pressable>
         </Link>
       ) : null}
 
-      <Text className="px-4 pb-2 pt-4 text-sm font-medium text-neutral-500">Aktivní účty</Text>
+      <View className="flex-row items-center justify-between px-4 pb-2 pt-4">
+        <Text className="font-sans-semibold text-base text-ink">Aktivní účty</Text>
+        <Link href="/(tabs)/more/accounts/new" asChild>
+          <Pressable className="flex-row items-center gap-1 rounded-md bg-accent-soft px-2 py-1 active:bg-line">
+            <PlusIcon color="#17647c" size={13} weight="bold" />
+            <Text className="text-xs text-accent">Přidat</Text>
+          </Pressable>
+        </Link>
+      </View>
       {active.length === 0 ? (
-        <Text className="px-4 pb-4 text-neutral-500">Zatím žádný aktivní účet.</Text>
+        <Text className="px-4 pb-4 text-ink-muted">Zatím žádný aktivní účet.</Text>
       ) : (
         active.map((account, index) => (
           <AccountListItem
@@ -113,7 +128,7 @@ export default function AccountsListScreen(): React.JSX.Element {
 
       {archived.length > 0 ? (
         <>
-          <Text className="px-4 pb-2 pt-6 text-sm font-medium text-neutral-500">Archivované</Text>
+          <Text className="px-4 pb-2 pt-6 font-sans-semibold text-base text-ink">Archivované</Text>
           {archived.map((account) => (
             <AccountListItem
               key={account.id}
@@ -127,11 +142,17 @@ export default function AccountsListScreen(): React.JSX.Element {
             />
           ))}
         </>
-      ) : null}
+      ) : (
+        <View className="flex-row items-center gap-2 border-t border-line px-4 py-5">
+          <ArchiveIcon color="#5d6c68" size={16} weight="regular" />
+          <Text className="text-sm text-ink-muted">Žádné archivované účty</Text>
+        </View>
+      )}
 
       <Link href="/(tabs)/more/accounts/new" asChild>
-        <Pressable className="m-4 items-center rounded-lg bg-neutral-900 py-3">
-          <Text className="font-medium text-white">Přidat účet</Text>
+        <Pressable className="m-4 flex-row items-center justify-center gap-2 rounded-lg bg-accent py-3 active:bg-accent-hover">
+          <PlusIcon color="#f8fcfd" size={16} weight="regular" />
+          <Text className="font-sans-medium text-accent-foreground">Přidat účet</Text>
         </Pressable>
       </Link>
     </ScrollView>

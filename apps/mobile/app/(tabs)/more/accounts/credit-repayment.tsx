@@ -1,14 +1,8 @@
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { useConfirmCreditPayoffFromChecking, useConfirmCreditRepayment, useCreditRepaymentCandidates } from '../../../../hooks/use-accounts';
+import { formatMoney } from '../../../../lib/format-money';
 import type { CreditRepaymentCandidate } from '../../../../lib/response-types';
-
-function formatMoney(value: string, currency: string): string {
-  const [whole, fraction] = value.split('.');
-  const grouped = (whole ?? '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  const trimmedFraction = fraction?.replace(/0+$/, '');
-  return `${grouped}${trimmedFraction ? `,${trimmedFraction}` : ''} ${currency}`;
-}
 
 /**
  * Two independent detection strategies, mirroring apps/web's account-manager.tsx:
@@ -23,16 +17,16 @@ export default function CreditRepaymentScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }
 
   if (isError) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">{error instanceof Error ? error.message : 'Nepodařilo se načíst'}</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">{error instanceof Error ? error.message : 'Nepodařilo se načíst'}</Text>
       </View>
     );
   }
@@ -48,24 +42,24 @@ export default function CreditRepaymentScreen(): React.JSX.Element {
   }
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerClassName="gap-3 p-4">
-      <Text className="text-sm text-neutral-500">Po ruční platbě v bance potvrďte odpovídající dvojici importovaných pohybů.</Text>
+    <ScrollView className="flex-1 bg-canvas" contentContainerClassName="gap-3 p-4">
+      <Text className="text-sm text-ink-muted">Po ruční platbě v bance potvrďte odpovídající dvojici importovaných pohybů.</Text>
 
       {data.length === 0 ? (
-        <Text className="py-6 text-center text-neutral-500">Žádná nalezená splacení.</Text>
+        <Text className="py-6 text-center text-ink-muted">Žádná nalezená splacení.</Text>
       ) : (
         data.map((candidate) => (
-          <View key={candidate.sourceTransactionId} className="gap-2 rounded-lg border border-neutral-200 p-4">
-            <Text className="text-sm text-neutral-700">
+          <View key={candidate.sourceTransactionId} className="gap-2 rounded-xl border border-line bg-surface p-4">
+            <Text className="text-sm text-ink-muted">
               {candidate.date} · {candidate.sourceAccountName} →{' '}
               {candidate.matchedBy === 'VARIABLE_SYMBOL' ? candidate.creditAccountName : 'kreditní karta'}
             </Text>
-            <Text className="text-base font-semibold text-neutral-900">{formatMoney(candidate.amount, 'CZK')}</Text>
+            <Text className="text-base font-sans-semibold text-ink">{formatMoney(candidate.amount, 'CZK')}</Text>
             {candidate.matchedBy === 'VARIABLE_SYMBOL' ? (
-              <Text className="text-xs text-neutral-500">Podle variabilního symbolu kreditky — výpis karty zatím není nahraný.</Text>
+              <Text className="text-xs text-ink-muted">Podle variabilního symbolu kreditky — výpis karty zatím není nahraný.</Text>
             ) : null}
-            <Pressable onPress={() => handleConfirm(candidate)} disabled={pending} className="mt-1 items-center rounded-lg bg-neutral-900 py-2.5">
-              <Text className="font-medium text-white">{pending ? 'Potvrzuji…' : 'Potvrdit splacení'}</Text>
+            <Pressable onPress={() => handleConfirm(candidate)} disabled={pending} className="mt-1 items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
+              <Text className="font-sans-medium text-accent-foreground">{pending ? 'Potvrzuji…' : 'Potvrdit splacení'}</Text>
             </Pressable>
           </View>
         ))

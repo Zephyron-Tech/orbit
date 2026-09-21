@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { CreditCardIcon, WarningCircleIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Switch, Text, TextInput, View, ActivityIndicator } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 
 import {
   useAccountsList,
@@ -12,14 +13,8 @@ import {
   useSetAccountArchived,
   useUpdateAccount,
 } from '../../../../hooks/use-accounts';
+import { formatMoney } from '../../../../lib/format-money';
 import type { AccountInput, AccountProvider, AccountType } from '../../../../lib/response-types';
-
-function formatMoney(value: string, currency: string): string {
-  const [whole, fraction] = value.split('.');
-  const grouped = (whole ?? '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  const trimmedFraction = fraction?.replace(/0+$/, '');
-  return `${grouped}${trimmedFraction ? `,${trimmedFraction}` : ''} ${currency}`;
-}
 
 /** Inline "record current debt" form — mirrors apps/web's CreditDebtForm. */
 function CreditDebtForm({
@@ -37,22 +32,35 @@ function CreditDebtForm({
   const [asOf, setAsOf] = useState(() => new Date().toISOString().slice(0, 10));
 
   return (
-    <View className="gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-      <Text className="text-sm text-neutral-500">Zadejte kladný aktuální dluh. Uloží se jako záporný zůstatek účtu.</Text>
+    <View className="gap-3 rounded-lg border border-line bg-surface-subtle p-3">
+      <Text className="text-sm text-ink-muted">Zadejte kladný aktuální dluh. Uloží se jako záporný zůstatek účtu.</Text>
       <View>
-        <Text className="mb-1 text-xs font-medium text-neutral-500">Aktuální dluh ({currency})</Text>
-        <TextInput className="rounded-lg border border-neutral-300 px-3 py-2" keyboardType="decimal-pad" value={debt} onChangeText={setDebt} placeholder="5000" />
+        <Text className="mb-1 text-xs font-sans-medium text-ink-muted">Aktuální dluh ({currency})</Text>
+        <TextInput
+          className="rounded-lg border border-line bg-surface px-3 py-2 text-ink"
+          keyboardType="decimal-pad"
+          value={debt}
+          onChangeText={setDebt}
+          placeholder="5000"
+          placeholderTextColor="#667570"
+        />
       </View>
       <View>
-        <Text className="mb-1 text-xs font-medium text-neutral-500">Platný k datu (RRRR-MM-DD)</Text>
-        <TextInput className="rounded-lg border border-neutral-300 px-3 py-2" value={asOf} onChangeText={setAsOf} placeholder="2026-01-01" />
+        <Text className="mb-1 text-xs font-sans-medium text-ink-muted">Platný k datu (RRRR-MM-DD)</Text>
+        <TextInput
+          className="rounded-lg border border-line bg-surface px-3 py-2 text-ink"
+          value={asOf}
+          onChangeText={setAsOf}
+          placeholder="2026-01-01"
+          placeholderTextColor="#667570"
+        />
       </View>
       <View className="flex-row gap-2">
-        <Pressable onPress={onCancel} disabled={disabled} className="flex-1 items-center rounded-lg border border-neutral-300 py-2.5">
-          <Text className="font-medium text-neutral-900">Zrušit</Text>
+        <Pressable onPress={onCancel} disabled={disabled} className="flex-1 items-center rounded-lg border border-line py-2.5 active:bg-surface-subtle">
+          <Text className="font-sans-medium text-ink">Zrušit</Text>
         </Pressable>
-        <Pressable onPress={() => onSubmit({ debt, asOf })} disabled={disabled || !debt} className="flex-1 items-center rounded-lg bg-neutral-900 py-2.5">
-          <Text className="font-medium text-white">{disabled ? 'Ukládám…' : 'Uložit dluh'}</Text>
+        <Pressable onPress={() => onSubmit({ debt, asOf })} disabled={disabled || !debt} className="flex-1 items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
+          <Text className="font-sans-medium text-accent-foreground">{disabled ? 'Ukládám…' : 'Uložit dluh'}</Text>
         </Pressable>
       </View>
     </View>
@@ -80,9 +88,9 @@ function ChoiceRow<T extends string>({ options, value, onChange }: { options: { 
         <Pressable
           key={option.value}
           onPress={() => onChange(option.value)}
-          className={`rounded-full border px-3 py-1.5 ${value === option.value ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'}`}
+          className={`rounded-full border px-3 py-1.5 active:opacity-80 ${value === option.value ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
         >
-          <Text className={value === option.value ? 'text-white' : 'text-neutral-700'}>{option.label}</Text>
+          <Text className={value === option.value ? 'font-sans-medium text-accent' : 'text-ink-muted'}>{option.label}</Text>
         </Pressable>
       ))}
     </View>
@@ -144,16 +152,16 @@ export default function AccountDetailScreen(): React.JSX.Element {
 
   if (!isNew && !account && accounts) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">Účet nenalezen</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">Účet nenalezen</Text>
       </View>
     );
   }
 
   if (!isNew && !account) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }
@@ -184,30 +192,30 @@ export default function AccountDetailScreen(): React.JSX.Element {
   const saving = createAccount.isPending || updateAccount.isPending;
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerClassName="gap-4 p-4">
+    <ScrollView className="flex-1 bg-canvas" contentContainerClassName="gap-4 p-4">
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Název</Text>
+        <Text className="mb-2 text-sm font-sans-medium text-ink-muted">Název</Text>
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="rounded-lg border border-line bg-surface px-3 py-2 text-ink"
           value={form.name}
           onChangeText={(value) => setForm((current) => ({ ...current, name: value }))}
         />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Typ</Text>
+        <Text className="mb-2 text-sm font-sans-medium text-ink-muted">Typ</Text>
         <ChoiceRow options={TYPE_OPTIONS} value={form.type} onChange={(value) => setForm((current) => ({ ...current, type: value }))} />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Poskytovatel</Text>
+        <Text className="mb-2 text-sm font-sans-medium text-ink-muted">Poskytovatel</Text>
         <ChoiceRow options={PROVIDER_OPTIONS} value={form.provider} onChange={(value) => setForm((current) => ({ ...current, provider: value }))} />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Měna</Text>
+        <Text className="mb-2 text-sm font-sans-medium text-ink-muted">Měna</Text>
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="rounded-lg border border-line bg-surface px-3 py-2 text-ink"
           value={form.currency}
           autoCapitalize="characters"
           maxLength={3}
@@ -215,18 +223,19 @@ export default function AccountDetailScreen(): React.JSX.Element {
         />
       </View>
 
-      <View className="flex-row items-center justify-between">
-        <Text className="text-sm font-medium text-neutral-500">Součást čistého jmění</Text>
+      <View className="flex-row items-center justify-between rounded-lg border border-line bg-surface-subtle px-3 py-3">
+        <Text className="text-sm font-sans-medium text-ink">Součást čistého jmění</Text>
         <Switch
           value={form.includeInNetWorth}
           onValueChange={(value) => setForm((current) => ({ ...current, includeInNetWorth: value }))}
+          trackColor={{ false: '#d8e0dd', true: '#17647c' }}
         />
       </View>
 
-      {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
+      {error ? <Text className="text-sm text-critical">{error}</Text> : null}
 
-      <Pressable onPress={handleSave} disabled={saving} className="items-center rounded-lg bg-neutral-900 py-3">
-        <Text className="font-medium text-white">{saving ? 'Ukládám…' : 'Uložit'}</Text>
+      <Pressable onPress={handleSave} disabled={saving} className="items-center rounded-lg bg-accent py-3 active:bg-accent-hover">
+        <Text className="font-sans-medium text-accent-foreground">{saving ? 'Ukládám…' : 'Uložit'}</Text>
       </Pressable>
 
       {!isNew && account ? (
@@ -234,28 +243,40 @@ export default function AccountDetailScreen(): React.JSX.Element {
           <Pressable
             onPress={() => setArchived.mutate({ id: account.id, isArchived: !account.isArchived }, { onSuccess: () => router.back() })}
             disabled={setArchived.isPending}
-            className="items-center rounded-lg border border-neutral-300 py-3"
+            className="items-center rounded-lg border border-line py-3 active:bg-surface-subtle"
           >
-            <Text className="font-medium text-neutral-900">{account.isArchived ? 'Obnovit z archivu' : 'Archivovat'}</Text>
+            <Text className="font-sans-medium text-ink">{account.isArchived ? 'Obnovit z archivu' : 'Archivovat'}</Text>
           </Pressable>
 
-          <Pressable onPress={handleDelete} className="items-center rounded-lg border border-red-200 py-3">
-            <Text className="font-medium text-red-600">Smazat účet</Text>
+          <Pressable onPress={handleDelete} className="items-center rounded-lg border border-critical/25 py-3 active:bg-critical-soft">
+            <Text className="font-sans-medium text-critical">Smazat účet</Text>
           </Pressable>
 
           {account.type === 'CREDIT' ? (
-            <View className="gap-3 border-t border-neutral-100 pt-4">
-              <Text className="text-sm font-medium text-neutral-500">Kreditní karta</Text>
+            <View className="gap-3 border-t border-line pt-4">
+              <View className="flex-row items-center gap-2">
+                <CreditCardIcon color="#5d6c68" size={16} weight="regular" />
+                <Text className="text-sm font-sans-medium text-ink-muted">Kreditní karta</Text>
+              </View>
 
               {account.creditDetails ? (
                 <View className="flex-row flex-wrap gap-x-4 gap-y-1">
-                  <Text className="text-sm text-neutral-700">Limit: {formatMoney(account.creditDetails.limit, account.currency)}</Text>
-                  <Text className="text-sm text-neutral-700">Dluh: {formatMoney(account.creditDetails.debt, account.currency)}</Text>
-                  <Text className="text-sm text-neutral-700">Volná kapacita: {formatMoney(account.creditDetails.capacity, account.currency)}</Text>
+                  <Text className="text-sm text-ink-muted">Limit: {formatMoney(account.creditDetails.limit, account.currency)}</Text>
+                  <Text className="text-sm text-ink-muted">Dluh: {formatMoney(account.creditDetails.debt, account.currency)}</Text>
+                  <Text className="text-sm text-ink-muted">Volná kapacita: {formatMoney(account.creditDetails.capacity, account.currency)}</Text>
                 </View>
               ) : null}
 
-              {creditMessage ? <Text className="text-sm text-red-600">{creditMessage}</Text> : null}
+              {account.creditDetails?.invalidCapacitySnapshot ? (
+                <View className="flex-row items-start gap-2 rounded-lg bg-warning-soft p-3">
+                  <WarningCircleIcon color="#8a5a13" size={16} weight="regular" />
+                  <Text className="flex-1 text-xs text-warning">
+                    Kladný ruční zůstatek se jako dostupný limit nepoužívá. Dluh je dopočítaný z importovaných karetních plateb.
+                  </Text>
+                </View>
+              ) : null}
+
+              {creditMessage ? <Text className="text-sm text-critical">{creditMessage}</Text> : null}
 
               {recordingDebt ? (
                 <CreditDebtForm
@@ -274,8 +295,8 @@ export default function AccountDetailScreen(): React.JSX.Element {
                   }}
                 />
               ) : (
-                <Pressable onPress={() => setRecordingDebt(true)} className="items-center rounded-lg border border-neutral-300 py-2.5">
-                  <Text className="font-medium text-neutral-900">Zadat dluh</Text>
+                <Pressable onPress={() => setRecordingDebt(true)} className="items-center rounded-lg border border-line py-2.5 active:bg-surface-subtle">
+                  <Text className="font-sans-medium text-ink">Zadat dluh</Text>
                 </Pressable>
               )}
 
@@ -287,9 +308,9 @@ export default function AccountDetailScreen(): React.JSX.Element {
                     })
                   }
                   disabled={confirmCreditZeroStart.isPending}
-                  className="items-center rounded-lg border border-neutral-300 py-2.5"
+                  className="items-center rounded-lg border border-line py-2.5 active:bg-surface-subtle"
                 >
-                  <Text className="font-medium text-neutral-900">{confirmCreditZeroStart.isPending ? 'Potvrzuji…' : 'Potvrdit nulový start'}</Text>
+                  <Text className="font-sans-medium text-ink">{confirmCreditZeroStart.isPending ? 'Potvrzuji…' : 'Potvrdit nulový start'}</Text>
                 </Pressable>
               ) : null}
 
@@ -301,9 +322,9 @@ export default function AccountDetailScreen(): React.JSX.Element {
                     })
                   }
                   disabled={clearCreditCapacitySnapshot.isPending}
-                  className="items-center rounded-lg py-2"
+                  className="items-center rounded-lg py-2 active:opacity-70"
                 >
-                  <Text className="font-medium text-amber-700">{clearCreditCapacitySnapshot.isPending ? 'Odstraňuji…' : 'Odstranit chybný zůstatek'}</Text>
+                  <Text className="font-sans-medium text-warning">{clearCreditCapacitySnapshot.isPending ? 'Odstraňuji…' : 'Odstranit chybný zůstatek'}</Text>
                 </Pressable>
               ) : null}
             </View>
