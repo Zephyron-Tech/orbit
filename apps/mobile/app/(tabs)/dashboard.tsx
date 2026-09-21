@@ -1,16 +1,19 @@
 import { useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { useDashboard } from '../../hooks/use-dashboard';
+import { formatPeriod, offsetPeriod } from '../../lib/period';
 
 function MoneyText({ value, className }: { value: string; className?: string }): React.JSX.Element {
   return <Text className={className}>{value} Kč</Text>;
 }
 
 export default function DashboardScreen(): React.JSX.Element {
-  // Local UI state, not a route param — matches the plan's note that the
-  // period picker doesn't need to be shareable/deep-linkable on mobile.
-  const [period] = useState<string | undefined>(undefined);
+  // `undefined` means "let the API resolve its own default (current month)".
+  // Once data comes back, `data.period.key` is the actual resolved period —
+  // prev/next navigate relative to that, not to this local state directly,
+  // so the very first render (before any pick) still has a real key to offset from.
+  const [period, setPeriod] = useState<string | undefined>(undefined);
   const { data, isPending, isError, error, refetch, isRefetching } = useDashboard({ period });
 
   if (isPending) {
@@ -29,12 +32,34 @@ export default function DashboardScreen(): React.JSX.Element {
     );
   }
 
+  const currentKey = data.period.key;
+  const canGoBack = data.visibleMonths.length === 0 || currentKey > (data.visibleMonths[0] ?? currentKey);
+  const canGoForward = currentKey < (data.visibleMonths.at(-1) ?? currentKey);
+
   return (
     <ScrollView
       className="flex-1 bg-white"
       contentContainerClassName="gap-4 p-4"
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
     >
+      <View className="flex-row items-center justify-between">
+        <Pressable
+          onPress={() => canGoBack && setPeriod(offsetPeriod(currentKey, -1))}
+          disabled={!canGoBack}
+          className={`rounded-lg border border-neutral-300 px-3 py-2 ${canGoBack ? '' : 'opacity-30'}`}
+        >
+          <Text>‹</Text>
+        </Pressable>
+        <Text className="text-base font-medium capitalize text-neutral-900">{formatPeriod(currentKey)}</Text>
+        <Pressable
+          onPress={() => canGoForward && setPeriod(offsetPeriod(currentKey, 1))}
+          disabled={!canGoForward}
+          className={`rounded-lg border border-neutral-300 px-3 py-2 ${canGoForward ? '' : 'opacity-30'}`}
+        >
+          <Text>›</Text>
+        </Pressable>
+      </View>
+
       <View className="rounded-xl border border-neutral-200 p-4">
         <Text className="text-sm text-neutral-500">Čisté jmění</Text>
         <MoneyText value={data.netWorth.totalWorth} className="mt-1 text-2xl font-semibold text-neutral-900" />
