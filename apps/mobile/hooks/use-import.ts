@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { API_URL, apiClient, UnauthorizedError } from '../lib/api-client';
 import { getAccessToken } from '../lib/auth-storage';
-import type { ImportBatchesResponse } from '../lib/response-types';
+import type { ImportBatchesResponse, ImportRowPreview } from '../lib/response-types';
 
 const BATCHES_KEY = ['import-batches'];
 
@@ -62,6 +62,7 @@ export interface CsvImportSummary {
   rowCount: number;
   inserted: number;
   needsAnchor: boolean;
+  preview: ImportRowPreview[];
   [key: string]: unknown;
 }
 
@@ -69,15 +70,29 @@ export interface CsvImportSummary {
  * CSV import genuinely supports a two-step dry-run/commit flow (the API's
  * `dryRun` field, not invented here) — the screen calls this once with
  * `dryRun: true` for a preview, then again with `dryRun: false` to commit.
+ * `closingBalance` is only meaningful (and only sent) when the preview's
+ * `needsAnchor` came back true — the API accepts it as an optional form
+ * field regardless, so it's safe to always pass whatever's typed in.
  */
 export function useImportCsv() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ accountId, file, dryRun }: { accountId: string; file: PickedFile; dryRun: boolean }) => {
+    mutationFn: async ({
+      accountId,
+      file,
+      dryRun,
+      closingBalance,
+    }: {
+      accountId: string;
+      file: PickedFile;
+      dryRun: boolean;
+      closingBalance?: string;
+    }) => {
       const form = new FormData();
       form.append('accountId', accountId);
       form.append('dryRun', String(dryRun));
+      if (closingBalance) form.append('closingBalance', closingBalance);
       form.append('file', toRnFile(file));
       return multipartPost('/import/csv', form) as Promise<CsvImportSummary>;
     },

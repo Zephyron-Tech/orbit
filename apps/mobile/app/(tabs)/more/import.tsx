@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import {
   useImportBatches,
@@ -46,6 +46,7 @@ function CsvImportSection({ accounts }: { accounts: ImportAccountOption[] }): Re
   const [accountId, setAccountId] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<PickedAsset | null>(null);
   const [preview, setPreview] = useState<CsvImportSummary | null>(null);
+  const [closingBalance, setClosingBalance] = useState('');
 
   async function handlePick(): Promise<void> {
     if (!accountId) {
@@ -57,6 +58,7 @@ function CsvImportSection({ accounts }: { accounts: ImportAccountOption[] }): Re
 
     setPendingFile(file);
     setPreview(null);
+    setClosingBalance('');
     importCsv.mutate(
       { accountId, file, dryRun: true },
       {
@@ -68,13 +70,18 @@ function CsvImportSection({ accounts }: { accounts: ImportAccountOption[] }): Re
 
   function handleCommit(): void {
     if (!accountId || !pendingFile) return;
+    if (preview?.needsAnchor && !closingBalance.trim()) {
+      Alert.alert('Chybí zůstatek', 'Doplňte počáteční zůstatek, ať se výpis dá ukotvit.');
+      return;
+    }
     importCsv.mutate(
-      { accountId, file: pendingFile, dryRun: false },
+      { accountId, file: pendingFile, dryRun: false, closingBalance: closingBalance.trim() || undefined },
       {
         onSuccess: () => {
           Alert.alert('Hotovo', 'Výpis byl naimportován.');
           setPendingFile(null);
           setPreview(null);
+          setClosingBalance('');
         },
         onError: (error) => Alert.alert('Import se nezdařil', error instanceof Error ? error.message : 'Zkuste to znovu.'),
       },
@@ -93,7 +100,43 @@ function CsvImportSection({ accounts }: { accounts: ImportAccountOption[] }): Re
         <View className="gap-2 rounded-lg bg-neutral-50 p-3">
           <Text className="text-sm text-neutral-700">Řádků: {preview.rowCount}</Text>
           <Text className="text-sm text-neutral-700">Nových: {preview.inserted}</Text>
-          {preview.needsAnchor ? <Text className="text-sm text-amber-700">Chybí počáteční zůstatek — bude potřeba doplnit ručně.</Text> : null}
+
+          {preview.needsAnchor ? (
+            <View className="gap-1">
+              <Text className="text-sm text-amber-700">Chybí počáteční zůstatek — doplňte ho ručně, ať se výpis dá ukotvit.</Text>
+              <TextInput
+                className="rounded-lg border border-neutral-300 px-3 py-2"
+                placeholder="Zůstatek po posledním řádku, např. 12345,67"
+                keyboardType="numeric"
+                value={closingBalance}
+                onChangeText={setClosingBalance}
+              />
+            </View>
+          ) : null}
+
+          {preview.preview.length > 0 ? (
+            <View className="gap-1">
+              <Text className="text-xs font-medium text-neutral-500">Náhled řádků (prvních {preview.preview.length})</Text>
+              {preview.preview.map((row, index) => (
+                <View key={`${row.externalId ?? index}`} className="flex-row items-center justify-between border-b border-neutral-100 py-1.5">
+                  <View className="flex-1 pr-2">
+                    <Text className="text-sm text-neutral-900" numberOfLines={1}>
+                      {row.merchant ?? '—'}
+                    </Text>
+                    <Text className="text-xs text-neutral-500">
+                      {row.date}
+                      {row.duplicate ? ' · duplicitní' : ''}
+                      {row.internalTransfer ? ' · vlastní převod' : ''}
+                    </Text>
+                  </View>
+                  <Text className={`text-sm ${row.duplicate ? 'text-neutral-400' : 'text-neutral-900'}`}>
+                    {row.amount} {row.currency}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
           <Pressable onPress={handleCommit} disabled={importCsv.isPending} className="items-center rounded-lg bg-neutral-900 py-2.5">
             <Text className="font-medium text-white">{importCsv.isPending ? 'Importuji…' : 'Potvrdit import'}</Text>
           </Pressable>

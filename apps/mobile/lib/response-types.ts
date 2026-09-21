@@ -474,6 +474,18 @@ export interface ImportBatchesResponse {
   batches: ImportBatchRow[];
 }
 
+export interface ImportRowPreview {
+  externalId: string | null;
+  date: string;
+  amount: string;
+  currency: string;
+  merchant: string | null;
+  sourceCategory: string | null;
+  mappedCategory: string | null;
+  internalTransfer: boolean;
+  duplicate: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Fuel
 // ---------------------------------------------------------------------------
