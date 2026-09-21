@@ -1,7 +1,10 @@
+import { CaretDownIcon, ChartLineUpIcon, CreditCardIcon, PiggyBankIcon, WalletIcon, type Icon } from 'phosphor-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
+import { Badge } from '../../components/badge';
 import { useDismissUnmatchedTransfer, useNetWorth } from '../../hooks/use-net-worth';
+import { formatMoney } from '../../lib/format-money';
 import type { NetWorthCardAccount } from '../../lib/response-types';
 
 const CZK = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 0 });
@@ -10,6 +13,13 @@ const TYPE_LABEL: Record<NetWorthCardAccount['type'], string> = {
   SAVINGS: 'Spořicí účet',
   INVESTMENT: 'Investice',
   CREDIT: 'Kreditní karta',
+};
+// Matches apps/web/components/net-worth/account-cards.tsx's icon-per-type map.
+const TYPE_ICON: Record<NetWorthCardAccount['type'], Icon> = {
+  CHECKING: WalletIcon,
+  SAVINGS: PiggyBankIcon,
+  INVESTMENT: ChartLineUpIcon,
+  CREDIT: CreditCardIcon,
 };
 
 function money(value: number): string {
@@ -23,8 +33,8 @@ function formatMonth(value: string): string {
 function DetailRow({ label, value }: { label: string; value: string }): React.JSX.Element {
   return (
     <View className="w-1/2 py-1.5 pr-2">
-      <Text className="text-xs text-neutral-500">{label}</Text>
-      <Text className="mt-0.5 text-sm font-medium text-neutral-900">{value}</Text>
+      <Text className="text-xs text-ink-muted">{label}</Text>
+      <Text className="font-sans-semibold mt-0.5 text-sm text-ink">{value}</Text>
     </View>
   );
 }
@@ -41,8 +51,8 @@ function AccountDetail({ account, fixedBaseline }: { account: NetWorthCardAccoun
   const monthlyNet = monthlyGross === null ? null : monthlyGross * (1 - Number(account.interestTaxRate ?? '0.15'));
 
   return (
-    <View className="border-t border-neutral-100 bg-neutral-50 p-3">
-      <Text className="mb-2 text-xs text-neutral-500">Měsíční statistiky: {period}</Text>
+    <View className="border-t border-line bg-surface-subtle p-3">
+      <Text className="mb-2 text-xs text-ink-muted">Měsíční statistiky: {period}</Text>
       <View className="flex-row flex-wrap">
         {account.type === 'CHECKING' ? (
           <>
@@ -93,74 +103,81 @@ export default function NetWorthScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }
 
   if (isError) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">{error instanceof Error ? error.message : 'Čisté jmění se nepodařilo načíst'}</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">{error instanceof Error ? error.message : 'Čisté jmění se nepodařilo načíst'}</Text>
       </View>
     );
   }
 
   if (data.empty) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-neutral-500">Zatím žádné aktivní účty.</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-ink-muted">Zatím žádné aktivní účty.</Text>
       </View>
     );
   }
 
   return (
     <ScrollView
-      className="flex-1 bg-white"
+      className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
     >
-      <View className="rounded-xl border border-neutral-200 p-4">
-        <Text className="text-sm text-neutral-500">Celkové čisté jmění</Text>
-        <Text className="mt-1 text-2xl font-semibold text-neutral-900">{data.totalWorth.toLocaleString('cs-CZ')} Kč</Text>
-        <View className="mt-3 flex-row gap-4">
-          <View>
-            <Text className="text-xs text-neutral-500">Hotovost</Text>
-            <Text className="text-neutral-900">{data.cashValue.toLocaleString('cs-CZ')} Kč</Text>
+      <View className="rounded-lg border border-line bg-surface p-5">
+        <Text className="text-sm text-ink-muted">Celkové čisté jmění</Text>
+        <Text className="font-sans-semibold mt-1 text-3xl text-ink">{formatMoney(String(data.totalWorth))}</Text>
+        <View className="mt-4 flex-row gap-3 border-t border-line pt-3">
+          <View className="flex-1">
+            <Text className="text-xs text-ink-muted">Hotovost</Text>
+            <Text className="font-sans-medium text-ink">{formatMoney(String(data.cashValue))}</Text>
           </View>
-          <View>
-            <Text className="text-xs text-neutral-500">Investice</Text>
-            <Text className="text-neutral-900">{data.investmentValue.toLocaleString('cs-CZ')} Kč</Text>
+          <View className="flex-1">
+            <Text className="text-xs text-ink-muted">+ Investice</Text>
+            <Text className="font-sans-medium text-ink">{formatMoney(String(data.investmentValue))}</Text>
           </View>
-          <View>
-            <Text className="text-xs text-neutral-500">Závazky</Text>
-            <Text className="text-neutral-900">{data.liabilityValue.toLocaleString('cs-CZ')} Kč</Text>
+          <View className="flex-1">
+            <Text className="text-xs text-ink-muted">− Závazky</Text>
+            <Text className="font-sans-medium text-ink">{formatMoney(String(data.liabilityValue))}</Text>
           </View>
         </View>
       </View>
 
       <View className="gap-2">
-        <Text className="text-sm font-medium text-neutral-500">Účty</Text>
+        <Text className="font-sans-semibold text-base text-ink">Účty</Text>
         {data.cardAccounts.map((account) => {
           const balance = Number(account.balance);
           const debt = Math.max(0, -balance);
           const isOpen = expandedId === account.id;
+          const TypeIcon = TYPE_ICON[account.type];
           return (
-            <View key={account.id} className="overflow-hidden rounded-lg border border-neutral-200">
-              <Pressable onPress={() => setExpandedId(isOpen ? null : account.id)} className="flex-row items-center justify-between p-3">
-                <View className="flex-1 pr-3">
-                  <Text className="font-medium text-neutral-900">{account.name}</Text>
-                  <Text className="mt-0.5 text-xs text-neutral-500">
+            <View key={account.id} className="overflow-hidden rounded-lg border border-line bg-surface">
+              <Pressable onPress={() => setExpandedId(isOpen ? null : account.id)} className="flex-row items-center gap-3 p-3 active:bg-surface-subtle">
+                <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
+                  <TypeIcon color="#17647c" size={20} weight="regular" />
+                </View>
+                <View className="flex-1 pr-2">
+                  <View className="flex-row flex-wrap items-center gap-2">
+                    <Text className="font-sans-semibold text-ink">{account.name}</Text>
+                    {account.incomplete ? <Badge tone="warning">Neúplný podklad</Badge> : null}
+                  </View>
+                  <Text className="mt-0.5 text-xs text-ink-muted">
                     {TYPE_LABEL[account.type]}
                     {account.asOf ? ` · ${new Date(account.asOf).toLocaleDateString('cs-CZ')}` : ''}
                   </Text>
                 </View>
-                <Text className={`font-medium ${account.type === 'CREDIT' && debt > 0 ? 'text-red-600' : 'text-neutral-900'}`}>
+                <Text className={`font-sans-semibold ${account.type === 'CREDIT' && debt > 0 ? 'text-critical' : 'text-ink'}`}>
                   {account.type === 'CREDIT' && debt > 0 ? '−' : ''}{money(account.type === 'CREDIT' ? debt : balance)}
                 </Text>
+                <CaretDownIcon color="#5d6c68" size={16} weight="regular" style={isOpen ? { transform: [{ rotate: '180deg' }] } : undefined} />
               </Pressable>
-              {account.incomplete ? <Text className="px-3 pb-2 text-xs text-amber-700">Neúplná historie — hodnota je jen spodní odhad.</Text> : null}
               {isOpen ? <AccountDetail account={account} fixedBaseline={data.fixedBaseline} /> : null}
             </View>
           );
@@ -169,22 +186,22 @@ export default function NetWorthScreen(): React.JSX.Element {
 
       {data.unmatchedTransfers.length > 0 ? (
         <View className="gap-2">
-          <Text className="text-sm font-medium text-neutral-500">Nespárované převody</Text>
+          <Text className="font-sans-semibold text-base text-ink">Nespárované převody</Text>
           {data.unmatchedTransfers.map((transfer) => (
-            <View key={transfer.id} className="rounded-lg border border-neutral-200 p-3">
+            <View key={transfer.id} className="rounded-lg border border-line bg-surface p-3">
               <View className="flex-row items-center justify-between">
                 <View className="flex-1 pr-3">
-                  <Text className="font-medium text-neutral-900">{transfer.accountName}</Text>
-                  <Text className="text-xs text-neutral-500">{transfer.date.slice(0, 10)} · {transfer.merchant}</Text>
+                  <Text className="font-sans-semibold text-ink">{transfer.accountName}</Text>
+                  <Text className="text-xs text-ink-muted">{transfer.date.slice(0, 10)} · {transfer.merchant}</Text>
                 </View>
-                <Text className="text-neutral-900">{transfer.amount.toLocaleString('cs-CZ')} {transfer.currency}</Text>
+                <Text className="text-ink">{transfer.amount.toLocaleString('cs-CZ')} {transfer.currency}</Text>
               </View>
               <Pressable
                 onPress={() => dismissTransfer.mutate(transfer.id)}
                 disabled={dismissTransfer.isPending}
-                className="mt-2 self-start rounded-md bg-neutral-100 px-3 py-1.5"
+                className="mt-2 self-start rounded-md bg-surface-subtle px-3 py-1.5 active:bg-line"
               >
-                <Text className="text-sm text-neutral-700">Skrýt</Text>
+                <Text className="text-sm text-ink-muted">Skrýt</Text>
               </Pressable>
             </View>
           ))}
