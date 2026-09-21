@@ -1,4 +1,5 @@
 import * as DocumentPicker from 'expo-document-picker';
+import { ArrowsClockwiseIcon, UploadSimpleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
@@ -11,6 +12,7 @@ import {
   useRematchFuelReceipts,
   type CsvImportSummary,
 } from '../../../hooks/use-import';
+import { formatMoney } from '../../../lib/format-money';
 import type { ImportAccountOption } from '../../../lib/response-types';
 
 type PickedAsset = { uri: string; name: string; mimeType: string };
@@ -29,9 +31,9 @@ function AccountPicker({ accounts, selectedId, onSelect }: { accounts: ImportAcc
         <Pressable
           key={account.id}
           onPress={() => onSelect(account.id)}
-          className={`rounded-full border px-3 py-1.5 ${selectedId === account.id ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'}`}
+          className={`rounded-full border px-3 py-1.5 active:bg-surface-subtle ${selectedId === account.id ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
         >
-          <Text className={selectedId === account.id ? 'text-white' : 'text-neutral-700'} numberOfLines={1}>
+          <Text className={selectedId === account.id ? 'font-sans-medium text-accent' : 'text-ink-muted'} numberOfLines={1}>
             {account.name}
           </Text>
         </Pressable>
@@ -89,24 +91,26 @@ function CsvImportSection({ accounts }: { accounts: ImportAccountOption[] }): Re
   }
 
   return (
-    <View className="gap-3 border-b border-neutral-100 p-4">
-      <Text className="text-sm font-medium text-neutral-500">Bankovní výpis (CSV, XML, PDF)</Text>
+    <View className="gap-3 border-b border-line bg-surface p-4">
+      <Text className="font-sans-medium text-sm text-ink-muted">Bankovní výpis (CSV, XML, PDF)</Text>
       <AccountPicker accounts={accounts} selectedId={accountId} onSelect={setAccountId} />
-      <Pressable onPress={() => void handlePick()} disabled={importCsv.isPending} className="items-center rounded-lg border border-neutral-300 py-2.5">
-        <Text className="font-medium text-neutral-900">{importCsv.isPending && !preview ? 'Načítám náhled…' : 'Vybrat soubor'}</Text>
+      <Pressable onPress={() => void handlePick()} disabled={importCsv.isPending} className="flex-row items-center justify-center gap-2 rounded-lg border border-line py-2.5 active:bg-surface-subtle">
+        <UploadSimpleIcon color="#17211f" size={16} weight="regular" />
+        <Text className="font-sans-medium text-ink">{importCsv.isPending && !preview ? 'Načítám náhled…' : 'Vybrat soubor'}</Text>
       </Pressable>
 
       {preview ? (
-        <View className="gap-2 rounded-lg bg-neutral-50 p-3">
-          <Text className="text-sm text-neutral-700">Řádků: {preview.rowCount}</Text>
-          <Text className="text-sm text-neutral-700">Nových: {preview.inserted}</Text>
+        <View className="gap-2 rounded-lg bg-surface-subtle p-3">
+          <Text className="text-sm text-ink">Řádků: {preview.rowCount}</Text>
+          <Text className="text-sm text-ink">Nových: {preview.inserted}</Text>
 
           {preview.needsAnchor ? (
             <View className="gap-1">
-              <Text className="text-sm text-amber-700">Chybí počáteční zůstatek — doplňte ho ručně, ať se výpis dá ukotvit.</Text>
+              <Text className="text-sm text-warning">Chybí počáteční zůstatek — doplňte ho ručně, ať se výpis dá ukotvit.</Text>
               <TextInput
-                className="rounded-lg border border-neutral-300 px-3 py-2"
+                className="rounded-lg border border-line bg-surface px-3 py-2 text-ink"
                 placeholder="Zůstatek po posledním řádku, např. 12345,67"
+                placeholderTextColor="#667570"
                 keyboardType="numeric"
                 value={closingBalance}
                 onChangeText={setClosingBalance}
@@ -116,29 +120,29 @@ function CsvImportSection({ accounts }: { accounts: ImportAccountOption[] }): Re
 
           {preview.preview.length > 0 ? (
             <View className="gap-1">
-              <Text className="text-xs font-medium text-neutral-500">Náhled řádků (prvních {preview.preview.length})</Text>
+              <Text className="font-sans-medium text-xs text-ink-muted">Náhled řádků (prvních {preview.preview.length})</Text>
               {preview.preview.map((row, index) => (
-                <View key={`${row.externalId ?? index}`} className="flex-row items-center justify-between border-b border-neutral-100 py-1.5">
+                <View key={`${row.externalId ?? index}`} className="flex-row items-center justify-between border-b border-line py-1.5">
                   <View className="flex-1 pr-2">
-                    <Text className="text-sm text-neutral-900" numberOfLines={1}>
+                    <Text className="text-sm text-ink" numberOfLines={1}>
                       {row.merchant ?? '—'}
                     </Text>
-                    <Text className="text-xs text-neutral-500">
+                    <Text className="text-xs text-ink-muted">
                       {row.date}
                       {row.duplicate ? ' · duplicitní' : ''}
                       {row.internalTransfer ? ' · vlastní převod' : ''}
                     </Text>
                   </View>
-                  <Text className={`text-sm ${row.duplicate ? 'text-neutral-400' : 'text-neutral-900'}`}>
-                    {row.amount} {row.currency}
+                  <Text className={`text-sm ${row.duplicate ? 'text-ink-faint' : 'text-ink'}`}>
+                    {formatMoney(row.amount, row.currency)}
                   </Text>
                 </View>
               ))}
             </View>
           ) : null}
 
-          <Pressable onPress={handleCommit} disabled={importCsv.isPending} className="items-center rounded-lg bg-neutral-900 py-2.5">
-            <Text className="font-medium text-white">{importCsv.isPending ? 'Importuji…' : 'Potvrdit import'}</Text>
+          <Pressable onPress={handleCommit} disabled={importCsv.isPending} className="items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
+            <Text className="font-sans-medium text-accent-foreground">{importCsv.isPending ? 'Importuji…' : 'Potvrdit import'}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -163,8 +167,9 @@ function SingleFileUploadButton({
   }
 
   return (
-    <Pressable onPress={() => void handlePress()} disabled={pending} className="items-center rounded-lg border border-neutral-300 py-2.5">
-      <Text className="font-medium text-neutral-900">{pending ? 'Nahrávám…' : label}</Text>
+    <Pressable onPress={() => void handlePress()} disabled={pending} className="flex-row items-center justify-center gap-2 rounded-lg border border-line py-2.5 active:bg-surface-subtle">
+      <UploadSimpleIcon color="#17211f" size={16} weight="regular" />
+      <Text className="font-sans-medium text-ink">{pending ? 'Nahrávám…' : label}</Text>
     </Pressable>
   );
 }
@@ -178,26 +183,26 @@ export default function ImportScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }
 
   if (isError) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">{error instanceof Error ? error.message : 'Import se nepodařilo připravit'}</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">{error instanceof Error ? error.message : 'Import se nepodařilo připravit'}</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-white">
+    <ScrollView className="flex-1 bg-canvas">
       <CsvImportSection accounts={data.accounts} />
 
-      <View className="gap-3 border-b border-neutral-100 p-4">
-        <Text className="text-sm font-medium text-neutral-500">Tankarta</Text>
+      <View className="gap-3 border-b border-line bg-surface p-4">
+        <Text className="font-sans-medium text-sm text-ink-muted">Tankarta</Text>
         <SingleFileUploadButton
           label="Nahrát účtenku (PDF)"
           accept="application/pdf"
@@ -212,9 +217,10 @@ export default function ImportScreen(): React.JSX.Element {
         <Pressable
           onPress={() => rematchFuelReceipts.mutate(undefined, { onSuccess: () => Alert.alert('Hotovo', 'Spárování bylo dokončeno.') })}
           disabled={rematchFuelReceipts.isPending}
-          className="items-center rounded-lg border border-neutral-300 py-2.5"
+          className="flex-row items-center justify-center gap-2 rounded-lg border border-line py-2.5 active:bg-surface-subtle"
         >
-          <Text className="font-medium text-neutral-900">{rematchFuelReceipts.isPending ? 'Spárovávám…' : 'Znovu spárovat účtenky'}</Text>
+          <ArrowsClockwiseIcon color="#17211f" size={16} weight="regular" />
+          <Text className="font-sans-medium text-ink">{rematchFuelReceipts.isPending ? 'Spárovávám…' : 'Znovu spárovat účtenky'}</Text>
         </Pressable>
         <SingleFileUploadButton
           label="Nahrát ChargingPrepaids.xls"
@@ -240,16 +246,16 @@ export default function ImportScreen(): React.JSX.Element {
         />
       </View>
 
-      <Text className="px-4 pb-2 pt-4 text-sm font-medium text-neutral-500">Poslední importy</Text>
+      <Text className="font-sans-medium px-4 pb-2 pt-4 text-sm text-ink-muted">Poslední importy</Text>
       {data.batches.length === 0 ? (
-        <Text className="px-4 pb-4 text-neutral-500">Zatím žádné importy.</Text>
+        <Text className="px-4 pb-4 text-ink-muted">Zatím žádné importy.</Text>
       ) : (
         data.batches.map((batch) => (
-          <View key={batch.id} className="flex-row items-center justify-between border-b border-neutral-100 px-4 py-3">
-            <Text className="flex-1 pr-3 text-neutral-900" numberOfLines={1}>
+          <View key={batch.id} className="flex-row items-center justify-between border-b border-line bg-surface px-4 py-3">
+            <Text className="flex-1 pr-3 text-ink" numberOfLines={1}>
               {batch.account.name}
             </Text>
-            <Text className="text-xs text-neutral-500">{new Date(batch.createdAt).toLocaleDateString('cs-CZ')}</Text>
+            <Text className="text-xs text-ink-muted">{new Date(batch.createdAt).toLocaleDateString('cs-CZ')}</Text>
           </View>
         ))
       )}
