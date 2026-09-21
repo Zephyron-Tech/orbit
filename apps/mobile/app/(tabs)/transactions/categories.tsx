@@ -25,19 +25,19 @@ function CategoryRow({ category }: { category: TransactionCategory }): React.JSX
 
   if (editing) {
     return (
-      <View className="gap-2 border-b border-neutral-100 px-4 py-3">
-        <TextInput className="rounded-lg border border-neutral-300 px-3 py-2" value={name} onChangeText={setName} />
+      <View className="gap-2 border-b border-line bg-surface px-4 py-3">
+        <TextInput className="rounded-lg border border-line px-3 py-2 text-ink" value={name} onChangeText={setName} />
         <View className="flex-row items-center justify-between">
-          <Text className="text-sm text-neutral-500">Sdílená ve výchozím stavu</Text>
-          <Switch value={isShared} onValueChange={setIsShared} />
+          <Text className="text-sm text-ink-muted">Sdílená ve výchozím stavu</Text>
+          <Switch value={isShared} onValueChange={setIsShared} trackColor={{ true: '#17647c' }} />
         </View>
-        {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
+        {error ? <Text className="text-sm text-critical">{error}</Text> : null}
         <View className="flex-row gap-2">
-          <Pressable onPress={handleSave} disabled={updateCategory.isPending} className="flex-1 items-center rounded-lg bg-neutral-900 py-2">
-            <Text className="font-medium text-white">{updateCategory.isPending ? 'Ukládám…' : 'Uložit'}</Text>
+          <Pressable onPress={handleSave} disabled={updateCategory.isPending} className="flex-1 items-center rounded-lg bg-accent py-2 active:bg-accent-hover">
+            <Text className="font-sans-medium text-accent-foreground">{updateCategory.isPending ? 'Ukládám…' : 'Uložit'}</Text>
           </Pressable>
-          <Pressable onPress={() => setEditing(false)} className="flex-1 items-center rounded-lg border border-neutral-300 py-2">
-            <Text className="text-neutral-900">Zrušit</Text>
+          <Pressable onPress={() => setEditing(false)} className="flex-1 items-center rounded-lg border border-line py-2 active:bg-surface-subtle">
+            <Text className="text-ink">Zrušit</Text>
           </Pressable>
         </View>
       </View>
@@ -45,13 +45,13 @@ function CategoryRow({ category }: { category: TransactionCategory }): React.JSX
   }
 
   return (
-    <Pressable onPress={() => setEditing(true)} className="flex-row items-center justify-between border-b border-neutral-100 px-4 py-3">
+    <Pressable onPress={() => setEditing(true)} className="flex-row items-center justify-between border-b border-line bg-surface px-4 py-3 active:bg-surface-subtle">
       <View className="flex-1">
-        <Text className={category.isActive ? 'font-medium text-neutral-900' : 'font-medium text-neutral-400'}>{category.name}</Text>
-        <Text className="text-xs text-neutral-500">{category.transactionCount} transakcí{category.defaultIsShared ? ' · sdílená' : ''}</Text>
+        <Text className={category.isActive ? 'font-sans-medium text-ink' : 'font-sans-medium text-ink-faint'}>{category.name}</Text>
+        <Text className="text-xs text-ink-muted">{category.transactionCount} transakcí{category.defaultIsShared ? ' · sdílená' : ''}</Text>
       </View>
-      <Pressable onPress={handleToggleActive} className="rounded-full border border-neutral-300 px-3 py-1">
-        <Text className="text-xs text-neutral-700">{category.isActive ? 'Deaktivovat' : 'Aktivovat'}</Text>
+      <Pressable onPress={handleToggleActive} className="rounded-full border border-line px-3 py-1 active:bg-surface-subtle">
+        <Text className="text-xs text-ink-muted">{category.isActive ? 'Deaktivovat' : 'Aktivovat'}</Text>
       </Pressable>
     </Pressable>
   );
@@ -74,32 +74,32 @@ export default function CategoriesScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }
 
   if (isError || !data) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">Kategorie se nepodařilo načíst</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">Kategorie se nepodařilo načíst</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-white">
-      <View className="gap-2 border-b border-neutral-100 p-4">
-        <Text className="text-sm font-medium text-neutral-500">Nová kategorie</Text>
-        <TextInput className="rounded-lg border border-neutral-300 px-3 py-2" placeholder="Název" value={newName} onChangeText={setNewName} />
+    <ScrollView className="flex-1 bg-canvas">
+      <View className="gap-2 border-b border-line bg-surface p-4">
+        <Text className="font-sans-medium text-sm text-ink-muted">Nová kategorie</Text>
+        <TextInput className="rounded-lg border border-line px-3 py-2 text-ink" placeholder="Název" placeholderTextColor="#667570" value={newName} onChangeText={setNewName} />
         <View className="flex-row items-center justify-between">
-          <Text className="text-sm text-neutral-500">Sdílená ve výchozím stavu</Text>
-          <Switch value={newShared} onValueChange={setNewShared} />
+          <Text className="text-sm text-ink-muted">Sdílená ve výchozím stavu</Text>
+          <Switch value={newShared} onValueChange={setNewShared} trackColor={{ true: '#17647c' }} />
         </View>
-        {createError ? <Text className="text-sm text-red-600">{createError}</Text> : null}
-        <Pressable onPress={handleCreate} disabled={createCategory.isPending || newName.trim().length === 0} className="items-center rounded-lg bg-neutral-900 py-2.5">
-          <Text className="font-medium text-white">{createCategory.isPending ? 'Vytvářím…' : 'Vytvořit'}</Text>
+        {createError ? <Text className="text-sm text-critical">{createError}</Text> : null}
+        <Pressable onPress={handleCreate} disabled={createCategory.isPending || newName.trim().length === 0} className="items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
+          <Text className="font-sans-medium text-accent-foreground">{createCategory.isPending ? 'Vytvářím…' : 'Vytvořit'}</Text>
         </Pressable>
       </View>
 

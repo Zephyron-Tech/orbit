@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router';
+import { ArrowsClockwiseIcon, MagnifyingGlassIcon, TagIcon, XIcon } from 'phosphor-react-native';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 
+import { Badge } from '../../../components/badge';
 import {
   useApplyMerchantCategory,
   useBulkCategorize,
@@ -10,12 +12,13 @@ import {
   type TransactionsListParams,
 } from '../../../hooks/use-transactions';
 import { useDismissUnmatchedTransfer } from '../../../hooks/use-net-worth';
+import { formatMoney } from '../../../lib/format-money';
 import type { MerchantCategoryRecommendation, TransactionRow } from '../../../lib/response-types';
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }): React.JSX.Element {
   return (
-    <Pressable onPress={onPress} className={`mr-2 rounded-full border px-3 py-1.5 ${active ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'}`}>
-      <Text className={active ? 'text-white' : 'text-neutral-700'}>{label}</Text>
+    <Pressable onPress={onPress} className={`mr-2 rounded-full border px-3 py-1.5 active:bg-surface-subtle ${active ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}>
+      <Text className={`font-sans-medium text-sm ${active ? 'text-accent' : 'text-ink-muted'}`}>{label}</Text>
     </Pressable>
   );
 }
@@ -44,28 +47,28 @@ function TransactionListItem({
     <Pressable
       onPress={selectMode ? onToggleSelect : onPress}
       onLongPress={onToggleSelect}
-      className="flex-row items-center justify-between border-b border-neutral-100 px-4 py-3"
+      className="flex-row items-center justify-between border-b border-line px-4 py-3 active:bg-surface-subtle"
     >
       {selectMode ? (
-        <View className={`mr-3 size-5 items-center justify-center rounded border ${selected ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'}`}>
-          {selected ? <Text className="text-xs text-white">✓</Text> : null}
+        <View className={`mr-3 size-5 items-center justify-center rounded border ${selected ? 'border-accent bg-accent' : 'border-line-strong'}`}>
+          {selected ? <Text className="text-xs text-accent-foreground">✓</Text> : null}
         </View>
       ) : null}
       <View className="flex-1 pr-3">
-        <Text className="font-medium text-neutral-900" numberOfLines={1}>
+        <Text className="font-sans-semibold text-ink" numberOfLines={1}>
           {transaction.merchant}
         </Text>
-        <Text className="text-xs text-neutral-500">
+        <Text className="text-xs text-ink-muted">
           {transaction.date} · {transaction.accountName}
         </Text>
         {isUnmatchedTransfer && onDismissTransfer ? (
-          <Pressable onPress={onDismissTransfer} disabled={dismissPending} className="mt-1 self-start rounded bg-amber-50 px-2 py-0.5">
-            <Text className="text-xs text-amber-700">{dismissPending ? 'Skrývám…' : 'Skrýt nespárovaný převod'}</Text>
+          <Pressable onPress={onDismissTransfer} disabled={dismissPending} className="mt-1 self-start rounded bg-warning-soft px-2 py-0.5">
+            <Text className="text-xs text-warning">{dismissPending ? 'Skrývám…' : 'Skrýt nespárovaný převod'}</Text>
           </Pressable>
         ) : null}
       </View>
-      <Text className={isExpense ? 'text-red-600' : 'text-emerald-600'}>
-        {transaction.amount} {transaction.currency}
+      <Text className={`font-sans-semibold ${isExpense ? 'text-ink' : 'text-positive'}`}>
+        {formatMoney(transaction.amount, transaction.currency)}
       </Text>
     </Pressable>
   );
@@ -94,17 +97,17 @@ function RecommendationBanner({
   }
 
   return (
-    <View className="m-4 gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3">
-      <Text className="text-sm text-blue-900">
+    <View className="m-4 gap-2 rounded-lg border border-accent/25 bg-accent-soft p-3">
+      <Text className="text-sm text-ink">
         {recommendation.targetIds.length}× "{recommendation.merchantLabel}" — přiřadit kategorii "{recommendation.categoryName}"?
       </Text>
-      {error ? <Text className="text-xs text-red-600">{error}</Text> : null}
+      {error ? <Text className="text-xs text-critical">{error}</Text> : null}
       <View className="flex-row gap-2">
-        <Pressable onPress={handleApply} disabled={applyMerchantCategory.isPending} className="rounded-lg bg-blue-900 px-3 py-1.5">
-          <Text className="text-sm font-medium text-white">{applyMerchantCategory.isPending ? 'Přiřazuji…' : 'Přiřadit'}</Text>
+        <Pressable onPress={handleApply} disabled={applyMerchantCategory.isPending} className="rounded-lg bg-accent px-3 py-1.5 active:bg-accent-hover">
+          <Text className="font-sans-medium text-sm text-accent-foreground">{applyMerchantCategory.isPending ? 'Přiřazuji…' : 'Přiřadit'}</Text>
         </Pressable>
-        <Pressable onPress={onDismiss} className="rounded-lg border border-blue-300 px-3 py-1.5">
-          <Text className="text-sm text-blue-900">Zavřít</Text>
+        <Pressable onPress={onDismiss} className="rounded-lg border border-accent/25 px-3 py-1.5 active:bg-surface-subtle">
+          <Text className="text-sm text-accent">Zavřít</Text>
         </Pressable>
       </View>
     </View>
@@ -166,29 +169,33 @@ export default function TransactionsListScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }
 
   if (isError) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">{error instanceof Error ? error.message : 'Transakce se nepodařilo načíst'}</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">{error instanceof Error ? error.message : 'Transakce se nepodařilo načíst'}</Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-white">
-      <View className="border-b border-neutral-100 px-4 py-3">
-        <TextInput
-          className="mb-2 rounded-lg border border-neutral-300 px-3 py-2"
-          placeholder="Hledat (protistrana, poznámka)…"
-          value={q}
-          onChangeText={(text) => { setQ(text); setPage(1); }}
-        />
+    <View className="flex-1 bg-canvas">
+      <View className="border-b border-line bg-surface px-4 py-3">
+        <View className="mb-2 flex-row items-center gap-2 rounded-lg border border-line bg-canvas px-3">
+          <MagnifyingGlassIcon color="#5d6c68" size={16} weight="regular" />
+          <TextInput
+            className="flex-1 py-2 text-ink"
+            placeholder="Hledat (protistrana, poznámka)…"
+            placeholderTextColor="#5d6c68"
+            value={q}
+            onChangeText={(text) => { setQ(text); setPage(1); }}
+          />
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
           <Chip label="Všechny účty" active={!accountId} onPress={() => { setAccountId(undefined); setPage(1); }} />
           {data.accounts.map((account) => (
@@ -212,16 +219,18 @@ export default function TransactionsListScreen(): React.JSX.Element {
           <Chip label="Nespárované převody" active={transferOnly} onPress={() => { setTransferOnly((v) => !v); setPage(1); }} />
           <Chip label={sort === 'date' ? 'Řadit: datum' : 'Řadit: částka'} active={false} onPress={() => setSort((s) => (s === 'date' ? 'amount' : 'date'))} />
           <Chip label={direction === 'desc' ? '↓' : '↑'} active={false} onPress={() => setDirection((d) => (d === 'desc' ? 'asc' : 'desc'))} />
-          <Pressable onPress={() => router.push('/(tabs)/transactions/categories')} className="ml-auto rounded-full border border-neutral-300 px-3 py-1.5">
-            <Text className="text-neutral-700">Kategorie</Text>
+          <Pressable onPress={() => router.push('/(tabs)/transactions/categories')} className="ml-auto flex-row items-center gap-1 rounded-full border border-line bg-surface px-3 py-1.5 active:bg-surface-subtle">
+            <TagIcon color="#5d6c68" size={14} weight="regular" />
+            <Text className="text-ink-muted">Kategorie</Text>
           </Pressable>
         </View>
         <Pressable
           onPress={() => matchTransfers.mutate()}
           disabled={matchTransfers.isPending}
-          className="mt-2 items-center rounded-lg border border-neutral-300 py-2"
+          className="mt-2 flex-row items-center justify-center gap-2 rounded-lg border border-line py-2 active:bg-surface-subtle"
         >
-          <Text className="text-neutral-700">
+          <ArrowsClockwiseIcon color="#5d6c68" size={16} weight="regular" />
+          <Text className="text-ink-muted">
             {matchTransfers.isPending ? 'Páruji…' : 'Spárovat převody'}
           </Text>
         </Pressable>
@@ -236,38 +245,39 @@ export default function TransactionsListScreen(): React.JSX.Element {
         />
       ) : null}
 
-      <View className="flex-row justify-around border-b border-neutral-100 px-4 py-3">
+      <View className="flex-row justify-around border-b border-line bg-surface px-4 py-3">
         <View className="items-center">
-          <Text className="text-xs text-neutral-500">Příjmy</Text>
-          <Text className="text-emerald-600">{data.income} Kč</Text>
+          <Text className="text-xs text-ink-muted">Příjmy</Text>
+          <Text className="font-sans-semibold text-positive">{formatMoney(data.income)}</Text>
         </View>
         <View className="items-center">
-          <Text className="text-xs text-neutral-500">Výdaje</Text>
-          <Text className="text-red-600">{data.expenses} Kč</Text>
+          <Text className="text-xs text-ink-muted">Výdaje</Text>
+          <Text className="font-sans-semibold text-ink">{formatMoney(data.expenses)}</Text>
         </View>
         <View className="items-center">
-          <Text className="text-xs text-neutral-500">Bilance</Text>
-          <Text className="text-neutral-900">{data.balance} Kč</Text>
+          <Text className="text-xs text-ink-muted">Bilance</Text>
+          <Text className="font-sans-semibold text-ink">{formatMoney(data.balance)}</Text>
         </View>
       </View>
 
       {selectMode ? (
-        <View className="flex-row flex-wrap items-center gap-2 border-b border-neutral-100 bg-neutral-50 px-4 py-2">
-          <Text className="text-sm text-neutral-600">Vybráno: {selectedIds.size}</Text>
+        <View className="flex-row flex-wrap items-center gap-2 border-b border-line bg-surface-subtle px-4 py-2">
+          <Text className="text-sm text-ink-muted">Vybráno: {selectedIds.size}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1">
             {data.categories.map((category) => (
               <Pressable
                 key={category.id}
                 onPress={() => handleBulkCategorize(category.id)}
                 disabled={selectedIds.size === 0 || bulkCategorize.isPending}
-                className="mr-2 rounded-full border border-neutral-300 px-3 py-1"
+                className="mr-2 rounded-full border border-line bg-surface px-3 py-1 active:bg-surface-subtle"
               >
-                <Text className="text-sm text-neutral-700">{category.name}</Text>
+                <Text className="text-sm text-ink-muted">{category.name}</Text>
               </Pressable>
             ))}
           </ScrollView>
-          <Pressable onPress={() => { setSelectMode(false); setSelectedIds(new Set()); }}>
-            <Text className="text-sm text-neutral-500">Zrušit</Text>
+          <Pressable onPress={() => { setSelectMode(false); setSelectedIds(new Set()); }} className="flex-row items-center gap-1">
+            <XIcon color="#5d6c68" size={14} weight="regular" />
+            <Text className="text-sm text-ink-muted">Zrušit</Text>
           </Pressable>
         </View>
       ) : null}
@@ -286,32 +296,32 @@ export default function TransactionsListScreen(): React.JSX.Element {
             dismissPending={dismissUnmatchedTransfer.isPending}
           />
         )}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
         ListEmptyComponent={
           <View className="items-center py-10">
-            <Text className="text-neutral-500">Žádné transakce v tomto období.</Text>
+            <Text className="text-ink-muted">Žádné transakce v tomto období.</Text>
           </View>
         }
       />
 
       {data.totalPages > 1 ? (
-        <View className="flex-row items-center justify-between border-t border-neutral-100 px-4 py-3">
+        <View className="flex-row items-center justify-between border-t border-line bg-surface px-4 py-3">
           <Pressable
             onPress={() => setPage((current) => Math.max(1, current - 1))}
             disabled={data.page <= 1}
-            className="rounded-md bg-neutral-100 px-3 py-1.5 disabled:opacity-40"
+            className="rounded-md bg-surface-subtle px-3 py-1.5 disabled:opacity-40"
           >
-            <Text>Předchozí</Text>
+            <Text className="text-ink">Předchozí</Text>
           </Pressable>
-          <Text className="text-neutral-500">
+          <Text className="text-ink-muted">
             {data.page} / {data.totalPages}
           </Text>
           <Pressable
             onPress={() => setPage((current) => Math.min(data.totalPages, current + 1))}
             disabled={data.page >= data.totalPages}
-            className="rounded-md bg-neutral-100 px-3 py-1.5 disabled:opacity-40"
+            className="rounded-md bg-surface-subtle px-3 py-1.5 disabled:opacity-40"
           >
-            <Text>Další</Text>
+            <Text className="text-ink">Další</Text>
           </Pressable>
         </View>
       ) : null}

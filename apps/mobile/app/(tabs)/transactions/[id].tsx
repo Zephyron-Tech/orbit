@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { PlusIcon, XIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 
@@ -12,6 +13,7 @@ import {
   useUpdateTransaction,
 } from '../../../hooks/use-transactions';
 import type { SplitLineInput } from '../../../hooks/use-transactions';
+import { formatMoney } from '../../../lib/format-money';
 
 /** Dynamic add/remove-line split editor, 2–20 lines (SPLIT_MIN_LINES/SPLIT_MAX_LINES mirror the API's own bound). */
 function SplitPanel({ transactionId, totalAmount, onDone }: { transactionId: string; totalAmount: string; onDone: () => void }): React.JSX.Element {
@@ -44,32 +46,34 @@ function SplitPanel({ transactionId, totalAmount, onDone }: { transactionId: str
   }
 
   return (
-    <View className="mt-4 gap-3 rounded-xl border border-neutral-200 p-4">
-      <Text className="text-sm font-medium text-neutral-500">Rozdělit na {amounts.length} částí (celkem musí sedět na {totalAmount})</Text>
+    <View className="mt-4 gap-3 rounded-lg border border-line bg-surface p-4">
+      <Text className="font-sans-medium text-sm text-ink-muted">Rozdělit na {amounts.length} částí (celkem musí sedět na {totalAmount})</Text>
       {amounts.map((amount, index) => (
         <View key={index} className="flex-row items-center gap-2">
           <TextInput
-            className="flex-1 rounded-lg border border-neutral-300 px-3 py-2"
+            className="flex-1 rounded-lg border border-line px-3 py-2 text-ink"
             placeholder={`Částka ${index + 1}`}
+            placeholderTextColor="#667570"
             keyboardType="numbers-and-punctuation"
             value={amount}
             onChangeText={(value) => updateAmount(index, value)}
           />
           {amounts.length > SPLIT_MIN_LINES ? (
-            <Pressable onPress={() => removeLine(index)} className="rounded-lg border border-neutral-300 px-3 py-2">
-              <Text className="text-neutral-500">✕</Text>
+            <Pressable onPress={() => removeLine(index)} className="rounded-lg border border-line px-3 py-2 active:bg-surface-subtle">
+              <XIcon color="#5d6c68" size={16} weight="regular" />
             </Pressable>
           ) : null}
         </View>
       ))}
       {amounts.length < SPLIT_MAX_LINES ? (
-        <Pressable onPress={addLine} className="items-center rounded-lg border border-dashed border-neutral-300 py-2">
-          <Text className="text-neutral-600">+ Přidat řádek</Text>
+        <Pressable onPress={addLine} className="flex-row items-center justify-center gap-1 rounded-lg border border-dashed border-line-strong py-2 active:bg-surface-subtle">
+          <PlusIcon color="#5d6c68" size={14} weight="regular" />
+          <Text className="text-ink-muted">Přidat řádek</Text>
         </Pressable>
       ) : null}
-      {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
-      <Pressable onPress={handleSplit} disabled={splitTransaction.isPending} className="items-center rounded-lg bg-neutral-900 py-2.5">
-        <Text className="font-medium text-white">{splitTransaction.isPending ? 'Ukládám…' : 'Rozdělit'}</Text>
+      {error ? <Text className="text-sm text-critical">{error}</Text> : null}
+      <Pressable onPress={handleSplit} disabled={splitTransaction.isPending} className="items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
+        <Text className="font-sans-medium text-accent-foreground">{splitTransaction.isPending ? 'Ukládám…' : 'Rozdělit'}</Text>
       </Pressable>
     </View>
   );
@@ -104,19 +108,21 @@ export default function TransactionDetailScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }
 
   if (isError || !transaction) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">Transakci se nepodařilo načíst</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">Transakci se nepodařilo načíst</Text>
       </View>
     );
   }
+
+  const isExpense = transaction.amount.startsWith('-');
 
   function handleSave(): void {
     if (!transaction) return;
@@ -142,82 +148,82 @@ export default function TransactionDetailScreen(): React.JSX.Element {
   }
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerClassName="p-4">
-      <Text className="text-xl font-semibold text-neutral-900">{transaction.merchant}</Text>
-      <Text className="mt-1 text-sm text-neutral-500">
+    <ScrollView className="flex-1 bg-canvas" contentContainerClassName="p-4">
+      <Text className="font-sans-semibold text-xl text-ink">{transaction.merchant}</Text>
+      <Text className="mt-1 text-sm text-ink-muted">
         {transaction.date} · {transaction.accountName}
       </Text>
-      <Text className="mt-2 text-2xl font-semibold text-neutral-900">
-        {transaction.amount} {transaction.currency}
+      <Text className={`font-sans-semibold mt-2 text-2xl ${isExpense ? 'text-ink' : 'text-positive'}`}>
+        {formatMoney(transaction.amount, transaction.currency)}
       </Text>
 
       {transaction.isSettled ? (
-        <Text className="mt-3 text-sm text-amber-700">Tato transakce je součástí uzavřeného vyrovnání a nelze ji upravit.</Text>
+        <Text className="mt-3 text-sm text-warning">Tato transakce je součástí uzavřeného vyrovnání a nelze ji upravit.</Text>
       ) : (
         <View className="mt-4 gap-4">
           <View>
-            <Text className="mb-2 text-sm font-medium text-neutral-500">Kategorie</Text>
+            <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Kategorie</Text>
             <View className="flex-row flex-wrap gap-2">
               {(listData?.categories ?? []).map((category) => (
                 <Pressable
                   key={category.id}
                   onPress={() => setCategoryId(category.id)}
-                  className={`rounded-full border px-3 py-1.5 ${categoryId === category.id ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'}`}
+                  className={`rounded-full border px-3 py-1.5 active:bg-surface-subtle ${categoryId === category.id ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
                 >
-                  <Text className={categoryId === category.id ? 'text-white' : 'text-neutral-700'}>{category.name}</Text>
+                  <Text className={categoryId === category.id ? 'font-sans-medium text-accent' : 'text-ink-muted'}>{category.name}</Text>
                 </Pressable>
               ))}
             </View>
           </View>
 
           <View className="flex-row items-center justify-between">
-            <Text className="text-sm font-medium text-neutral-500">Sdílená platba</Text>
-            <Switch value={isShared} onValueChange={setIsShared} />
+            <Text className="font-sans-medium text-sm text-ink-muted">Sdílená platba</Text>
+            <Switch value={isShared} onValueChange={setIsShared} trackColor={{ true: '#17647c' }} />
           </View>
 
           <View>
-            <Text className="mb-2 text-sm font-medium text-neutral-500">Zaplatil(a)</Text>
+            <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Zaplatil(a)</Text>
             <View className="flex-row gap-2">
               {(['ME', 'PARTNER'] as const).map((option) => (
                 <Pressable
                   key={option}
                   onPress={() => setPaidBy(option)}
-                  className={`rounded-full border px-3 py-1.5 ${paidBy === option ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'}`}
+                  className={`rounded-full border px-3 py-1.5 active:bg-surface-subtle ${paidBy === option ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
                 >
-                  <Text className={paidBy === option ? 'text-white' : 'text-neutral-700'}>{option === 'ME' ? 'Já' : 'Partner'}</Text>
+                  <Text className={paidBy === option ? 'font-sans-medium text-accent' : 'text-ink-muted'}>{option === 'ME' ? 'Já' : 'Partner'}</Text>
                 </Pressable>
               ))}
             </View>
           </View>
 
           <View>
-            <Text className="mb-2 text-sm font-medium text-neutral-500">Poznámka</Text>
+            <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Poznámka</Text>
             <TextInput
-              className="rounded-lg border border-neutral-300 px-3 py-2"
+              className="rounded-lg border border-line px-3 py-2 text-ink"
               multiline
               value={notes}
               onChangeText={setNotes}
             />
           </View>
 
-          {saveError ? <Text className="text-sm text-red-600">{saveError}</Text> : null}
-          {saved ? <Text className="text-sm text-emerald-600">Uloženo.</Text> : null}
+          {saveError ? <Text className="text-sm text-critical">{saveError}</Text> : null}
+          {saved ? <Text className="text-sm text-positive">Uloženo.</Text> : null}
 
-          <Pressable onPress={handleSave} disabled={updateTransaction.isPending} className="items-center rounded-lg bg-neutral-900 py-3">
-            <Text className="font-medium text-white">{updateTransaction.isPending ? 'Ukládám…' : 'Uložit'}</Text>
+          <Pressable onPress={handleSave} disabled={updateTransaction.isPending} className="items-center rounded-lg bg-accent py-3 active:bg-accent-hover">
+            <Text className="font-sans-medium text-accent-foreground">{updateTransaction.isPending ? 'Ukládám…' : 'Uložit'}</Text>
           </Pressable>
 
           {transaction.kind === 'SPLIT_PARENT' ? (
             <Pressable
               onPress={() => mergeSplit.mutate(transaction.id, { onSuccess: () => router.back() })}
               disabled={mergeSplit.isPending}
-              className="items-center rounded-lg border border-neutral-300 py-3"
+              className="items-center rounded-lg border border-line py-3 active:bg-surface-subtle"
             >
-              <Text className="font-medium text-neutral-900">{mergeSplit.isPending ? 'Slučuji…' : 'Zrušit rozdělení'}</Text>
+              <Text className="font-sans-medium text-ink">{mergeSplit.isPending ? 'Slučuji…' : 'Zrušit rozdělení'}</Text>
             </Pressable>
           ) : (
-            <Pressable onPress={() => setShowSplit((current) => !current)} className="items-center rounded-lg border border-neutral-300 py-3">
-              <Text className="font-medium text-neutral-900">{showSplit ? 'Skrýt rozdělení' : 'Rozdělit transakci'}</Text>
+            <Pressable onPress={() => setShowSplit((current) => !current)} className="items-center rounded-lg border border-line py-3 active:bg-surface-subtle">
+              <Text className="font-sans-medium text-ink">{showSplit ? 'Skrýt rozdělení' : 'Rozdělit transakci'}</Text>
             </Pressable>
           )}
 
