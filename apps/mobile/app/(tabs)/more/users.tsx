@@ -1,32 +1,36 @@
+import { EnvelopeSimpleIcon, LinkSimpleIcon, UserCircleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 
+import { Badge } from '../../../components/badge';
 import { useCreateInvite, useInvitesList, useRevokeInvite, useUpdateHouseholdUser, useUsers } from '../../../hooks/use-users';
 import type { HouseholdUserRow } from '../../../lib/response-types';
 
 function UserRow({ user, isOwner, onSave, saving }: { user: HouseholdUserRow; isOwner: boolean; onSave: (input: HouseholdUserRow) => void; saving: boolean }): React.JSX.Element {
   return (
-    <View className="border-b border-neutral-100 px-4 py-3">
-      <View className="flex-row items-center justify-between">
-        <View className="flex-1 pr-3">
-          <Text className="font-medium text-neutral-900" numberOfLines={1}>
+    <View className="flex-row items-start gap-3 border-b border-line bg-surface px-4 py-3">
+      <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
+        <UserCircleIcon color="#17647c" size={20} weight="fill" />
+      </View>
+      <View className="flex-1 pr-3">
+        <View className="flex-row flex-wrap items-center gap-2">
+          <Text className="font-sans-semibold text-ink" numberOfLines={1}>
             {user.name ?? user.email}
           </Text>
-          <Text className="text-xs text-neutral-500">
-            {user.email} · {user.role === 'OWNER' ? 'Vlastník' : 'Člen'}
-            {user.isCurrentUser ? ' · vy' : ''}
-          </Text>
+          {user.isCurrentUser ? <Badge tone="info">Vy</Badge> : null}
+          <Badge>{user.role === 'OWNER' ? 'Vlastník' : 'Člen'}</Badge>
+          {!user.isActive ? <Badge tone="danger">Deaktivovaný</Badge> : null}
         </View>
-        {isOwner && !user.isCurrentUser ? (
-          <Switch
-            value={user.isActive}
-            disabled={saving}
-            onValueChange={(value) => onSave({ ...user, isActive: value })}
-          />
-        ) : (
-          <Text className="text-xs text-neutral-500">{user.isActive ? 'Aktivní' : 'Neaktivní'}</Text>
-        )}
+        <Text className="mt-1 text-xs text-ink-muted">{user.email}</Text>
       </View>
+      {isOwner && !user.isCurrentUser ? (
+        <Switch
+          value={user.isActive}
+          disabled={saving}
+          onValueChange={(value) => onSave({ ...user, isActive: value })}
+          trackColor={{ false: '#d8e0dd', true: '#17647c' }}
+        />
+      ) : null}
     </View>
   );
 }
@@ -66,61 +70,70 @@ export default function UsersScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }
 
   if (isError) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">{error instanceof Error ? error.message : 'Domácnost se nepodařilo načíst'}</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">{error instanceof Error ? error.message : 'Domácnost se nepodařilo načíst'}</Text>
       </View>
     );
   }
 
+  const openInvites = invitesList.data?.invites.filter((invite) => !invite.acceptedAt) ?? [];
+
   return (
-    <ScrollView className="flex-1 bg-white">
-      <Text className="px-4 pb-2 pt-4 text-sm font-medium text-neutral-500">Členové</Text>
+    <ScrollView className="flex-1 bg-canvas">
+      <Text className="px-4 pb-2 pt-4 font-sans-semibold text-base text-ink">Členové</Text>
       {data.users.map((user) => (
         <UserRow key={user.id} user={user} isOwner={isOwner} onSave={handleUpdate} saving={updateUser.isPending} />
       ))}
 
       {isOwner ? (
         <>
-          <Text className="px-4 pb-2 pt-6 text-sm font-medium text-neutral-500">Pozvat člena</Text>
+          <Text className="px-4 pb-2 pt-6 font-sans-semibold text-base text-ink">Pozvat člena</Text>
           <View className="gap-2 px-4">
             <TextInput
-              className="rounded-lg border border-neutral-300 px-3 py-2"
+              className="rounded-lg border border-line bg-surface px-3 py-2 text-ink"
               placeholder="E-mail"
+              placeholderTextColor="#667570"
               autoCapitalize="none"
               keyboardType="email-address"
               value={inviteEmail}
               onChangeText={setInviteEmail}
             />
-            {inviteMessage ? <Text className={createInvite.isError ? 'text-sm text-red-600' : 'text-sm text-emerald-600'}>{inviteMessage}</Text> : null}
-            <Pressable onPress={handleCreateInvite} disabled={createInvite.isPending || !inviteEmail.trim()} className="items-center rounded-lg bg-neutral-900 py-2.5">
-              <Text className="font-medium text-white">{createInvite.isPending ? 'Odesílám…' : 'Vytvořit pozvánku'}</Text>
+            {inviteMessage ? <Text className={createInvite.isError ? 'text-sm text-critical' : 'text-sm text-positive'}>{inviteMessage}</Text> : null}
+            <Pressable
+              onPress={handleCreateInvite}
+              disabled={createInvite.isPending || !inviteEmail.trim()}
+              className="flex-row items-center justify-center gap-2 rounded-lg bg-accent py-2.5 active:bg-accent-hover"
+            >
+              <LinkSimpleIcon color="#f8fcfd" size={16} weight="bold" />
+              <Text className="font-sans-medium text-accent-foreground">{createInvite.isPending ? 'Odesílám…' : 'Vytvořit pozvánku'}</Text>
             </Pressable>
           </View>
 
-          <Text className="px-4 pb-2 pt-6 text-sm font-medium text-neutral-500">Otevřené pozvánky</Text>
-          {invitesList.data?.invites.filter((invite) => !invite.acceptedAt).length ? (
-            invitesList.data.invites
-              .filter((invite) => !invite.acceptedAt)
-              .map((invite) => (
-                <View key={invite.id} className="flex-row items-center justify-between border-b border-neutral-100 px-4 py-3">
-                  <Text className="flex-1 pr-3 text-neutral-900" numberOfLines={1}>
-                    {invite.email}
-                  </Text>
-                  <Pressable onPress={() => revokeInvite.mutate(invite.id)} disabled={revokeInvite.isPending} className="rounded-md bg-neutral-100 px-2 py-1">
-                    <Text className="text-xs text-red-600">Zrušit</Text>
-                  </Pressable>
+          <Text className="px-4 pb-2 pt-6 font-sans-semibold text-base text-ink">Otevřené pozvánky</Text>
+          {openInvites.length ? (
+            openInvites.map((invite) => (
+              <View key={invite.id} className="flex-row items-center gap-3 border-b border-line bg-surface px-4 py-3">
+                <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
+                  <EnvelopeSimpleIcon color="#17647c" size={18} weight="regular" />
                 </View>
-              ))
+                <Text className="flex-1 pr-3 text-ink" numberOfLines={1}>
+                  {invite.email}
+                </Text>
+                <Pressable onPress={() => revokeInvite.mutate(invite.id)} disabled={revokeInvite.isPending} className="rounded-md bg-critical-soft px-2 py-1.5 active:opacity-70">
+                  <Text className="text-xs font-sans-medium text-critical">Zrušit</Text>
+                </Pressable>
+              </View>
+            ))
           ) : (
-            <Text className="px-4 pb-4 text-neutral-500">Žádné otevřené pozvánky.</Text>
+            <Text className="px-4 pb-4 text-ink-muted">Žádné otevřené pozvánky.</Text>
           )}
         </>
       ) : null}
