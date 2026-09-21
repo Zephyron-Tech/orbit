@@ -3,9 +3,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
-import { useCreatePolicy, useDeletePolicy, useInsuranceList, useUpdatePolicy, useUploadPolicyDocument } from '../../../../hooks/use-insurance';
-import type { InsuranceDocumentKind } from '../../../../hooks/use-insurance';
-import type { InsurancePolicyInput, PaymentFrequency, PolicyStatus, VehicleCategory } from '../../../../lib/response-types';
+import {
+  useCreatePolicy,
+  useDeletePolicy,
+  useDownloadPolicyDocument,
+  useInsuranceList,
+  useParsePolicyDocument,
+  useUpdatePolicy,
+  useUploadPolicyDocument,
+} from '../../../../hooks/use-insurance';
+import type { ContractParsed, GreenCardParsed, InsuranceDocumentKind } from '../../../../hooks/use-insurance';
+import type { InsuranceDocumentInfo, InsurancePolicyInput, PaymentFrequency, PolicyStatus, VehicleCategory } from '../../../../lib/response-types';
 
 const VEHICLE_TYPE_OPTIONS: { value: VehicleCategory; label: string }[] = [
   { value: 'CAR', label: 'Osobní auto' },
@@ -78,6 +86,56 @@ async function pickAndUpload(
   );
 }
 
+/**
+ * Pick a PDF and extract fields from it, without storing anything — works
+ * even before the policy exists (`policyId` is not required for parsing).
+ */
+async function pickAndParse(
+  kind: InsuranceDocumentKind,
+  parse: ReturnType<typeof useParsePolicyDocument>,
+  onParsed: (fields: GreenCardParsed | ContractParsed) => void,
+): Promise<void> {
+  const picked = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
+  if (picked.canceled || !picked.assets[0]) return;
+
+  const asset = picked.assets[0];
+  parse.mutate(
+    { kind, file: { uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? 'application/pdf' } },
+    {
+      onSuccess: (fields) => onParsed(fields),
+      onError: (error) => Alert.alert('Načtení se nezdařilo', error instanceof Error ? error.message : 'Zkuste to znovu.'),
+    },
+  );
+}
+
+/**
+ * Green card never sets `startDate` — it can be reissued mid-term with a
+ * different valid-from date than the actual contract start (real case:
+ * reissue after a vehicle change), which would silently shift sinking-fund
+ * due-date math. Only the contract parser's own "účinná od" line may set
+ * it — mirrors apps/web/components/insurance/insurance-manager.tsx exactly.
+ */
+function applyGreenCard(current: InsurancePolicyInput, fields: GreenCardParsed): InsurancePolicyInput {
+  return {
+    ...current,
+    policyNumber: fields.policyNumber || current.policyNumber,
+    licensePlate: fields.plateOrVin || current.licensePlate,
+    vehicleType: fields.vehicleType ?? current.vehicleType,
+  };
+}
+
+function applyContract(current: InsurancePolicyInput, fields: ContractParsed): InsurancePolicyInput {
+  return {
+    ...current,
+    policyNumber: fields.policyNumber ?? current.policyNumber,
+    licensePlate: fields.licensePlate ?? current.licensePlate,
+    vehicleName: fields.vehicleName ?? current.vehicleName,
+    vehicleType: fields.vehicleType ?? current.vehicleType,
+    annualCost: fields.annualCost ?? current.annualCost,
+    startDate: fields.startDate ?? current.startDate,
+  };
+}
+
 export default function PolicyDetailScreen(): React.JSX.Element {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -90,10 +148,20 @@ export default function PolicyDetailScreen(): React.JSX.Element {
   const updatePolicy = useUpdatePolicy();
   const deletePolicy = useDeletePolicy();
   const uploadDocument = useUploadPolicyDocument();
+  const parseDocument = useParsePolicyDocument();
+  const downloadDocument = useDownloadPolicyDocument();
 
   const [form, setForm] = useState<InsurancePolicyInput>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+
+  function handleDownload(document: InsuranceDocumentInfo): void {
+    if (!policy) return;
+    downloadDocument.mutate(
+      { policyId: policy.id, documentId: document.id, filename: document.filename },
+      { onError: (mutationError) => Alert.alert('Nepodařilo se otevřít', mutationError instanceof Error ? mutationError.message : 'Zkuste to znovu.') },
+    );
+  }
 
   useEffect(() => {
     if (policy) {
@@ -154,6 +222,28 @@ export default function PolicyDetailScreen(): React.JSX.Element {
 
   return (
     <ScrollView className="flex-1 bg-white" contentContainerClassName="gap-4 p-4">
+      <View className="gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+        <Text className="text-sm font-medium text-neutral-500">Rozpoznat z PDF</Text>
+        <Text className="text-xs text-neutral-500">Vybere se PDF, vyplní se odpovídající pole níže — nic se tím nenahraje.</Text>
+        <View className="flex-row gap-2">
+          <Pressable
+            onPress={() => void pickAndParse('CONTRACT', parseDocument, (fields) => setForm((current) => applyContract(current, fields as ContractParsed)))}
+            disabled={parseDocument.isPending}
+            className="flex-1 items-center rounded-lg border border-neutral-300 py-2"
+          >
+            <Text className="text-sm text-neutral-900">Ze smlouvy</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void pickAndParse('GREEN_CARD', parseDocument, (fields) => setForm((current) => applyGreenCard(current, fields as GreenCardParsed)))}
+            disabled={parseDocument.isPending}
+            className="flex-1 items-center rounded-lg border border-neutral-300 py-2"
+          >
+            <Text className="text-sm text-neutral-900">Ze zelené karty</Text>
+          </Pressable>
+        </View>
+        {parseDocument.isPending ? <Text className="text-xs text-neutral-500">Čtu PDF…</Text> : null}
+      </View>
+
       <View>
         <Text className="mb-2 text-sm font-medium text-neutral-500">Vozidlo</Text>
         <TextInput
@@ -239,30 +329,49 @@ export default function PolicyDetailScreen(): React.JSX.Element {
 
             <View className="flex-row items-center justify-between">
               <Text className="text-neutral-900">Smlouva {policy.documents.contract ? '✓' : ''}</Text>
-              <Pressable
-                onPress={() => void pickAndUpload(policy.id, 'CONTRACT', uploadDocument, setUploadMessage)}
-                disabled={uploadDocument.isPending}
-                className="rounded-md bg-neutral-100 px-3 py-1.5"
-              >
-                <Text className="text-sm text-neutral-700">Nahrát</Text>
-              </Pressable>
+              <View className="flex-row gap-2">
+                {policy.documents.contract ? (
+                  <Pressable
+                    onPress={() => handleDownload(policy.documents.contract as InsuranceDocumentInfo)}
+                    disabled={downloadDocument.isPending}
+                    className="rounded-md bg-neutral-100 px-3 py-1.5"
+                  >
+                    <Text className="text-sm text-neutral-700">Otevřít</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  onPress={() => void pickAndUpload(policy.id, 'CONTRACT', uploadDocument, setUploadMessage)}
+                  disabled={uploadDocument.isPending}
+                  className="rounded-md bg-neutral-100 px-3 py-1.5"
+                >
+                  <Text className="text-sm text-neutral-700">Nahrát</Text>
+                </Pressable>
+              </View>
             </View>
 
             <View className="flex-row items-center justify-between">
               <Text className="text-neutral-900">Zelená karta {policy.documents.greenCard ? '✓' : ''}</Text>
-              <Pressable
-                onPress={() => void pickAndUpload(policy.id, 'GREEN_CARD', uploadDocument, setUploadMessage)}
-                disabled={uploadDocument.isPending}
-                className="rounded-md bg-neutral-100 px-3 py-1.5"
-              >
-                <Text className="text-sm text-neutral-700">Nahrát</Text>
-              </Pressable>
+              <View className="flex-row gap-2">
+                {policy.documents.greenCard ? (
+                  <Pressable
+                    onPress={() => handleDownload(policy.documents.greenCard as InsuranceDocumentInfo)}
+                    disabled={downloadDocument.isPending}
+                    className="rounded-md bg-neutral-100 px-3 py-1.5"
+                  >
+                    <Text className="text-sm text-neutral-700">Otevřít</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  onPress={() => void pickAndUpload(policy.id, 'GREEN_CARD', uploadDocument, setUploadMessage)}
+                  disabled={uploadDocument.isPending}
+                  className="rounded-md bg-neutral-100 px-3 py-1.5"
+                >
+                  <Text className="text-sm text-neutral-700">Nahrát</Text>
+                </Pressable>
+              </View>
             </View>
 
             {uploadMessage ? <Text className="text-sm text-emerald-600">{uploadMessage}</Text> : null}
-            <Text className="text-xs text-neutral-400">
-              Stažení dokumentu zatím není na mobilu k dispozici — otevřete pojistku ve webové appce.
-            </Text>
           </View>
 
           <Pressable onPress={handleDelete} className="items-center rounded-lg border border-red-200 py-3">
