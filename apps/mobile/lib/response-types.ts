@@ -499,9 +499,10 @@ export interface FuelMonthlyRow {
 export interface FuelReceiptRow {
   id: string;
   purchasedAt: string;
-  liters: string | number;
-  totalCzk: string | number;
   stationName: string | null;
+  totalAfterDiscount: string;
+  discountAmount: string;
+  matched: boolean;
 }
 
 export interface FuelResponse {

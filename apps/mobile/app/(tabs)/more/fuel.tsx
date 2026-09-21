@@ -45,14 +45,22 @@ export default function FuelScreen(): React.JSX.Element {
           <Text className="text-neutral-500">Žádné účtenky.</Text>
         ) : (
           data.receipts.map((receipt) => (
-            <View key={receipt.id} className="flex-row items-center justify-between rounded-lg border border-neutral-200 p-3">
-              <View className="flex-1 pr-3">
-                <Text className="text-neutral-900" numberOfLines={1}>
-                  {receipt.stationName ?? 'Neznámá stanice'}
-                </Text>
-                <Text className="text-xs text-neutral-500">{new Date(receipt.purchasedAt).toLocaleDateString('cs-CZ')}</Text>
+            <View key={receipt.id} className="rounded-lg border border-neutral-200 p-3">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1 pr-3">
+                  <Text className="text-neutral-900" numberOfLines={1}>
+                    {receipt.stationName ?? 'Neznámá stanice'}
+                  </Text>
+                  <Text className="text-xs text-neutral-500">{new Date(receipt.purchasedAt).toLocaleDateString('cs-CZ')}</Text>
+                </View>
+                <Text className="text-neutral-900">{receipt.totalAfterDiscount} Kč</Text>
               </View>
-              <Text className="text-neutral-900">{receipt.totalCzk} Kč</Text>
+              <View className="mt-1.5 flex-row items-center justify-between">
+                <View className={`self-start rounded-full px-2 py-0.5 ${receipt.matched ? 'bg-emerald-50' : 'bg-amber-50'}`}>
+                  <Text className={`text-xs ${receipt.matched ? 'text-emerald-700' : 'text-amber-700'}`}>{receipt.matched ? 'spárováno' : 'nespárováno'}</Text>
+                </View>
+                {Number(receipt.discountAmount) > 0 ? <Text className="text-xs text-emerald-700">sleva {receipt.discountAmount} Kč</Text> : null}
+              </View>
             </View>
           ))
         )}
