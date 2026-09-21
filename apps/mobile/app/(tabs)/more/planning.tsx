@@ -1,3 +1,4 @@
+import { PlusIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 
@@ -18,6 +19,7 @@ import {
   useUpdateRecurringExpense,
 } from '../../../hooks/use-planning';
 import type { IncomeSourceRuleInput, InvestmentPlanInput, RecurringExpenseInput } from '../../../hooks/use-planning';
+import { formatMoney } from '../../../lib/format-money';
 import type { IncomeSourceRuleRow, InvestmentPlanRow, PlanningAccountOption, RecurringExpenseRow } from '../../../lib/response-types';
 
 function ChoiceRow<T extends string>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (value: T) => void }): React.JSX.Element {
@@ -27,9 +29,9 @@ function ChoiceRow<T extends string>({ options, value, onChange }: { options: { 
         <Pressable
           key={option.value}
           onPress={() => onChange(option.value)}
-          className={`rounded-full border px-3 py-1.5 ${value === option.value ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'}`}
+          className={`rounded-full border px-3 py-1.5 active:bg-surface-subtle ${value === option.value ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
         >
-          <Text className={value === option.value ? 'text-white' : 'text-neutral-700'}>{option.label}</Text>
+          <Text className={value === option.value ? 'font-sans-medium text-accent' : 'text-ink-muted'}>{option.label}</Text>
         </Pressable>
       ))}
     </View>
@@ -39,7 +41,7 @@ function ChoiceRow<T extends string>({ options, value, onChange }: { options: { 
 function Field({ label, children }: { label: string; children: React.ReactNode }): React.JSX.Element {
   return (
     <View>
-      <Text className="mb-1 text-xs font-medium text-neutral-500">{label}</Text>
+      <Text className="font-sans-medium mb-1 text-xs text-ink-muted">{label}</Text>
       {children}
     </View>
   );
@@ -64,20 +66,22 @@ function ListRow({
   togglePending: boolean;
 }): React.JSX.Element {
   return (
-    <Pressable onPress={onEdit} className="flex-row items-center justify-between border-b border-neutral-100 px-4 py-3">
+    <Pressable onPress={onEdit} className="flex-row items-center justify-between border-b border-line bg-surface px-4 py-3 active:bg-surface-subtle">
       <View className="flex-1 pr-3">
-        <Text className="font-medium text-neutral-900" numberOfLines={1}>
+        <Text className="font-sans-semibold text-ink" numberOfLines={1}>
           {title}
         </Text>
-        <Text className="text-xs text-neutral-500">{subtitle}</Text>
+        <Text className="text-xs text-ink-muted">{subtitle}</Text>
       </View>
-      <Switch value={isActive} onValueChange={onToggleActive} disabled={togglePending} />
-      <Pressable onPress={onDelete} className="ml-3 rounded-md bg-neutral-100 px-2 py-1">
-        <Text className="text-xs text-red-600">Smazat</Text>
+      <Switch value={isActive} onValueChange={onToggleActive} disabled={togglePending} trackColor={{ true: '#17647c' }} />
+      <Pressable onPress={onDelete} className="ml-3 rounded-md bg-critical-soft px-2 py-1 active:opacity-70">
+        <Text className="text-xs text-critical">Smazat</Text>
       </Pressable>
     </Pressable>
   );
 }
+
+const INPUT_CLASS = 'rounded-lg border border-line bg-surface px-3 py-2 text-ink';
 
 const EMPTY_PLAN: InvestmentPlanInput = {
   name: '',
@@ -110,9 +114,9 @@ function InvestmentPlanForm({
   const sources = accounts.filter((account) => account.type !== 'INVESTMENT');
 
   return (
-    <View className="gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+    <View className="gap-3 rounded-lg border border-line bg-surface-subtle p-3">
       <Field label="Název">
-        <TextInput className="rounded-lg border border-neutral-300 px-3 py-2" value={values.name} onChangeText={(name) => setValues({ ...values, name })} />
+        <TextInput className={INPUT_CLASS} value={values.name} onChangeText={(name) => setValues({ ...values, name })} />
       </Field>
       <Field label="Účet Trading 212 (kam se investuje)">
         <ChoiceRow
@@ -120,7 +124,7 @@ function InvestmentPlanForm({
           value={values.brokerAccountId}
           onChange={(brokerAccountId) => setValues({ ...values, brokerAccountId })}
         />
-        {brokers.length === 0 ? <Text className="text-xs text-red-600">Žádný Trading 212 účet — vytvořte ho nejdřív v Účtech.</Text> : null}
+        {brokers.length === 0 ? <Text className="text-xs text-critical">Žádný Trading 212 účet — vytvořte ho nejdřív v Účtech.</Text> : null}
       </Field>
       <Field label="Zdrojový účet (nepovinné)">
         <ChoiceRow
@@ -131,7 +135,7 @@ function InvestmentPlanForm({
       </Field>
       <Field label="Částka">
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className={INPUT_CLASS}
           keyboardType="decimal-pad"
           value={values.expectedAmount}
           onChangeText={(expectedAmount) => setValues({ ...values, expectedAmount })}
@@ -139,7 +143,7 @@ function InvestmentPlanForm({
       </Field>
       <Field label="Měna">
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className={INPUT_CLASS}
           autoCapitalize="characters"
           maxLength={3}
           value={values.currency}
@@ -150,7 +154,7 @@ function InvestmentPlanForm({
         <View className="flex-1">
           <Field label="Den v měsíci">
             <TextInput
-              className="rounded-lg border border-neutral-300 px-3 py-2"
+              className={INPUT_CLASS}
               keyboardType="number-pad"
               value={String(values.dueDay)}
               onChangeText={(text) => setValues({ ...values, dueDay: Number(text) || 1 })}
@@ -160,7 +164,7 @@ function InvestmentPlanForm({
         <View className="flex-1">
           <Field label="Tolerance (dní)">
             <TextInput
-              className="rounded-lg border border-neutral-300 px-3 py-2"
+              className={INPUT_CLASS}
               keyboardType="number-pad"
               value={String(values.graceDays)}
               onChangeText={(text) => setValues({ ...values, graceDays: Number(text) || 0 })}
@@ -169,19 +173,19 @@ function InvestmentPlanForm({
         </View>
       </View>
       <View className="flex-row items-center justify-between">
-        <Text className="text-sm text-neutral-700">Aktivní</Text>
-        <Switch value={values.isActive} onValueChange={(isActive) => setValues({ ...values, isActive })} />
+        <Text className="text-sm text-ink-muted">Aktivní</Text>
+        <Switch value={values.isActive} onValueChange={(isActive) => setValues({ ...values, isActive })} trackColor={{ true: '#17647c' }} />
       </View>
       <View className="flex-row gap-2">
-        <Pressable onPress={onCancel} disabled={disabled} className="flex-1 items-center rounded-lg border border-neutral-300 py-2.5">
-          <Text className="font-medium text-neutral-900">Zrušit</Text>
+        <Pressable onPress={onCancel} disabled={disabled} className="flex-1 items-center rounded-lg border border-line py-2.5 active:bg-surface-subtle">
+          <Text className="font-sans-medium text-ink">Zrušit</Text>
         </Pressable>
         <Pressable
           onPress={() => onSubmit(values)}
           disabled={disabled || !values.name || !values.brokerAccountId || !values.expectedAmount}
-          className="flex-1 items-center rounded-lg bg-neutral-900 py-2.5"
+          className="flex-1 items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover"
         >
-          <Text className="font-medium text-white">{disabled ? 'Ukládám…' : 'Uložit'}</Text>
+          <Text className="font-sans-medium text-accent-foreground">{disabled ? 'Ukládám…' : 'Uložit'}</Text>
         </Pressable>
       </View>
     </View>
@@ -206,13 +210,13 @@ function IncomeSourceRuleForm({
   const [values, setValues] = useState(initial);
 
   return (
-    <View className="gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+    <View className="gap-3 rounded-lg border border-line bg-surface-subtle p-3">
       <Field label="Zobrazovaný název">
-        <TextInput className="rounded-lg border border-neutral-300 px-3 py-2" value={values.name} onChangeText={(name) => setValues({ ...values, name })} />
+        <TextInput className={INPUT_CLASS} value={values.name} onChangeText={(name) => setValues({ ...values, name })} />
       </Field>
       <Field label="Text obchodníka (jak se objevuje na výpisu)">
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className={INPUT_CLASS}
           value={values.merchantText}
           onChangeText={(merchantText) => setValues({ ...values, merchantText })}
         />
@@ -225,15 +229,15 @@ function IncomeSourceRuleForm({
         />
       </Field>
       <View className="flex-row gap-2">
-        <Pressable onPress={onCancel} disabled={disabled} className="flex-1 items-center rounded-lg border border-neutral-300 py-2.5">
-          <Text className="font-medium text-neutral-900">Zrušit</Text>
+        <Pressable onPress={onCancel} disabled={disabled} className="flex-1 items-center rounded-lg border border-line py-2.5 active:bg-surface-subtle">
+          <Text className="font-sans-medium text-ink">Zrušit</Text>
         </Pressable>
         <Pressable
           onPress={() => onSubmit(values)}
           disabled={disabled || !values.name || !values.merchantText}
-          className="flex-1 items-center rounded-lg bg-neutral-900 py-2.5"
+          className="flex-1 items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover"
         >
-          <Text className="font-medium text-white">{disabled ? 'Ukládám…' : 'Uložit'}</Text>
+          <Text className="font-sans-medium text-accent-foreground">{disabled ? 'Ukládám…' : 'Uložit'}</Text>
         </Pressable>
       </View>
     </View>
@@ -273,9 +277,9 @@ function RecurringExpenseForm({
   const [values, setValues] = useState(initial);
 
   return (
-    <View className="gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+    <View className="gap-3 rounded-lg border border-line bg-surface-subtle p-3">
       <Field label="Název">
-        <TextInput className="rounded-lg border border-neutral-300 px-3 py-2" value={values.name} onChangeText={(name) => setValues({ ...values, name })} />
+        <TextInput className={INPUT_CLASS} value={values.name} onChangeText={(name) => setValues({ ...values, name })} />
       </Field>
       <Field label="Kategorie (nepovinné)">
         <ChoiceRow
@@ -286,7 +290,7 @@ function RecurringExpenseForm({
       </Field>
       <Field label="Očekávaná částka">
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className={INPUT_CLASS}
           keyboardType="decimal-pad"
           value={values.expectedAmount}
           onChangeText={(expectedAmount) => setValues({ ...values, expectedAmount })}
@@ -300,16 +304,17 @@ function RecurringExpenseForm({
         />
       </Field>
       <View className="flex-row items-center justify-between">
-        <Text className="text-sm text-neutral-700">Sdílené s partnerem</Text>
+        <Text className="text-sm text-ink-muted">Sdílené s partnerem</Text>
         <Switch
           value={values.isShared}
           onValueChange={(isShared) => setValues({ ...values, isShared, myShareRatio: isShared ? (values.myShareRatio ?? 0.5) : null })}
+          trackColor={{ true: '#17647c' }}
         />
       </View>
       {values.isShared ? (
         <Field label="Můj podíl (0–1)">
           <TextInput
-            className="rounded-lg border border-neutral-300 px-3 py-2"
+            className={INPUT_CLASS}
             keyboardType="decimal-pad"
             value={values.myShareRatio !== null ? String(values.myShareRatio) : ''}
             onChangeText={(text) => setValues({ ...values, myShareRatio: Number(text.replace(',', '.')) || 0 })}
@@ -320,7 +325,7 @@ function RecurringExpenseForm({
         <View className="flex-1">
           <Field label="Den splatnosti (nepovinné)">
             <TextInput
-              className="rounded-lg border border-neutral-300 px-3 py-2"
+              className={INPUT_CLASS}
               keyboardType="number-pad"
               value={values.dueDay !== null ? String(values.dueDay) : ''}
               onChangeText={(text) => setValues({ ...values, dueDay: text ? Number(text) : null })}
@@ -330,7 +335,7 @@ function RecurringExpenseForm({
         <View className="flex-1">
           <Field label="Tolerance (dní)">
             <TextInput
-              className="rounded-lg border border-neutral-300 px-3 py-2"
+              className={INPUT_CLASS}
               keyboardType="number-pad"
               value={String(values.graceDays)}
               onChangeText={(text) => setValues({ ...values, graceDays: Number(text) || 0 })}
@@ -339,19 +344,19 @@ function RecurringExpenseForm({
         </View>
       </View>
       <View className="flex-row items-center justify-between">
-        <Text className="text-sm text-neutral-700">Aktivní</Text>
-        <Switch value={values.isActive} onValueChange={(isActive) => setValues({ ...values, isActive })} />
+        <Text className="text-sm text-ink-muted">Aktivní</Text>
+        <Switch value={values.isActive} onValueChange={(isActive) => setValues({ ...values, isActive })} trackColor={{ true: '#17647c' }} />
       </View>
       <View className="flex-row gap-2">
-        <Pressable onPress={onCancel} disabled={disabled} className="flex-1 items-center rounded-lg border border-neutral-300 py-2.5">
-          <Text className="font-medium text-neutral-900">Zrušit</Text>
+        <Pressable onPress={onCancel} disabled={disabled} className="flex-1 items-center rounded-lg border border-line py-2.5 active:bg-surface-subtle">
+          <Text className="font-sans-medium text-ink">Zrušit</Text>
         </Pressable>
         <Pressable
           onPress={() => onSubmit(values)}
           disabled={disabled || !values.name || !values.expectedAmount}
-          className="flex-1 items-center rounded-lg bg-neutral-900 py-2.5"
+          className="flex-1 items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover"
         >
-          <Text className="font-medium text-white">{disabled ? 'Ukládám…' : 'Uložit'}</Text>
+          <Text className="font-sans-medium text-accent-foreground">{disabled ? 'Ukládám…' : 'Uložit'}</Text>
         </Pressable>
       </View>
     </View>
@@ -394,6 +399,20 @@ function expenseToInput(expense: RecurringExpenseRow): RecurringExpenseInput {
   };
 }
 
+function SectionHeaderRow({ title, onAdd }: { title: string; onAdd?: () => void }): React.JSX.Element {
+  return (
+    <View className="flex-row items-center justify-between px-4 pt-4">
+      <Text className="font-sans-semibold text-base text-ink">{title}</Text>
+      {onAdd ? (
+        <Pressable onPress={onAdd} className="flex-row items-center gap-1 rounded-md bg-accent-soft px-2 py-1 active:bg-line">
+          <PlusIcon color="#17647c" size={13} weight="bold" />
+          <Text className="text-xs text-accent">Přidat</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 export default function PlanningScreen(): React.JSX.Element {
   const { data, isPending, isError, error, refetch, isRefetching } = usePlanning();
   const saveSpendingTarget = useSaveSpendingTarget();
@@ -427,16 +446,16 @@ export default function PlanningScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }
 
   if (isError) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">{error instanceof Error ? error.message : 'Plánování se nepodařilo načíst'}</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">{error instanceof Error ? error.message : 'Plánování se nepodařilo načíst'}</Text>
       </View>
     );
   }
@@ -459,32 +478,26 @@ export default function PlanningScreen(): React.JSX.Element {
 
   return (
     <ScrollView
-      className="flex-1 bg-white"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
+      className="flex-1 bg-canvas"
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
     >
-      <View className="gap-3 border-b border-neutral-100 p-4">
-        <Text className="text-sm font-medium text-neutral-500">Měsíční cíl výdajů (Kč)</Text>
+      <View className="gap-3 border-b border-line bg-surface p-4">
+        <Text className="font-sans-medium text-sm text-ink-muted">Měsíční cíl výdajů (Kč)</Text>
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className={INPUT_CLASS}
           keyboardType="numbers-and-punctuation"
           value={targetInput}
           onChangeText={setTargetInput}
           placeholder="Bez cíle"
+          placeholderTextColor="#667570"
         />
-        {saveMessage ? <Text className="text-sm text-emerald-600">{saveMessage}</Text> : null}
-        <Pressable onPress={handleSaveTarget} disabled={saveSpendingTarget.isPending} className="items-center rounded-lg bg-neutral-900 py-2.5">
-          <Text className="font-medium text-white">{saveSpendingTarget.isPending ? 'Ukládám…' : 'Uložit cíl'}</Text>
+        {saveMessage ? <Text className="text-sm text-positive">{saveMessage}</Text> : null}
+        <Pressable onPress={handleSaveTarget} disabled={saveSpendingTarget.isPending} className="items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
+          <Text className="font-sans-medium text-accent-foreground">{saveSpendingTarget.isPending ? 'Ukládám…' : 'Uložit cíl'}</Text>
         </Pressable>
       </View>
 
-      <View className="flex-row items-center justify-between px-4 pt-4">
-        <Text className="text-sm font-medium text-neutral-500">DCA plány</Text>
-        {editingPlanId === null ? (
-          <Pressable onPress={() => setEditingPlanId('new')} className="rounded-md bg-neutral-100 px-2 py-1">
-            <Text className="text-xs text-neutral-900">+ Přidat</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      <SectionHeaderRow title="DCA plány" onAdd={editingPlanId === null ? () => setEditingPlanId('new') : undefined} />
       {editingPlan ? (
         <View className="px-4 pb-2 pt-2">
           <InvestmentPlanForm
@@ -501,13 +514,13 @@ export default function PlanningScreen(): React.JSX.Element {
         </View>
       ) : null}
       {data.plans.length === 0 && editingPlanId === null ? (
-        <Text className="px-4 pb-4 text-neutral-500">Žádné plány.</Text>
+        <Text className="px-4 pb-4 text-ink-muted">Žádné plány.</Text>
       ) : (
         data.plans.map((plan) => (
           <ListRow
             key={plan.id}
             title={plan.name}
-            subtitle={`${plan.expectedAmount} ${plan.currency} · den ${plan.dueDay} → ${plan.brokerAccountName}`}
+            subtitle={`${formatMoney(plan.expectedAmount, plan.currency)} · den ${plan.dueDay} → ${plan.brokerAccountName}`}
             isActive={plan.isActive}
             togglePending={setPlanActive.isPending}
             onToggleActive={() => setPlanActive.mutate({ id: plan.id, isActive: !plan.isActive })}
@@ -517,14 +530,7 @@ export default function PlanningScreen(): React.JSX.Element {
         ))
       )}
 
-      <View className="flex-row items-center justify-between px-4 pt-4">
-        <Text className="text-sm font-medium text-neutral-500">Pravidla pro příjmy</Text>
-        {editingRuleId === null ? (
-          <Pressable onPress={() => setEditingRuleId('new')} className="rounded-md bg-neutral-100 px-2 py-1">
-            <Text className="text-xs text-neutral-900">+ Přidat</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      <SectionHeaderRow title="Pravidla pro příjmy" onAdd={editingRuleId === null ? () => setEditingRuleId('new') : undefined} />
       {editingRule ? (
         <View className="px-4 pb-2 pt-2">
           <IncomeSourceRuleForm
@@ -541,7 +547,7 @@ export default function PlanningScreen(): React.JSX.Element {
         </View>
       ) : null}
       {data.incomeSourceRules.length === 0 && editingRuleId === null ? (
-        <Text className="px-4 pb-4 text-neutral-500">Žádná pravidla.</Text>
+        <Text className="px-4 pb-4 text-ink-muted">Žádná pravidla.</Text>
       ) : (
         data.incomeSourceRules.map((rule) => (
           <ListRow
@@ -557,14 +563,7 @@ export default function PlanningScreen(): React.JSX.Element {
         ))
       )}
 
-      <View className="flex-row items-center justify-between px-4 pt-4">
-        <Text className="text-sm font-medium text-neutral-500">Fixní výdaje</Text>
-        {editingExpenseId === null ? (
-          <Pressable onPress={() => setEditingExpenseId('new')} className="rounded-md bg-neutral-100 px-2 py-1">
-            <Text className="text-xs text-neutral-900">+ Přidat</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      <SectionHeaderRow title="Fixní výdaje" onAdd={editingExpenseId === null ? () => setEditingExpenseId('new') : undefined} />
       {editingExpense ? (
         <View className="px-4 pb-2 pt-2">
           <RecurringExpenseForm
@@ -582,13 +581,13 @@ export default function PlanningScreen(): React.JSX.Element {
         </View>
       ) : null}
       {data.expenses.length === 0 && editingExpenseId === null ? (
-        <Text className="px-4 pb-8 text-neutral-500">Žádné fixní výdaje.</Text>
+        <Text className="px-4 pb-8 text-ink-muted">Žádné fixní výdaje.</Text>
       ) : (
         data.expenses.map((expense) => (
           <ListRow
             key={expense.id}
             title={expense.name}
-            subtitle={`${expense.expectedAmount} ${expense.currency}`}
+            subtitle={formatMoney(expense.expectedAmount, expense.currency)}
             isActive={expense.isActive}
             togglePending={setExpenseActive.isPending}
             onToggleActive={() => setExpenseActive.mutate({ id: expense.id, isActive: !expense.isActive })}
