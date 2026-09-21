@@ -1,7 +1,9 @@
+import { ArrowsClockwiseIcon, TrendDownIcon, TrendUpIcon } from 'phosphor-react-native';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { LineChart } from '../../../components/line-chart';
 import { usePortfolio, useRefreshPortfolio } from '../../../hooks/use-portfolio';
+import { formatMoney } from '../../../lib/format-money';
 import { parseSnapshotRawData } from '../../../lib/portfolio-parse';
 
 const QUANTITY_FORMAT = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 4 });
@@ -12,16 +14,16 @@ export default function PortfolioScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }
 
   if (isError) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">{error instanceof Error ? error.message : 'Portfolio se nepodařilo načíst'}</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">{error instanceof Error ? error.message : 'Portfolio se nepodařilo načíst'}</Text>
       </View>
     );
   }
@@ -30,6 +32,7 @@ export default function PortfolioScreen(): React.JSX.Element {
   const currency = latest?.currency.trim().toUpperCase() ?? '';
   const parsed = latest ? parseSnapshotRawData(latest.rawData) : null;
   const sortedPositions = parsed ? [...parsed.positions].sort((a, b) => b.value - a.value) : [];
+  const unrealized = latest?.unrealizedPnl ? Number(latest.unrealizedPnl) : 0;
 
   // Only include snapshots in the same currency as the latest one — the
   // same guard apps/web's portfolio page applies before plotting history.
@@ -43,75 +46,77 @@ export default function PortfolioScreen(): React.JSX.Element {
 
   return (
     <ScrollView
-      className="flex-1 bg-white"
+      className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
     >
-      <Pressable onPress={() => refresh.mutate()} disabled={refresh.isPending} className="items-center rounded-lg bg-neutral-900 py-3">
-        <Text className="font-medium text-white">{refresh.isPending ? 'Synchronizuji…' : 'Obnovit'}</Text>
+      <Pressable onPress={() => refresh.mutate()} disabled={refresh.isPending} className="flex-row items-center justify-center gap-2 rounded-lg bg-accent py-3 active:bg-accent-hover">
+        <ArrowsClockwiseIcon color="#f8fcfd" size={18} weight="regular" />
+        <Text className="font-sans-medium text-accent-foreground">{refresh.isPending ? 'Synchronizuji…' : 'Obnovit'}</Text>
       </Pressable>
 
-      {refresh.isError ? <Text className="text-sm text-red-600">{refresh.error instanceof Error ? refresh.error.message : 'Synchronizace selhala'}</Text> : null}
+      {refresh.isError ? <Text className="text-sm text-critical">{refresh.error instanceof Error ? refresh.error.message : 'Synchronizace selhala'}</Text> : null}
 
       {latest && parsed ? (
         <>
           {parsed.integrityIssues.length > 0 ? (
-            <View className="rounded-lg border border-amber-300 bg-amber-50 p-3">
-              <Text className="text-sm text-amber-800">
+            <View className="rounded-lg border border-warning/25 bg-warning-soft p-3">
+              <Text className="text-sm text-warning">
                 Poskytovatel uložil neplatný {parsed.integrityIssues.join(' a ')}. Základní hodnoty níže pocházejí z databáze, ale podrobnosti nepovažujte za spolehlivé.
               </Text>
             </View>
           ) : null}
 
-          <View className="rounded-xl border border-neutral-200 p-4">
-            <Text className="text-sm text-neutral-500">{latest.accountName}</Text>
-            <Text className="mt-1 text-2xl font-semibold text-neutral-900">
-              {latest.balance} {currency}
+          <View className="rounded-lg border border-line bg-surface p-5">
+            <Text className="text-sm text-ink-muted">{latest.accountName}</Text>
+            <Text className="font-sans-semibold mt-1 text-3xl text-ink">
+              {formatMoney(latest.balance, currency)}
             </Text>
             <View className="mt-3 flex-row flex-wrap gap-x-6 gap-y-2">
               {latest.investedValue ? (
                 <View>
-                  <Text className="text-xs text-neutral-500">Hodnota pozic</Text>
-                  <Text className="text-neutral-900">{latest.investedValue} {currency}</Text>
+                  <Text className="text-xs text-ink-muted">Hodnota pozic</Text>
+                  <Text className="font-sans-medium text-ink">{formatMoney(latest.investedValue, currency)}</Text>
                 </View>
               ) : null}
               {latest.unrealizedPnl ? (
                 <View>
-                  <Text className="text-xs text-neutral-500">Nerealizovaný zisk/ztráta</Text>
-                  <Text className={Number(latest.unrealizedPnl) < 0 ? 'text-red-600' : 'text-emerald-600'}>
-                    {latest.unrealizedPnl} {currency}
-                  </Text>
+                  <Text className="text-xs text-ink-muted">Nerealizovaný zisk/ztráta</Text>
+                  <View className="flex-row items-center gap-1">
+                    {unrealized < 0 ? <TrendDownIcon color="#a43c3c" size={13} weight="regular" /> : <TrendUpIcon color="#1c6b4c" size={13} weight="regular" />}
+                    <Text className={`font-sans-medium ${unrealized < 0 ? 'text-critical' : 'text-positive'}`}>{formatMoney(latest.unrealizedPnl, currency)}</Text>
+                  </View>
                 </View>
               ) : null}
               <View>
-                <Text className="text-xs text-neutral-500">Hotovost</Text>
-                <Text className="text-neutral-900">{latest.cashBalance ?? '0'} {currency}</Text>
+                <Text className="text-xs text-ink-muted">Hotovost</Text>
+                <Text className="font-sans-medium text-ink">{formatMoney(latest.cashBalance ?? '0', currency)}</Text>
               </View>
             </View>
-            <Text className="mt-2 text-xs text-neutral-400">Aktualizováno {new Date(latest.capturedAt).toLocaleString('cs-CZ')}</Text>
+            <Text className="mt-2 text-xs text-ink-faint">Aktualizováno {new Date(latest.capturedAt).toLocaleString('cs-CZ')}</Text>
           </View>
 
           <View className="gap-2">
-            <Text className="text-sm font-medium text-neutral-500">Vývoj hodnoty</Text>
+            <Text className="font-sans-semibold text-base text-ink">Vývoj hodnoty</Text>
             <LineChart points={historyPoints} currency={currency} />
           </View>
 
           {sortedPositions.length > 0 ? (
             <View className="gap-2">
-              <Text className="text-sm font-medium text-neutral-500">Otevřené pozice ({sortedPositions.length})</Text>
+              <Text className="font-sans-semibold text-base text-ink">Otevřené pozice ({sortedPositions.length})</Text>
               {sortedPositions.map((position) => (
-                <View key={position.id} className="rounded-lg border border-neutral-200 p-3">
+                <View key={position.id} className="rounded-lg border border-line bg-surface p-3">
                   <View className="flex-row items-center justify-between">
                     <View className="flex-1 pr-3">
-                      <Text className="font-medium text-neutral-900">{position.ticker}</Text>
-                      <Text className="text-xs text-neutral-500" numberOfLines={1}>{position.name}</Text>
+                      <Text className="font-sans-semibold text-ink">{position.ticker}</Text>
+                      <Text className="text-xs text-ink-muted" numberOfLines={1}>{position.name}</Text>
                     </View>
-                    <Text className="font-medium text-neutral-900">{position.value.toLocaleString('cs-CZ')} {currency}</Text>
+                    <Text className="font-sans-medium text-ink">{formatMoney(String(position.value), currency)}</Text>
                   </View>
                   <View className="mt-2 flex-row justify-between">
-                    <Text className="text-xs text-neutral-500">Množství: {QUANTITY_FORMAT.format(position.quantity)}</Text>
-                    <Text className={`text-xs font-medium ${position.unrealizedProfitLoss < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                      {position.unrealizedProfitLoss.toLocaleString('cs-CZ')} {currency}
+                    <Text className="text-xs text-ink-muted">Množství: {QUANTITY_FORMAT.format(position.quantity)}</Text>
+                    <Text className={`font-sans-medium text-xs ${position.unrealizedProfitLoss < 0 ? 'text-critical' : 'text-positive'}`}>
+                      {formatMoney(String(position.unrealizedProfitLoss), currency)}
                     </Text>
                   </View>
                 </View>
@@ -120,7 +125,7 @@ export default function PortfolioScreen(): React.JSX.Element {
           ) : null}
         </>
       ) : (
-        <Text className="text-center text-neutral-500">Zatím žádná data portfolia.</Text>
+        <Text className="text-center text-ink-muted">Zatím žádná data portfolia.</Text>
       )}
     </ScrollView>
   );
