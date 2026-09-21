@@ -1,9 +1,19 @@
+import { CalendarBlankIcon, EnvelopeSimpleIcon, FingerprintIcon, LockKeyIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 
 import { useChangeEmail, useChangePassword, useSettings, useUpdateReportingStartMonth } from '../../../hooks/use-settings';
 import { useAuth } from '../../../lib/auth-context';
 import { isBiometricAuthAvailable, isBiometricLockEnabled, promptBiometricUnlock, setBiometricLockEnabled } from '../../../lib/biometric-auth';
+
+function SectionHeading({ icon, title }: { icon: React.ReactNode; title: string }): React.JSX.Element {
+  return (
+    <View className="flex-row items-center gap-2">
+      {icon}
+      <Text className="font-sans-semibold text-base text-ink">{title}</Text>
+    </View>
+  );
+}
 
 export default function SettingsScreen(): React.JSX.Element {
   const { user } = useAuth();
@@ -77,59 +87,61 @@ export default function SettingsScreen(): React.JSX.Element {
   }
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerClassName="gap-6 p-4">
-      <View className="gap-2">
-        <Text className="text-sm font-medium text-neutral-500">E-mail</Text>
+    <ScrollView className="flex-1 bg-canvas" contentContainerClassName="gap-6 p-4">
+      <View className="gap-2 rounded-xl border border-line bg-surface p-4">
+        <SectionHeading icon={<EnvelopeSimpleIcon color="#5d6c68" size={16} weight="regular" />} title="E-mail" />
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="rounded-lg border border-line bg-canvas px-3 py-2 text-ink"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
         />
-        {emailMessage ? <Text className={changeEmail.isError ? 'text-sm text-red-600' : 'text-sm text-emerald-600'}>{emailMessage}</Text> : null}
-        <Pressable onPress={handleSaveEmail} disabled={changeEmail.isPending} className="items-center rounded-lg bg-neutral-900 py-2.5">
-          <Text className="font-medium text-white">{changeEmail.isPending ? 'Ukládám…' : 'Uložit e-mail'}</Text>
+        {emailMessage ? <Text className={changeEmail.isError ? 'text-sm text-critical' : 'text-sm text-positive'}>{emailMessage}</Text> : null}
+        <Pressable onPress={handleSaveEmail} disabled={changeEmail.isPending} className="items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
+          <Text className="font-sans-medium text-accent-foreground">{changeEmail.isPending ? 'Ukládám…' : 'Uložit e-mail'}</Text>
         </Pressable>
       </View>
 
-      <View className="gap-2 border-t border-neutral-100 pt-6">
-        <Text className="text-sm font-medium text-neutral-500">Změna hesla</Text>
+      <View className="gap-2 rounded-xl border border-line bg-surface p-4">
+        <SectionHeading icon={<LockKeyIcon color="#5d6c68" size={16} weight="regular" />} title="Změna hesla" />
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="rounded-lg border border-line bg-canvas px-3 py-2 text-ink"
           placeholder="Současné heslo"
+          placeholderTextColor="#667570"
           secureTextEntry
           value={currentPassword}
           onChangeText={setCurrentPassword}
         />
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="rounded-lg border border-line bg-canvas px-3 py-2 text-ink"
           placeholder="Nové heslo (min. 10 znaků)"
+          placeholderTextColor="#667570"
           secureTextEntry
           value={newPassword}
           onChangeText={setNewPassword}
         />
-        {passwordMessage ? <Text className={changePassword.isError ? 'text-sm text-red-600' : 'text-sm text-emerald-600'}>{passwordMessage}</Text> : null}
-        <Pressable onPress={handleSavePassword} disabled={changePassword.isPending} className="items-center rounded-lg bg-neutral-900 py-2.5">
-          <Text className="font-medium text-white">{changePassword.isPending ? 'Ukládám…' : 'Změnit heslo'}</Text>
+        {passwordMessage ? <Text className={changePassword.isError ? 'text-sm text-critical' : 'text-sm text-positive'}>{passwordMessage}</Text> : null}
+        <Pressable onPress={handleSavePassword} disabled={changePassword.isPending} className="items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
+          <Text className="font-sans-medium text-accent-foreground">{changePassword.isPending ? 'Ukládám…' : 'Změnit heslo'}</Text>
         </Pressable>
       </View>
 
-      <View className="gap-2 border-t border-neutral-100 pt-6">
-        <Text className="text-sm font-medium text-neutral-500">Počáteční měsíc reportování</Text>
+      <View className="gap-2 rounded-xl border border-line bg-surface p-4">
+        <SectionHeading icon={<CalendarBlankIcon color="#5d6c68" size={16} weight="regular" />} title="Počáteční měsíc reportování" />
         {isPending ? (
-          <ActivityIndicator />
+          <ActivityIndicator color="#17647c" />
         ) : isError ? (
-          <Text className="text-sm text-red-600">{error instanceof Error ? error.message : 'Nepodařilo se načíst'}</Text>
+          <Text className="text-sm text-critical">{error instanceof Error ? error.message : 'Nepodařilo se načíst'}</Text>
         ) : (
           <View className="flex-row flex-wrap gap-2">
             {data.availableMonths.slice(0, 12).map((month) => (
               <Pressable
                 key={month}
                 onPress={() => updateReportingStartMonth.mutate(month)}
-                className={`rounded-full border px-3 py-1.5 ${data.reportingStartMonth === month ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'}`}
+                className={`rounded-full border px-3 py-1.5 active:opacity-80 ${data.reportingStartMonth === month ? 'border-accent bg-accent-soft' : 'border-line bg-canvas'}`}
               >
-                <Text className={data.reportingStartMonth === month ? 'text-white' : 'text-neutral-700'}>{month}</Text>
+                <Text className={data.reportingStartMonth === month ? 'font-sans-medium text-accent' : 'text-ink-muted'}>{month}</Text>
               </Pressable>
             ))}
           </View>
@@ -137,13 +149,13 @@ export default function SettingsScreen(): React.JSX.Element {
       </View>
 
       {biometricAvailable ? (
-        <View className="gap-2 border-t border-neutral-100 pt-6">
+        <View className="gap-2 rounded-xl border border-line bg-surface p-4">
           <View className="flex-row items-center justify-between">
-            <Text className="text-sm font-medium text-neutral-500">Face ID / Touch ID</Text>
-            <Switch value={biometricEnabled} onValueChange={(next) => void handleToggleBiometric(next)} />
+            <SectionHeading icon={<FingerprintIcon color="#5d6c68" size={16} weight="regular" />} title="Face ID / Touch ID" />
+            <Switch value={biometricEnabled} onValueChange={(next) => void handleToggleBiometric(next)} trackColor={{ false: '#d8e0dd', true: '#17647c' }} />
           </View>
-          <Text className="text-xs text-neutral-400">Appka bude při otevření vyžadovat biometrické ověření místo automatického přihlášení.</Text>
-          {biometricMessage ? <Text className="text-sm text-red-600">{biometricMessage}</Text> : null}
+          <Text className="text-xs text-ink-faint">Appka bude při otevření vyžadovat biometrické ověření místo automatického přihlášení.</Text>
+          {biometricMessage ? <Text className="text-sm text-critical">{biometricMessage}</Text> : null}
         </View>
       ) : null}
     </ScrollView>
