@@ -175,7 +175,12 @@ export const transactions = new Hono<AuthEnv>()
     }
     const unmatchedTransfersOnly = q.transfer === 'unmatched';
     if (unmatchedTransfersOnly) {
-      where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), { kind: { in: ['INTERNAL_TRANSFER', 'PENDING_TRANSFER'] } }, { transferId: null }];
+      // transferDismissedAt: null matches dashboard.ts/net-worth.ts's own
+      // "unmatched" definition — without it, a dismissed transfer (see
+      // POST /:id/dismiss-unmatched-transfer below) would keep showing up
+      // in this filtered list forever, even though it no longer counts
+      // toward either of those "needs attention" panels.
+      where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), { kind: { in: ['INTERNAL_TRANSFER', 'PENDING_TRANSFER'] } }, { transferId: null }, { transferDismissedAt: null }];
     }
     const sort = q.sort === 'amount' ? 'amount' : 'date';
     const direction = q.direction === 'asc' ? 'asc' : 'desc';
@@ -209,6 +214,7 @@ export const transactions = new Hono<AuthEnv>()
       if (unmatchedTransfersOnly) {
         clauses.push(Prisma.sql`"kind" IN ('INTERNAL_TRANSFER', 'PENDING_TRANSFER')`);
         clauses.push(Prisma.sql`"transferId" IS NULL`);
+        clauses.push(Prisma.sql`"transferDismissedAt" IS NULL`);
       }
       if (query) {
         const pattern = `%${query}%`;

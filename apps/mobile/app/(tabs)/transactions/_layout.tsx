@@ -6,6 +6,7 @@ export default function TransactionsLayout(): React.JSX.Element {
     <Stack>
       <Stack.Screen name="index" options={{ title: 'Transakce' }} />
       <Stack.Screen name="[id]" options={{ title: 'Transakce' }} />
+      <Stack.Screen name="categories" options={{ title: 'Kategorie' }} />
     </Stack>
   );
 }

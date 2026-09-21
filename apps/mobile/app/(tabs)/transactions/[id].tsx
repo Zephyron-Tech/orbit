@@ -2,24 +2,38 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 
-import { useMergeSplit, useSplitTransaction, useTransaction, useTransactionsList, useUpdateTransaction } from '../../../hooks/use-transactions';
+import {
+  SPLIT_MAX_LINES,
+  SPLIT_MIN_LINES,
+  useMergeSplit,
+  useSplitTransaction,
+  useTransaction,
+  useTransactionsList,
+  useUpdateTransaction,
+} from '../../../hooks/use-transactions';
 import type { SplitLineInput } from '../../../hooks/use-transactions';
 
-/** Two-line split only in this pass — the API supports up to 20, but a fixed
- * two-way split covers the common case and keeps this screen simple; a
- * full dynamic-line editor is a later enhancement, not this template. */
+/** Dynamic add/remove-line split editor, 2–20 lines (SPLIT_MIN_LINES/SPLIT_MAX_LINES mirror the API's own bound). */
 function SplitPanel({ transactionId, totalAmount, onDone }: { transactionId: string; totalAmount: string; onDone: () => void }): React.JSX.Element {
   const splitTransaction = useSplitTransaction();
-  const [firstAmount, setFirstAmount] = useState('');
-  const [secondAmount, setSecondAmount] = useState('');
+  const [amounts, setAmounts] = useState<string[]>(['', '']);
   const [error, setError] = useState<string | null>(null);
+
+  function addLine(): void {
+    setAmounts((current) => (current.length >= SPLIT_MAX_LINES ? current : [...current, '']));
+  }
+
+  function removeLine(index: number): void {
+    setAmounts((current) => (current.length <= SPLIT_MIN_LINES ? current : current.filter((_, i) => i !== index)));
+  }
+
+  function updateAmount(index: number, value: string): void {
+    setAmounts((current) => current.map((amount, i) => (i === index ? value : amount)));
+  }
 
   function handleSplit(): void {
     setError(null);
-    const lines: SplitLineInput[] = [
-      { amount: firstAmount, categoryId: null, isShared: false, myShareRatio: null, notes: null },
-      { amount: secondAmount, categoryId: null, isShared: false, myShareRatio: null, notes: null },
-    ];
+    const lines: SplitLineInput[] = amounts.map((amount) => ({ amount, categoryId: null, isShared: false, myShareRatio: null, notes: null }));
     splitTransaction.mutate(
       { parentId: transactionId, lines },
       {
@@ -31,21 +45,28 @@ function SplitPanel({ transactionId, totalAmount, onDone }: { transactionId: str
 
   return (
     <View className="mt-4 gap-3 rounded-xl border border-neutral-200 p-4">
-      <Text className="text-sm font-medium text-neutral-500">Rozdělit na dvě části (celkem musí sedět na {totalAmount})</Text>
-      <TextInput
-        className="rounded-lg border border-neutral-300 px-3 py-2"
-        placeholder="Částka 1"
-        keyboardType="numbers-and-punctuation"
-        value={firstAmount}
-        onChangeText={setFirstAmount}
-      />
-      <TextInput
-        className="rounded-lg border border-neutral-300 px-3 py-2"
-        placeholder="Částka 2"
-        keyboardType="numbers-and-punctuation"
-        value={secondAmount}
-        onChangeText={setSecondAmount}
-      />
+      <Text className="text-sm font-medium text-neutral-500">Rozdělit na {amounts.length} částí (celkem musí sedět na {totalAmount})</Text>
+      {amounts.map((amount, index) => (
+        <View key={index} className="flex-row items-center gap-2">
+          <TextInput
+            className="flex-1 rounded-lg border border-neutral-300 px-3 py-2"
+            placeholder={`Částka ${index + 1}`}
+            keyboardType="numbers-and-punctuation"
+            value={amount}
+            onChangeText={(value) => updateAmount(index, value)}
+          />
+          {amounts.length > SPLIT_MIN_LINES ? (
+            <Pressable onPress={() => removeLine(index)} className="rounded-lg border border-neutral-300 px-3 py-2">
+              <Text className="text-neutral-500">✕</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ))}
+      {amounts.length < SPLIT_MAX_LINES ? (
+        <Pressable onPress={addLine} className="items-center rounded-lg border border-dashed border-neutral-300 py-2">
+          <Text className="text-neutral-600">+ Přidat řádek</Text>
+        </Pressable>
+      ) : null}
       {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
       <Pressable onPress={handleSplit} disabled={splitTransaction.isPending} className="items-center rounded-lg bg-neutral-900 py-2.5">
         <Text className="font-medium text-white">{splitTransaction.isPending ? 'Ukládám…' : 'Rozdělit'}</Text>

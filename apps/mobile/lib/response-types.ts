@@ -121,6 +121,24 @@ export interface TransactionCategory {
   transactionCount: number;
 }
 
+export interface TransactionAccountOption {
+  id: string;
+  name: string;
+}
+
+export interface MerchantCategoryRecommendation {
+  accountId: string;
+  provider: string;
+  merchantKey: string;
+  merchantLabel: string;
+  categoryId: string;
+  categoryName: string;
+  supportingMonths: number;
+  evidenceMonths: number;
+  confidence: number;
+  targetIds: string[];
+}
+
 export interface TransactionsListResponse {
   period: { value: string; from: string | null; to: string | null };
   page: number;
@@ -132,6 +150,11 @@ export interface TransactionsListResponse {
   expenses: string;
   transactions: TransactionRow[];
   categories: TransactionCategory[];
+  accounts: TransactionAccountOption[];
+  recommendations: MerchantCategoryRecommendation[];
+  unmatchedTransfersOnly: boolean;
+  sort: 'date' | 'amount';
+  direction: 'asc' | 'desc';
 }
 
 export type VehicleCategory = 'CAR' | 'MOTORCYCLE' | 'TRUCK_OR_TRACTOR' | 'MOPED' | 'BUS' | 'TRAILER' | 'OTHER';
