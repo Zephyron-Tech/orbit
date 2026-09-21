@@ -50,10 +50,24 @@ export interface DashboardResponse {
   recurringExpenses: DashboardRecurringExpense[];
 }
 
+export interface AccountAnalytics {
+  averageIncome: string;
+  medianIncome: string;
+  averageExpense: string;
+  medianExpense: string;
+  monthToDateIncome: string;
+  monthToDateExpense: string;
+  refunds: string;
+  interestEarned: string;
+  months: number;
+  fromMonth: string | null;
+  toMonth: string | null;
+}
+
 export interface NetWorthCardAccount {
   id: string;
   name: string;
-  type: string;
+  type: 'CHECKING' | 'SAVINGS' | 'INVESTMENT' | 'CREDIT';
   provider: string;
   balance: string;
   source: string;
@@ -63,6 +77,8 @@ export interface NetWorthCardAccount {
   annualInterestRate: string | null;
   interestTaxRate: string | null;
   emergencyReserveMonths: number | null;
+  portfolio: { cashBalance: string | null; investedValue: string | null; unrealizedPnl: string | null; updatedAt: string; currency: string } | null;
+  analytics: AccountAnalytics;
 }
 
 export interface NetWorthUnmatchedTransfer {
@@ -84,6 +100,7 @@ export type NetWorthResponse =
       investmentValue: number;
       liabilityValue: number;
       cardAccounts: NetWorthCardAccount[];
+      fixedBaseline: string;
       confidenceIssueCount: number;
       coverageGapCount: number;
       historicalBrokerTransfers: number;
@@ -372,6 +389,8 @@ export interface SettlementResponse {
 export interface PortfolioSnapshot {
   accountName: string;
   currency: string;
+  /** Raw Trading 212 provider payload (positions + summary) — parse with lib/portfolio-parse.ts, never trust its shape directly. */
+  rawData: unknown;
   balance: string;
   balanceCzk: string | null;
   investedValue: string | null;
