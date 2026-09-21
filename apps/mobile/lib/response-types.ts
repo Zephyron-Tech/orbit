@@ -45,6 +45,13 @@ export interface DashboardResponse {
   fixedIncome: string;
   credit: { utilization: string | null; used: string; limit: string; accountsCount: number };
   dca: { plansCount: number; unmatchedCount: number; overdueCount: number; pendingCount: number };
+  insurance: {
+    monthlyAccrualCost: string;
+    annualCostTotal: string;
+    upcomingRenewals: { policyId: string; vehicleName: string; licensePlate: string; nextDueDate: string }[];
+    sinkingFundCovered: boolean;
+    sinkingFundShortfall: string;
+  };
   actions: DashboardAction[];
   burnRate: { total: string; target: string | null; targetDifference: SignedMoney | null; spendingTargetProgress: number | null };
   recurringExpenses: DashboardRecurringExpense[];
