@@ -1,5 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { CloudArrowUpIcon, DownloadSimpleIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
@@ -13,6 +14,7 @@ import {
   useUploadPolicyDocument,
 } from '../../../../hooks/use-insurance';
 import type { ContractParsed, GreenCardParsed, InsuranceDocumentKind } from '../../../../hooks/use-insurance';
+import { formatMoney } from '../../../../lib/format-money';
 import type { InsuranceDocumentInfo, InsurancePolicyInput, PaymentFrequency, PolicyStatus, VehicleCategory } from '../../../../lib/response-types';
 
 const VEHICLE_TYPE_OPTIONS: { value: VehicleCategory; label: string }[] = [
@@ -45,9 +47,9 @@ function ChoiceRow<T extends string>({ options, value, onChange }: { options: { 
         <Pressable
           key={option.value}
           onPress={() => onChange(option.value)}
-          className={`rounded-full border px-3 py-1.5 ${value === option.value ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'}`}
+          className={`rounded-full border px-3 py-1.5 active:bg-surface-subtle ${value === option.value ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
         >
-          <Text className={value === option.value ? 'text-white' : 'text-neutral-700'}>{option.label}</Text>
+          <Text className={value === option.value ? 'font-sans-medium text-accent' : 'text-ink-muted'}>{option.label}</Text>
         </Pressable>
       ))}
     </View>
@@ -181,16 +183,16 @@ export default function PolicyDetailScreen(): React.JSX.Element {
 
   if (!isNew && !policy && listData) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">Pojistka nenalezena</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">Pojistka nenalezena</Text>
       </View>
     );
   }
 
   if (!isNew && !policy) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }
@@ -221,43 +223,44 @@ export default function PolicyDetailScreen(): React.JSX.Element {
   const saving = createPolicy.isPending || updatePolicy.isPending;
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerClassName="gap-4 p-4">
-      <View className="gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-        <Text className="text-sm font-medium text-neutral-500">Rozpoznat z PDF</Text>
-        <Text className="text-xs text-neutral-500">Vybere se PDF, vyplní se odpovídající pole níže — nic se tím nenahraje.</Text>
+    <ScrollView className="flex-1 bg-canvas" contentContainerClassName="gap-4 p-4">
+      <View className="gap-2 rounded-lg border border-line bg-surface p-4">
+        <Text className="font-sans-medium text-sm text-ink-muted">Rozpoznat z PDF</Text>
+        <Text className="text-xs text-ink-muted">Vybere se PDF, vyplní se odpovídající pole níže — nic se tím nenahraje.</Text>
         <View className="flex-row gap-2">
           <Pressable
             onPress={() => void pickAndParse('CONTRACT', parseDocument, (fields) => setForm((current) => applyContract(current, fields as ContractParsed)))}
             disabled={parseDocument.isPending}
-            className="flex-1 items-center rounded-lg border border-neutral-300 py-2"
+            className="flex-1 items-center rounded-lg border border-line py-2 active:bg-surface-subtle"
           >
-            <Text className="text-sm text-neutral-900">Ze smlouvy</Text>
+            <Text className="text-sm text-ink">Ze smlouvy</Text>
           </Pressable>
           <Pressable
             onPress={() => void pickAndParse('GREEN_CARD', parseDocument, (fields) => setForm((current) => applyGreenCard(current, fields as GreenCardParsed)))}
             disabled={parseDocument.isPending}
-            className="flex-1 items-center rounded-lg border border-neutral-300 py-2"
+            className="flex-1 items-center rounded-lg border border-line py-2 active:bg-surface-subtle"
           >
-            <Text className="text-sm text-neutral-900">Ze zelené karty</Text>
+            <Text className="text-sm text-ink">Ze zelené karty</Text>
           </Pressable>
         </View>
-        {parseDocument.isPending ? <Text className="text-xs text-neutral-500">Čtu PDF…</Text> : null}
+        {parseDocument.isPending ? <Text className="text-xs text-ink-muted">Čtu PDF…</Text> : null}
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Vozidlo</Text>
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Vozidlo</Text>
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="rounded-lg border border-line px-3 py-2 text-ink"
           placeholder="Název vozidla"
+          placeholderTextColor="#667570"
           value={form.vehicleName}
           onChangeText={(value) => setForm((current) => ({ ...current, vehicleName: value }))}
         />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">SPZ</Text>
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">SPZ</Text>
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="rounded-lg border border-line px-3 py-2 text-ink"
           value={form.licensePlate}
           onChangeText={(value) => setForm((current) => ({ ...current, licensePlate: value }))}
           autoCapitalize="characters"
@@ -265,32 +268,32 @@ export default function PolicyDetailScreen(): React.JSX.Element {
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Typ vozidla</Text>
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Typ vozidla</Text>
         <ChoiceRow options={VEHICLE_TYPE_OPTIONS} value={form.vehicleType} onChange={(value) => setForm((current) => ({ ...current, vehicleType: value }))} />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Číslo pojistky</Text>
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Číslo pojistky</Text>
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="rounded-lg border border-line px-3 py-2 text-ink"
           value={form.policyNumber}
           onChangeText={(value) => setForm((current) => ({ ...current, policyNumber: value }))}
         />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Pojistník</Text>
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Pojistník</Text>
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="rounded-lg border border-line px-3 py-2 text-ink"
           value={form.policyHolder}
           onChangeText={(value) => setForm((current) => ({ ...current, policyHolder: value }))}
         />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Roční pojistné (Kč)</Text>
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Roční pojistné (Kč)</Text>
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="rounded-lg border border-line px-3 py-2 text-ink"
           keyboardType="numbers-and-punctuation"
           value={form.annualCost}
           onChangeText={(value) => setForm((current) => ({ ...current, annualCost: value }))}
@@ -298,84 +301,88 @@ export default function PolicyDetailScreen(): React.JSX.Element {
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Frekvence plateb</Text>
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Frekvence plateb</Text>
         <ChoiceRow options={FREQUENCY_OPTIONS} value={form.paymentFrequency} onChange={(value) => setForm((current) => ({ ...current, paymentFrequency: value }))} />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Datum začátku (RRRR-MM-DD)</Text>
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Datum začátku (RRRR-MM-DD)</Text>
         <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+          className="rounded-lg border border-line px-3 py-2 text-ink"
           value={form.startDate}
           onChangeText={(value) => setForm((current) => ({ ...current, startDate: value }))}
         />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Stav</Text>
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Stav</Text>
         <ChoiceRow options={STATUS_OPTIONS} value={form.status} onChange={(value) => setForm((current) => ({ ...current, status: value }))} />
       </View>
 
-      {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
+      {error ? <Text className="text-sm text-critical">{error}</Text> : null}
 
-      <Pressable onPress={handleSave} disabled={saving} className="items-center rounded-lg bg-neutral-900 py-3">
-        <Text className="font-medium text-white">{saving ? 'Ukládám…' : 'Uložit'}</Text>
+      <Pressable onPress={handleSave} disabled={saving} className="items-center rounded-lg bg-accent py-3 active:bg-accent-hover">
+        <Text className="font-sans-medium text-accent-foreground">{saving ? 'Ukládám…' : 'Uložit'}</Text>
       </Pressable>
 
       {!isNew && policy ? (
         <>
-          <View className="mt-2 gap-3 rounded-xl border border-neutral-200 p-4">
-            <Text className="text-sm font-medium text-neutral-500">Dokumenty</Text>
+          <View className="mt-2 gap-3 rounded-lg border border-line bg-surface p-4">
+            <Text className="font-sans-medium text-sm text-ink-muted">Dokumenty</Text>
 
             <View className="flex-row items-center justify-between">
-              <Text className="text-neutral-900">Smlouva {policy.documents.contract ? '✓' : ''}</Text>
+              <Text className="text-ink">Smlouva {policy.documents.contract ? '✓' : ''}</Text>
               <View className="flex-row gap-2">
                 {policy.documents.contract ? (
                   <Pressable
                     onPress={() => handleDownload(policy.documents.contract as InsuranceDocumentInfo)}
                     disabled={downloadDocument.isPending}
-                    className="rounded-md bg-neutral-100 px-3 py-1.5"
+                    className="flex-row items-center gap-1 rounded-md bg-surface-subtle px-3 py-1.5 active:bg-line"
                   >
-                    <Text className="text-sm text-neutral-700">Otevřít</Text>
+                    <DownloadSimpleIcon color="#17211f" size={14} weight="regular" />
+                    <Text className="text-sm text-ink">Otevřít</Text>
                   </Pressable>
                 ) : null}
                 <Pressable
                   onPress={() => void pickAndUpload(policy.id, 'CONTRACT', uploadDocument, setUploadMessage)}
                   disabled={uploadDocument.isPending}
-                  className="rounded-md bg-neutral-100 px-3 py-1.5"
+                  className="flex-row items-center gap-1 rounded-md bg-surface-subtle px-3 py-1.5 active:bg-line"
                 >
-                  <Text className="text-sm text-neutral-700">Nahrát</Text>
+                  <CloudArrowUpIcon color="#17211f" size={14} weight="regular" />
+                  <Text className="text-sm text-ink">Nahrát</Text>
                 </Pressable>
               </View>
             </View>
 
             <View className="flex-row items-center justify-between">
-              <Text className="text-neutral-900">Zelená karta {policy.documents.greenCard ? '✓' : ''}</Text>
+              <Text className="text-ink">Zelená karta {policy.documents.greenCard ? '✓' : ''}</Text>
               <View className="flex-row gap-2">
                 {policy.documents.greenCard ? (
                   <Pressable
                     onPress={() => handleDownload(policy.documents.greenCard as InsuranceDocumentInfo)}
                     disabled={downloadDocument.isPending}
-                    className="rounded-md bg-neutral-100 px-3 py-1.5"
+                    className="flex-row items-center gap-1 rounded-md bg-surface-subtle px-3 py-1.5 active:bg-line"
                   >
-                    <Text className="text-sm text-neutral-700">Otevřít</Text>
+                    <DownloadSimpleIcon color="#17211f" size={14} weight="regular" />
+                    <Text className="text-sm text-ink">Otevřít</Text>
                   </Pressable>
                 ) : null}
                 <Pressable
                   onPress={() => void pickAndUpload(policy.id, 'GREEN_CARD', uploadDocument, setUploadMessage)}
                   disabled={uploadDocument.isPending}
-                  className="rounded-md bg-neutral-100 px-3 py-1.5"
+                  className="flex-row items-center gap-1 rounded-md bg-surface-subtle px-3 py-1.5 active:bg-line"
                 >
-                  <Text className="text-sm text-neutral-700">Nahrát</Text>
+                  <CloudArrowUpIcon color="#17211f" size={14} weight="regular" />
+                  <Text className="text-sm text-ink">Nahrát</Text>
                 </Pressable>
               </View>
             </View>
 
-            {uploadMessage ? <Text className="text-sm text-emerald-600">{uploadMessage}</Text> : null}
+            {uploadMessage ? <Text className="text-sm text-positive">{uploadMessage}</Text> : null}
           </View>
 
-          <Pressable onPress={handleDelete} className="items-center rounded-lg border border-red-200 py-3">
-            <Text className="font-medium text-red-600">Smazat pojistku</Text>
+          <Pressable onPress={handleDelete} className="items-center rounded-lg border border-critical/25 py-3 active:bg-critical-soft">
+            <Text className="font-sans-medium text-critical">Smazat pojistku</Text>
           </Pressable>
         </>
       ) : null}
