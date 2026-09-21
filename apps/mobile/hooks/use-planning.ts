@@ -56,6 +56,41 @@ export function useSaveSpendingTarget() {
   });
 }
 
+export interface InvestmentPlanInput {
+  name: string;
+  sourceAccountId: string | null;
+  brokerAccountId: string;
+  expectedAmount: string;
+  currency: string;
+  dueDay: number;
+  graceDays: number;
+  isActive: boolean;
+  startsOn: string | null;
+  endsOn: string | null;
+}
+
+export function useCreateInvestmentPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: InvestmentPlanInput) =>
+      apiClient.planning['investment-plans'].$post({ json: input }).then((response) => unwrapVoid(response, 'Plán se nepodařilo vytvořit')),
+    onSuccess: () => invalidatePlanning(queryClient),
+  });
+}
+
+export function useUpdateInvestmentPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: InvestmentPlanInput }) => {
+      const requestOptions = { param: { id }, json: input };
+      return apiClient.planning['investment-plans'][':id'].$patch(requestOptions).then((response) => unwrapVoid(response, 'Plán se nepodařilo uložit'));
+    },
+    onSuccess: () => invalidatePlanning(queryClient),
+  });
+}
+
 export function useSetInvestmentPlanActive() {
   const queryClient = useQueryClient();
 
@@ -76,6 +111,34 @@ export function useDeleteInvestmentPlan() {
   return useMutation({
     mutationFn: (id: string) =>
       apiClient.planning['investment-plans'][':id'].$delete({ param: { id } }).then((response) => unwrapVoid(response, 'Plán se nepodařilo smazat')),
+    onSuccess: () => invalidatePlanning(queryClient),
+  });
+}
+
+export interface IncomeSourceRuleInput {
+  name: string;
+  merchantText: string;
+  accountId: string | null;
+}
+
+export function useCreateIncomeSourceRule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: IncomeSourceRuleInput) =>
+      apiClient.planning['income-source-rules'].$post({ json: input }).then((response) => unwrapVoid(response, 'Pravidlo se nepodařilo vytvořit')),
+    onSuccess: () => invalidatePlanning(queryClient),
+  });
+}
+
+export function useUpdateIncomeSourceRule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: IncomeSourceRuleInput }) => {
+      const requestOptions = { param: { id }, json: input };
+      return apiClient.planning['income-source-rules'][':id'].$patch(requestOptions).then((response) => unwrapVoid(response, 'Pravidlo se nepodařilo uložit'));
+    },
     onSuccess: () => invalidatePlanning(queryClient),
   });
 }
@@ -102,6 +165,43 @@ export function useDeleteIncomeSourceRule() {
       apiClient.planning['income-source-rules'][':id']
         .$delete({ param: { id } })
         .then((response) => unwrapVoid(response, 'Pravidlo se nepodařilo smazat')),
+    onSuccess: () => invalidatePlanning(queryClient),
+  });
+}
+
+export interface RecurringExpenseInput {
+  name: string;
+  categoryId: string | null;
+  expectedAmount: string;
+  currency: string;
+  isShared: boolean;
+  myShareRatio: number | null;
+  isActive: boolean;
+  dueDay: number | null;
+  graceDays: number;
+  startsOn: string | null;
+  endsOn: string | null;
+  paymentAccountId: string | null;
+}
+
+export function useCreateRecurringExpense() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: RecurringExpenseInput) =>
+      apiClient.planning['recurring-expenses'].$post({ json: input }).then((response) => unwrapVoid(response, 'Fixní výdaj se nepodařilo vytvořit')),
+    onSuccess: () => invalidatePlanning(queryClient),
+  });
+}
+
+export function useUpdateRecurringExpense() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: RecurringExpenseInput }) => {
+      const requestOptions = { param: { id }, json: input };
+      return apiClient.planning['recurring-expenses'][':id'].$patch(requestOptions).then((response) => unwrapVoid(response, 'Fixní výdaj se nepodařilo uložit'));
+    },
     onSuccess: () => invalidatePlanning(queryClient),
   });
 }
