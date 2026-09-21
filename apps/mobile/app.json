@@ -32,7 +32,8 @@
     "plugins": [
       "expo-secure-store",
       "expo-router",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-font"
     ],
     "extra": {
       "router": {},
