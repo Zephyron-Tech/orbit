@@ -3,6 +3,7 @@ import { ArchiveIcon, ArrowDownIcon, ArrowUpIcon, BankIcon, PlusIcon } from 'pho
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../../../components/badge';
+import { Button } from '../../../../components/button';
 import { useAccountsList, useCreditRepaymentCandidates, useReorderAccount } from '../../../../hooks/use-accounts';
 import type { AccountRow } from '../../../../lib/response-types';
 
@@ -150,10 +151,9 @@ export default function AccountsListScreen(): React.JSX.Element {
       )}
 
       <Link href="/(tabs)/more/accounts/new" asChild>
-        <Pressable className="m-4 flex-row items-center justify-center gap-2 rounded-lg bg-accent py-3 active:bg-accent-hover">
-          <PlusIcon color="#f8fcfd" size={16} weight="regular" />
-          <Text className="font-sans-medium text-accent-foreground">Přidat účet</Text>
-        </Pressable>
+        <Button variant="primary" icon={PlusIcon} className="m-4">
+          Přidat účet
+        </Button>
       </Link>
     </ScrollView>
   );

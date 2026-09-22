@@ -1,8 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CreditCardIcon, WarningCircleIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { Button } from '../../../../components/button';
+import { Switch } from '../../../../components/switch';
+import { TextField } from '../../../../components/text-field';
 import {
   useAccountsList,
   useClearCreditCapacitySnapshot,
@@ -36,32 +39,19 @@ function CreditDebtForm({
       <Text className="text-sm text-ink-muted">Zadejte kladný aktuální dluh. Uloží se jako záporný zůstatek účtu.</Text>
       <View>
         <Text className="mb-1 text-xs font-sans-medium text-ink-muted">Aktuální dluh ({currency})</Text>
-        <TextInput
-          className="rounded-lg border border-line bg-surface px-3 py-2 text-ink"
-          keyboardType="decimal-pad"
-          value={debt}
-          onChangeText={setDebt}
-          placeholder="5000"
-          placeholderTextColor="#667570"
-        />
+        <TextField variant="money" value={debt} onChangeText={setDebt} placeholder="5000" returnKeyType="done" />
       </View>
       <View>
         <Text className="mb-1 text-xs font-sans-medium text-ink-muted">Platný k datu (RRRR-MM-DD)</Text>
-        <TextInput
-          className="rounded-lg border border-line bg-surface px-3 py-2 text-ink"
-          value={asOf}
-          onChangeText={setAsOf}
-          placeholder="2026-01-01"
-          placeholderTextColor="#667570"
-        />
+        <TextField value={asOf} onChangeText={setAsOf} placeholder="2026-01-01" returnKeyType="done" />
       </View>
       <View className="flex-row gap-2">
-        <Pressable onPress={onCancel} disabled={disabled} className="flex-1 items-center rounded-lg border border-line py-2.5 active:bg-surface-subtle">
-          <Text className="font-sans-medium text-ink">Zrušit</Text>
-        </Pressable>
-        <Pressable onPress={() => onSubmit({ debt, asOf })} disabled={disabled || !debt} className="flex-1 items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
-          <Text className="font-sans-medium text-accent-foreground">{disabled ? 'Ukládám…' : 'Uložit dluh'}</Text>
-        </Pressable>
+        <Button variant="secondary" className="flex-1" disabled={disabled} onPress={onCancel}>
+          Zrušit
+        </Button>
+        <Button variant="primary" className="flex-1" loading={disabled} disabled={!debt} onPress={() => onSubmit({ debt, asOf })}>
+          Uložit dluh
+        </Button>
       </View>
     </View>
   );
@@ -195,11 +185,7 @@ export default function AccountDetailScreen(): React.JSX.Element {
     <ScrollView className="flex-1 bg-canvas" contentContainerClassName="gap-4 p-4">
       <View>
         <Text className="mb-2 text-sm font-sans-medium text-ink-muted">Název</Text>
-        <TextInput
-          className="rounded-lg border border-line bg-surface px-3 py-2 text-ink"
-          value={form.name}
-          onChangeText={(value) => setForm((current) => ({ ...current, name: value }))}
-        />
+        <TextField value={form.name} onChangeText={(value) => setForm((current) => ({ ...current, name: value }))} returnKeyType="done" />
       </View>
 
       <View>
@@ -214,12 +200,12 @@ export default function AccountDetailScreen(): React.JSX.Element {
 
       <View>
         <Text className="mb-2 text-sm font-sans-medium text-ink-muted">Měna</Text>
-        <TextInput
-          className="rounded-lg border border-line bg-surface px-3 py-2 text-ink"
+        <TextField
           value={form.currency}
           autoCapitalize="characters"
           maxLength={3}
           onChangeText={(value) => setForm((current) => ({ ...current, currency: value }))}
+          returnKeyType="done"
         />
       </View>
 
@@ -228,29 +214,28 @@ export default function AccountDetailScreen(): React.JSX.Element {
         <Switch
           value={form.includeInNetWorth}
           onValueChange={(value) => setForm((current) => ({ ...current, includeInNetWorth: value }))}
-          trackColor={{ false: '#d8e0dd', true: '#17647c' }}
         />
       </View>
 
       {error ? <Text className="text-sm text-critical">{error}</Text> : null}
 
-      <Pressable onPress={handleSave} disabled={saving} className="items-center rounded-lg bg-accent py-3 active:bg-accent-hover">
-        <Text className="font-sans-medium text-accent-foreground">{saving ? 'Ukládám…' : 'Uložit'}</Text>
-      </Pressable>
+      <Button variant="primary" loading={saving} onPress={handleSave}>
+        Uložit
+      </Button>
 
       {!isNew && account ? (
         <>
-          <Pressable
+          <Button
+            variant="secondary"
+            loading={setArchived.isPending}
             onPress={() => setArchived.mutate({ id: account.id, isArchived: !account.isArchived }, { onSuccess: () => router.back() })}
-            disabled={setArchived.isPending}
-            className="items-center rounded-lg border border-line py-3 active:bg-surface-subtle"
           >
-            <Text className="font-sans-medium text-ink">{account.isArchived ? 'Obnovit z archivu' : 'Archivovat'}</Text>
-          </Pressable>
+            {account.isArchived ? 'Obnovit z archivu' : 'Archivovat'}
+          </Button>
 
-          <Pressable onPress={handleDelete} className="items-center rounded-lg border border-critical/25 py-3 active:bg-critical-soft">
-            <Text className="font-sans-medium text-critical">Smazat účet</Text>
-          </Pressable>
+          <Button variant="destructive" onPress={handleDelete}>
+            Smazat účet
+          </Button>
 
           {account.type === 'CREDIT' ? (
             <View className="gap-3 border-t border-line pt-4">
@@ -295,23 +280,23 @@ export default function AccountDetailScreen(): React.JSX.Element {
                   }}
                 />
               ) : (
-                <Pressable onPress={() => setRecordingDebt(true)} className="items-center rounded-lg border border-line py-2.5 active:bg-surface-subtle">
-                  <Text className="font-sans-medium text-ink">Zadat dluh</Text>
-                </Pressable>
+                <Button variant="secondary" onPress={() => setRecordingDebt(true)}>
+                  Zadat dluh
+                </Button>
               )}
 
               {account.creditNeedsOpeningConfirmation ? (
-                <Pressable
+                <Button
+                  variant="secondary"
+                  loading={confirmCreditZeroStart.isPending}
                   onPress={() =>
                     confirmCreditZeroStart.mutate(account.id, {
                       onError: (mutationError) => setCreditMessage(mutationError instanceof Error ? mutationError.message : 'Nepodařilo se potvrdit'),
                     })
                   }
-                  disabled={confirmCreditZeroStart.isPending}
-                  className="items-center rounded-lg border border-line py-2.5 active:bg-surface-subtle"
                 >
-                  <Text className="font-sans-medium text-ink">{confirmCreditZeroStart.isPending ? 'Potvrzuji…' : 'Potvrdit nulový start'}</Text>
-                </Pressable>
+                  Potvrdit nulový start
+                </Button>
               ) : null}
 
               {account.creditDetails?.invalidCapacitySnapshot ? (

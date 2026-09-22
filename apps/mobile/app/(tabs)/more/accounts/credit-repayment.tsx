@@ -1,5 +1,6 @@
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
+import { Button } from '../../../../components/button';
 import { useConfirmCreditPayoffFromChecking, useConfirmCreditRepayment, useCreditRepaymentCandidates } from '../../../../hooks/use-accounts';
 import { formatMoney } from '../../../../lib/format-money';
 import type { CreditRepaymentCandidate } from '../../../../lib/response-types';
@@ -58,9 +59,9 @@ export default function CreditRepaymentScreen(): React.JSX.Element {
             {candidate.matchedBy === 'VARIABLE_SYMBOL' ? (
               <Text className="text-xs text-ink-muted">Podle variabilního symbolu kreditky — výpis karty zatím není nahraný.</Text>
             ) : null}
-            <Pressable onPress={() => handleConfirm(candidate)} disabled={pending} className="mt-1 items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
-              <Text className="font-sans-medium text-accent-foreground">{pending ? 'Potvrzuji…' : 'Potvrdit splacení'}</Text>
-            </Pressable>
+            <Button variant="primary" className="mt-1" loading={pending} onPress={() => handleConfirm(candidate)}>
+              Potvrdit splacení
+            </Button>
           </View>
         ))
       )}
