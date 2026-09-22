@@ -1,14 +1,20 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { Button } from '../../components/button';
+import { haptics } from '../../lib/haptics';
 import { useAuth } from '../../lib/auth-context';
+
+const BRAND_FADE_MS = 450;
 
 /**
  * Shown instead of the password form when a stored session exists and the
  * user has opted into biometric lock (see lib/auth-context.tsx's `locked`
- * state). Triggers Face ID / Touch ID automatically on mount so the common
- * case — open the app, glance, unlock — never needs a tap.
+ * state). The automatic first attempt is delayed until the Orbit wordmark
+ * has faded in — firing Face ID immediately on mount left no readable
+ * branded moment before the system sheet took over.
  */
 export default function UnlockScreen(): React.JSX.Element {
   const router = useRouter();
@@ -16,6 +22,12 @@ export default function UnlockScreen(): React.JSX.Element {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const attemptedOnMount = useRef(false);
+  const brandOpacity = useSharedValue(0);
+
+  const brandStyle = useAnimatedStyle(() => ({
+    opacity: brandOpacity.value,
+    transform: [{ scale: 0.96 + brandOpacity.value * 0.04 }],
+  }));
 
   async function attemptUnlock(): Promise<void> {
     setPending(true);
@@ -24,6 +36,7 @@ export default function UnlockScreen(): React.JSX.Element {
     const result = await unlockWithBiometrics();
 
     if (!result.ok && result.error) {
+      haptics.notifyError();
       setError(result.error);
     }
 
@@ -31,9 +44,13 @@ export default function UnlockScreen(): React.JSX.Element {
   }
 
   useEffect(() => {
+    brandOpacity.value = withTiming(1, { duration: BRAND_FADE_MS });
+
     if (attemptedOnMount.current) return;
     attemptedOnMount.current = true;
-    void attemptUnlock();
+    const timer = setTimeout(() => void attemptUnlock(), BRAND_FADE_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleUsePasswordInstead(): Promise<void> {
@@ -42,22 +59,23 @@ export default function UnlockScreen(): React.JSX.Element {
   }
 
   return (
-    <View className="flex-1 items-center justify-center gap-6 bg-white px-6">
-      <Text className="text-2xl font-semibold text-neutral-900">Orbit</Text>
-      <Text className="text-base text-neutral-500">Appka je uzamčená</Text>
+    <View className="flex-1 items-center justify-center gap-6 bg-canvas px-6">
+      <Animated.View style={brandStyle} className="items-center gap-2">
+        <View className="size-14 items-center justify-center rounded-2xl bg-accent">
+          <Text className="text-2xl font-sans-bold text-accent-foreground">O</Text>
+        </View>
+        <Text className="mt-2 text-2xl font-sans-semibold text-ink">Orbit</Text>
+        <Text className="text-base text-ink-muted">Appka je uzamčená</Text>
+      </Animated.View>
 
-      {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
+      {error ? <Text className="text-sm text-critical">{error}</Text> : null}
 
-      <Pressable
-        onPress={() => void attemptUnlock()}
-        disabled={pending}
-        className="w-full items-center rounded-lg bg-neutral-900 py-3"
-      >
-        {pending ? <ActivityIndicator color="#fff" /> : <Text className="font-medium text-white">Odemknout Face ID / Touch ID</Text>}
-      </Pressable>
+      <Button variant="primary" loading={pending} onPress={() => void attemptUnlock()} className="w-full">
+        Odemknout Face ID / Touch ID
+      </Button>
 
-      <Pressable onPress={() => void handleUsePasswordInstead()} disabled={pending}>
-        <Text className="text-sm text-neutral-500 underline">Přihlásit se heslem místo toho</Text>
+      <Pressable onPress={() => void handleUsePasswordInstead()} disabled={pending} hitSlop={8}>
+        <Text className="text-sm text-ink-muted underline">Přihlásit se heslem místo toho</Text>
       </Pressable>
     </View>
   );

@@ -14,6 +14,8 @@ export interface SessionUser {
 interface AuthContextValue {
   /** `null` while the cold-start check is still in flight. */
   isAuthenticated: boolean | null;
+  /** True once the cold-start bootstrap effect has settled, regardless of outcome — lets the root layout hold the native splash screen for a single continuous hide instead of two back-to-back spinners. */
+  bootstrapped: boolean;
   /**
    * A stored session exists but the biometric gate hasn't been passed yet —
    * the app must render the unlock screen instead of either the tabs or the
@@ -52,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [locked, setLocked] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [bootstrapped, setBootstrapped] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
       if (!accessToken) {
         setIsAuthenticated(false);
+        setBootstrapped(true);
         return;
       }
 
@@ -75,12 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         // Stop here — completeSignIn runs later, from unlockWithBiometrics,
         // once the user actually passes the prompt. isAuthenticated stays
         // null so index.tsx keeps showing the loading spinner for an
-        // instant, then locked flips it to the unlock screen.
+        // instant, then locked flips it to the unlock screen. Bootstrapped
+        // still flips now — the root splash only needs to cover this
+        // decision being made, not the unlock screen itself.
         setLocked(true);
+        setBootstrapped(true);
         return;
       }
 
       await completeSignIn(setUser, setIsAuthenticated);
+      setBootstrapped(true);
     }
 
     void bootstrap();
@@ -115,8 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ isAuthenticated, locked, user, login, unlockWithBiometrics, logout }),
-    [isAuthenticated, locked, user, login, unlockWithBiometrics, logout],
+    () => ({ isAuthenticated, bootstrapped, locked, user, login, unlockWithBiometrics, logout }),
+    [isAuthenticated, bootstrapped, locked, user, login, unlockWithBiometrics, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

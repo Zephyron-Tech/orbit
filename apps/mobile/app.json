@@ -33,7 +33,16 @@
       "expo-secure-store",
       "expo-router",
       "expo-sharing",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "imageWidth": 120,
+          "resizeMode": "contain",
+          "backgroundColor": "#f3f6f5"
+        }
+      ]
     ],
     "extra": {
       "router": {},

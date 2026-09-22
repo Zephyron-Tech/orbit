@@ -12,9 +12,12 @@ export default function Index(): React.JSX.Element {
   }
 
   if (isAuthenticated === null) {
+    // Rarely paints on a real device — the native splash screen
+    // (app/_layout.tsx's SplashGate) covers this window until bootstrap
+    // settles. Kept as a true fallback, accent-colored for consistency.
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 items-center justify-center bg-canvas">
+        <ActivityIndicator color="#17647c" />
       </View>
     );
   }

@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { Text, View } from 'react-native';
 
+import { Button } from '../../components/button';
+import { TextField } from '../../components/text-field';
 import { useAuth } from '../../lib/auth-context';
 
 export default function LoginScreen(): React.JSX.Element {
@@ -29,37 +31,37 @@ export default function LoginScreen(): React.JSX.Element {
   }
 
   return (
-    <View className="flex-1 items-center justify-center bg-white px-6">
-      <Text className="mb-8 text-2xl font-semibold text-neutral-900">Orbit</Text>
+    <View className="flex-1 items-center justify-center bg-canvas px-6">
+      <View className="mb-8 size-14 items-center justify-center rounded-2xl bg-accent">
+        <Text className="text-2xl font-sans-bold text-accent-foreground">O</Text>
+      </View>
+      <Text className="mb-8 text-2xl font-sans-semibold text-ink">Orbit</Text>
 
-      <TextInput
+      <TextField
         testID="login-email"
-        className="mb-3 w-full rounded-lg border border-neutral-300 px-4 py-3 text-base"
+        variant="email"
+        className="mb-3 w-full"
         placeholder="E-mail"
-        autoCapitalize="none"
-        keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
+        returnKeyType="next"
       />
-      <TextInput
+      <TextField
         testID="login-password"
-        className="mb-4 w-full rounded-lg border border-neutral-300 px-4 py-3 text-base"
+        className="mb-4 w-full"
         placeholder="Heslo"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
+        returnKeyType="go"
+        onSubmitEditing={() => void handleSubmit()}
       />
 
-      {error ? <Text className="mb-3 text-sm text-red-600">{error}</Text> : null}
+      {error ? <Text className="mb-3 text-sm text-critical">{error}</Text> : null}
 
-      <Pressable
-        testID="login-submit"
-        onPress={() => void handleSubmit()}
-        disabled={pending}
-        className="w-full items-center rounded-lg bg-neutral-900 py-3"
-      >
-        {pending ? <ActivityIndicator color="#fff" /> : <Text className="font-medium text-white">Přihlásit se</Text>}
-      </Pressable>
+      <Button testID="login-submit" variant="primary" loading={pending} onPress={() => void handleSubmit()} className="w-full">
+        Přihlásit se
+      </Button>
     </View>
   );
 }
