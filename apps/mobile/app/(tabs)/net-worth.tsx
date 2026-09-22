@@ -1,6 +1,6 @@
 import { CaretDownIcon, ChartLineUpIcon, CreditCardIcon, PiggyBankIcon, WalletIcon, type Icon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../components/badge';
 import { Button } from '../../components/button';
@@ -197,7 +197,18 @@ export default function NetWorthScreen(): React.JSX.Element {
                 </View>
                 <Text className="text-ink">{transfer.amount.toLocaleString('cs-CZ')} {transfer.currency}</Text>
               </View>
-              <Button variant="secondary" size="chip" className="mt-2 self-start" loading={dismissTransfer.isPending} onPress={() => dismissTransfer.mutate(transfer.id)}>
+              <Button
+                variant="secondary"
+                size="chip"
+                className="mt-2 self-start"
+                loading={dismissTransfer.isPending}
+                onPress={() =>
+                  Alert.alert('Skrýt nespárovaný převod?', `${transfer.accountName} · ${transfer.merchant}`, [
+                    { text: 'Zrušit', style: 'cancel' },
+                    { text: 'Skrýt', onPress: () => dismissTransfer.mutate(transfer.id) },
+                  ])
+                }
+              >
                 Skrýt
               </Button>
             </View>

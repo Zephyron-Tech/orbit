@@ -120,7 +120,17 @@ export default function UsersScreen(): React.JSX.Element {
                 <Text className="flex-1 pr-3 text-ink" numberOfLines={1}>
                   {invite.email}
                 </Text>
-                <Button variant="destructive" size="chip" loading={revokeInvite.isPending} onPress={() => revokeInvite.mutate(invite.id)}>
+                <Button
+                  variant="destructive"
+                  size="chip"
+                  loading={revokeInvite.isPending}
+                  onPress={() =>
+                    Alert.alert('Zrušit pozvánku?', invite.email, [
+                      { text: 'Zrušit', style: 'cancel' },
+                      { text: 'Zrušit pozvánku', style: 'destructive', onPress: () => revokeInvite.mutate(invite.id) },
+                    ])
+                  }
+                >
                   Zrušit
                 </Button>
               </View>

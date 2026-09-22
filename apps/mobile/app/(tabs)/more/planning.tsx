@@ -1,6 +1,6 @@
 import { PlusIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
 import { Switch } from '../../../components/switch';
@@ -68,6 +68,13 @@ function ListRow({
   onEdit: () => void;
   togglePending: boolean;
 }): React.JSX.Element {
+  function handleDeletePress(): void {
+    Alert.alert('Smazat?', title, [
+      { text: 'Zrušit', style: 'cancel' },
+      { text: 'Smazat', style: 'destructive', onPress: onDelete },
+    ]);
+  }
+
   return (
     <Pressable onPress={onEdit} className="flex-row items-center justify-between border-b border-line bg-surface px-4 py-3 active:bg-surface-subtle">
       <View className="flex-1 pr-3">
@@ -77,7 +84,7 @@ function ListRow({
         <Text className="text-xs text-ink-muted">{subtitle}</Text>
       </View>
       <Switch value={isActive} onValueChange={onToggleActive} disabled={togglePending} />
-      <Button variant="destructive" size="chip" className="ml-3" onPress={onDelete}>
+      <Button variant="destructive" size="chip" className="ml-3" onPress={handleDeletePress}>
         Smazat
       </Button>
     </Pressable>
