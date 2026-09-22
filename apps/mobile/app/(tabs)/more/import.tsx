@@ -1,7 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { ArrowsClockwiseIcon, UploadSimpleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
 import { TextField } from '../../../components/text-field';
@@ -197,6 +197,7 @@ export default function ImportScreen(): React.JSX.Element {
   }
 
   return (
+    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView className="flex-1 bg-canvas">
       <CsvImportSection accounts={data.accounts} />
 
@@ -259,5 +260,6 @@ export default function ImportScreen(): React.JSX.Element {
         ))
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

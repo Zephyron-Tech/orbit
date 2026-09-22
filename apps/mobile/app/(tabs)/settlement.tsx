@@ -1,6 +1,6 @@
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, HandshakeIcon, LockKeyIcon, ReceiptIcon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../components/badge';
 import { Button } from '../../components/button';
@@ -147,6 +147,7 @@ export default function SettlementScreen(): React.JSX.Element {
           <Text className="text-center text-critical">{error instanceof Error ? error.message : 'Vyrovnání se nepodařilo načíst'}</Text>
         </View>
       ) : (
+        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerClassName="gap-4 p-4" refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}>
           <View className="flex-row flex-wrap gap-2">
             {data.summary.direction === 'EVEN' ? <Badge tone="success">Vyrovnáno</Badge> : null}
@@ -243,6 +244,7 @@ export default function SettlementScreen(): React.JSX.Element {
             </View>
           ) : null}
         </ScrollView>
+        </KeyboardAvoidingView>
       )}
     </View>
   );

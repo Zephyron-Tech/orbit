@@ -1,6 +1,6 @@
 import { EnvelopeSimpleIcon, LinkSimpleIcon, UserCircleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../../components/badge';
 import { Button } from '../../../components/button';
@@ -85,6 +85,7 @@ export default function UsersScreen(): React.JSX.Element {
   const openInvites = invitesList.data?.invites.filter((invite) => !invite.acceptedAt) ?? [];
 
   return (
+    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView className="flex-1 bg-canvas">
       <Text className="px-4 pb-2 pt-4 font-sans-semibold text-base text-ink">Členové</Text>
       {data.users.map((user) => (
@@ -130,5 +131,6 @@ export default function UsersScreen(): React.JSX.Element {
         </>
       ) : null}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

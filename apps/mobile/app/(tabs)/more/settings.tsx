@@ -1,6 +1,6 @@
 import { CalendarBlankIcon, EnvelopeSimpleIcon, FingerprintIcon, LockKeyIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
 import { Switch } from '../../../components/switch';
@@ -90,6 +90,7 @@ export default function SettingsScreen(): React.JSX.Element {
   }
 
   return (
+    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView className="flex-1 bg-canvas" contentContainerClassName="gap-6 p-4">
       <View className="gap-2 rounded-xl border border-line bg-surface p-4">
         <SectionHeading icon={<EnvelopeSimpleIcon color="#5d6c68" size={16} weight="regular" />} title="E-mail" />
@@ -155,5 +156,6 @@ export default function SettingsScreen(): React.JSX.Element {
         </View>
       ) : null}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

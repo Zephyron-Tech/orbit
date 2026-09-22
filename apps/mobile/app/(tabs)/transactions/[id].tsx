@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PlusIcon, XIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
 import { Switch } from '../../../components/switch';
@@ -150,6 +150,7 @@ export default function TransactionDetailScreen(): React.JSX.Element {
   }
 
   return (
+    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView className="flex-1 bg-canvas" contentContainerClassName="p-4">
       <Text className="font-sans-semibold text-xl text-ink">{transaction.merchant}</Text>
       <Text className="mt-1 text-sm text-ink-muted">
@@ -230,5 +231,6 @@ export default function TransactionDetailScreen(): React.JSX.Element {
         </View>
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CreditCardIcon, WarningCircleIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../../components/button';
 import { Switch } from '../../../../components/switch';
@@ -182,6 +182,7 @@ export default function AccountDetailScreen(): React.JSX.Element {
   const saving = createAccount.isPending || updateAccount.isPending;
 
   return (
+    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView className="flex-1 bg-canvas" contentContainerClassName="gap-4 p-4">
       <View>
         <Text className="mb-2 text-sm font-sans-medium text-ink-muted">Název</Text>
@@ -317,5 +318,6 @@ export default function AccountDetailScreen(): React.JSX.Element {
         </>
       ) : null}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

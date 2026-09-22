@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
 
 import { Button } from '../../components/button';
 import { TextField } from '../../components/text-field';
@@ -31,6 +31,7 @@ export default function LoginScreen(): React.JSX.Element {
   }
 
   return (
+    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <View className="flex-1 items-center justify-center bg-canvas px-6">
       <View className="mb-8 size-14 items-center justify-center rounded-2xl bg-accent">
         <Text className="text-2xl font-sans-bold text-accent-foreground">O</Text>
@@ -63,5 +64,6 @@ export default function LoginScreen(): React.JSX.Element {
         Přihlásit se
       </Button>
     </View>
+    </KeyboardAvoidingView>
   );
 }

@@ -2,7 +2,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CloudArrowUpIcon, DownloadSimpleIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../../components/button';
 import { TextField } from '../../../../components/text-field';
@@ -225,6 +225,7 @@ export default function PolicyDetailScreen(): React.JSX.Element {
   const saving = createPolicy.isPending || updatePolicy.isPending;
 
   return (
+    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ScrollView className="flex-1 bg-canvas" contentContainerClassName="gap-4 p-4">
       <View className="gap-2 rounded-lg border border-line bg-surface p-4">
         <Text className="font-sans-medium text-sm text-ink-muted">Rozpoznat z PDF</Text>
@@ -390,5 +391,6 @@ export default function PolicyDetailScreen(): React.JSX.Element {
         </>
       ) : null}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
