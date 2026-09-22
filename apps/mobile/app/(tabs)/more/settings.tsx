@@ -8,6 +8,7 @@ import { TextField } from '../../../components/text-field';
 import { useChangeEmail, useChangePassword, useSettings, useUpdateReportingStartMonth } from '../../../hooks/use-settings';
 import { useAuth } from '../../../lib/auth-context';
 import { isBiometricAuthAvailable, isBiometricLockEnabled, promptBiometricUnlock, setBiometricLockEnabled } from '../../../lib/biometric-auth';
+import { colors } from '../../../lib/colors';
 
 function SectionHeading({ icon, title }: { icon: React.ReactNode; title: string }): React.JSX.Element {
   return (
@@ -127,7 +128,7 @@ export default function SettingsScreen(): React.JSX.Element {
       <View className="gap-2 rounded-xl border border-line bg-surface p-4">
         <SectionHeading icon={<CalendarBlankIcon color="#5d6c68" size={16} weight="regular" />} title="Počáteční měsíc reportování" />
         {isPending ? (
-          <ActivityIndicator color="#17647c" />
+          <ActivityIndicator color={colors.accent} />
         ) : isError ? (
           <Text className="text-sm text-critical">{error instanceof Error ? error.message : 'Nepodařilo se načíst'}</Text>
         ) : (

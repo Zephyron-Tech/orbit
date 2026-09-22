@@ -2,6 +2,7 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '../lib/auth-context';
+import { colors } from '../lib/colors';
 
 /** Entry redirect — waits for the cold-start check, then routes to the right stack. */
 export default function Index(): React.JSX.Element {
@@ -17,7 +18,7 @@ export default function Index(): React.JSX.Element {
     // settles. Kept as a true fallback, accent-colored for consistency.
     return (
       <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }

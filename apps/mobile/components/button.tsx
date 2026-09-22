@@ -1,6 +1,7 @@
 import type { Icon } from 'phosphor-react-native';
 import { ActivityIndicator, Pressable, Text, type PressableProps } from 'react-native';
 
+import { colors } from '../lib/colors';
 import { haptics } from '../lib/haptics';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost';
@@ -35,10 +36,10 @@ const TEXT_CLASSES: Record<ButtonVariant, string> = {
 };
 
 const SPINNER_COLOR: Record<ButtonVariant, string> = {
-  primary: '#f8fcfd',
-  secondary: '#17211f',
-  destructive: '#a43c3c',
-  ghost: '#5d6c68',
+  primary: colors.accentForeground,
+  secondary: colors.ink,
+  destructive: colors.critical,
+  ghost: colors.inkMuted,
 };
 
 const ICON_COLOR: Record<ButtonVariant, string> = SPINNER_COLOR;

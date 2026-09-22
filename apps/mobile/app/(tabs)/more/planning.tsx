@@ -24,6 +24,7 @@ import {
   useUpdateRecurringExpense,
 } from '../../../hooks/use-planning';
 import type { IncomeSourceRuleInput, InvestmentPlanInput, RecurringExpenseInput } from '../../../hooks/use-planning';
+import { colors } from '../../../lib/colors';
 import { formatMoney } from '../../../lib/format-money';
 import type { IncomeSourceRuleRow, InvestmentPlanRow, PlanningAccountOption, RecurringExpenseRow } from '../../../lib/response-types';
 
@@ -461,7 +462,7 @@ export default function PlanningScreen(): React.JSX.Element {
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.accent} />}
     >
       <View className="gap-3 border-b border-line bg-surface p-4">
         <Text className="font-sans-medium text-sm text-ink-muted">Měsíční cíl výdajů (Kč)</Text>

@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import '../global.css';
 import { AuthProvider, useAuth } from '../lib/auth-context';
+import { colors } from '../lib/colors';
 import { queryClient } from '../lib/query-client';
 
 // Held until fonts are loaded AND the auth cold-start bootstrap has
@@ -44,7 +45,7 @@ export default function RootLayout(): React.JSX.Element {
     // target, which has no native splash to hold.
     return (
       <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }

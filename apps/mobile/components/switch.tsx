@@ -1,5 +1,6 @@
 import { Switch as RNSwitch, type SwitchProps } from 'react-native';
 
+import { colors } from '../lib/colors';
 import { haptics } from '../lib/haptics';
 
 /**
@@ -10,9 +11,9 @@ import { haptics } from '../lib/haptics';
 export function Switch({ onValueChange, ...rest }: SwitchProps): React.JSX.Element {
   return (
     <RNSwitch
-      trackColor={{ false: '#d8e0dd', true: '#17647c' }}
+      trackColor={{ false: colors.line, true: colors.accent }}
       thumbColor="#ffffff"
-      ios_backgroundColor="#d8e0dd"
+      ios_backgroundColor={colors.line}
       onValueChange={(value) => {
         haptics.toggle();
         onValueChange?.(value);

@@ -5,6 +5,7 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { Badge } from '../../../components/badge';
 import { ListSkeleton, SkeletonCard } from '../../../components/skeleton';
 import { useFuel } from '../../../hooks/use-fuel';
+import { colors } from '../../../lib/colors';
 import { formatDate } from '../../../lib/format-date';
 import { formatMoney } from '../../../lib/format-money';
 import { formatPeriod } from '../../../lib/period';
@@ -39,7 +40,7 @@ export default function FuelScreen(): React.JSX.Element {
     <ScrollView
       className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.accent} />}
     >
       <View className="gap-2">
         <Text className="font-sans-semibold text-base text-ink">Přehled podle měsíce</Text>

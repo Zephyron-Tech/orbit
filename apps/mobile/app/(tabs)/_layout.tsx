@@ -3,15 +3,7 @@ import { Redirect, Tabs } from 'expo-router';
 import type { ColorValue } from 'react-native';
 
 import { useAuth } from '../../lib/auth-context';
-
-// Same accent/ink-muted colors as apps/web/app/globals.css's --accent /
-// --ink-muted tokens (also in tailwind.config.js as the `accent`/`ink-muted`
-// classes) — React Navigation's tab bar options don't accept className, so
-// the hex values are duplicated here rather than resolved from NativeWind.
-const ACCENT = '#17647c';
-const INK_MUTED = '#5d6c68';
-const SURFACE = '#fdfefd';
-const LINE = '#d8e0dd';
+import { colors } from '../../lib/colors';
 
 function tabIcon(IconComponent: Icon) {
   return ({ focused, color, size }: { focused: boolean; color: ColorValue; size: number }) => (
@@ -30,9 +22,9 @@ export default function TabsLayout(): React.JSX.Element {
     <Tabs
       screenOptions={{
         headerShown: true,
-        tabBarActiveTintColor: ACCENT,
-        tabBarInactiveTintColor: INK_MUTED,
-        tabBarStyle: { backgroundColor: SURFACE, borderTopColor: LINE },
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.inkMuted,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line },
         tabBarLabelStyle: { fontFamily: 'Geist_500Medium', fontSize: 10 },
       }}
     >

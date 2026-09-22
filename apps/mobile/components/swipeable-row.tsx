@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, { type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 
+import { colors } from '../lib/colors';
 import { haptics } from '../lib/haptics';
 
 const ACTION_WIDTH = 88;
@@ -22,7 +23,7 @@ function Action({
   onPress: () => void;
 }): React.JSX.Element {
   const style = useAnimatedStyle(() => ({ transform: [{ translateX: (1 - progress.value) * ACTION_WIDTH }] }));
-  const bg = tone === 'critical' ? '#a43c3c' : '#17647c';
+  const bg = tone === 'critical' ? colors.critical : colors.accent;
 
   return (
     <Animated.View style={[{ width: ACTION_WIDTH }, style]}>

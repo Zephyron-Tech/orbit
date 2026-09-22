@@ -7,6 +7,7 @@ import { Button } from '../../../../components/button';
 import { ReorderableList } from '../../../../components/reorderable-list';
 import { ListSkeleton } from '../../../../components/skeleton';
 import { useAccountsList, useCreditRepaymentCandidates, useReorderAccount } from '../../../../hooks/use-accounts';
+import { colors } from '../../../../lib/colors';
 import type { AccountRow } from '../../../../lib/response-types';
 
 const TYPE_LABELS: Record<AccountRow['type'], string> = {
@@ -76,7 +77,7 @@ export default function AccountsListScreen(): React.JSX.Element {
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.accent} />}
     >
       {repaymentCandidates && repaymentCandidates.length > 0 ? (
         <Link href="/(tabs)/more/accounts/credit-repayment" asChild>

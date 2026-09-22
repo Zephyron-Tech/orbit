@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { TextInput, type KeyboardTypeOptions, type TextInputProps } from 'react-native';
 
+import { colors } from '../lib/colors';
+
 export type TextFieldVariant = 'text' | 'money' | 'integer' | 'email';
 
 const KEYBOARD_TYPE: Record<TextFieldVariant, KeyboardTypeOptions> = {
@@ -33,7 +35,7 @@ export function TextField({
   return (
     <TextInput
       className={`rounded-lg border px-4 py-3 text-base text-ink ${focused ? 'border-accent' : 'border-line'} ${className ?? ''}`}
-      placeholderTextColor="#667570"
+      placeholderTextColor={colors.inkFaint}
       keyboardType={keyboardType ?? KEYBOARD_TYPE[variant]}
       returnKeyType={returnKeyType ?? 'done'}
       autoCapitalize={autoCapitalize ?? (variant === 'email' ? 'none' : undefined)}

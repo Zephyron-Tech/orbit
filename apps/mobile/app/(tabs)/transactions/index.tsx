@@ -15,6 +15,7 @@ import {
   type TransactionsListParams,
 } from '../../../hooks/use-transactions';
 import { useDismissUnmatchedTransfer } from '../../../hooks/use-net-worth';
+import { colors } from '../../../lib/colors';
 import { formatDate } from '../../../lib/format-date';
 import { formatMoney } from '../../../lib/format-money';
 import type { MerchantCategoryRecommendation, TransactionRow } from '../../../lib/response-types';
@@ -318,7 +319,7 @@ export default function TransactionsListScreen(): React.JSX.Element {
             dismissPending={dismissUnmatchedTransfer.isPending}
           />
         )}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.accent} />}
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
         }}
@@ -331,7 +332,7 @@ export default function TransactionsListScreen(): React.JSX.Element {
         ListFooterComponent={
           isFetchingNextPage ? (
             <View className="items-center py-4">
-              <ActivityIndicator color="#17647c" />
+              <ActivityIndicator color={colors.accent} />
             </View>
           ) : null
         }

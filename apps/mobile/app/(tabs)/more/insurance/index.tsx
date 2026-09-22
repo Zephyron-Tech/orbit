@@ -5,6 +5,7 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { Button } from '../../../../components/button';
 import { ListSkeleton } from '../../../../components/skeleton';
 import { useInsuranceList, useReorderPolicy } from '../../../../hooks/use-insurance';
+import { colors } from '../../../../lib/colors';
 import { formatMoney } from '../../../../lib/format-money';
 import type { InsurancePolicyRow } from '../../../../lib/response-types';
 
@@ -80,7 +81,7 @@ export default function InsuranceListScreen(): React.JSX.Element {
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.accent} />}
     >
       {data.policies.length > 0 ? (
         <View className="m-4 rounded-lg border border-line bg-surface p-4">

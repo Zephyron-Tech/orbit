@@ -6,6 +6,7 @@ import { Button } from '../../../components/button';
 import { LineChart } from '../../../components/line-chart';
 import { ListSkeleton, SkeletonCard } from '../../../components/skeleton';
 import { usePortfolio, useRefreshPortfolio } from '../../../hooks/use-portfolio';
+import { colors } from '../../../lib/colors';
 import { formatMoney } from '../../../lib/format-money';
 import { parseSnapshotRawData } from '../../../lib/portfolio-parse';
 
@@ -73,7 +74,7 @@ export default function PortfolioScreen(): React.JSX.Element {
     <ScrollView
       className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.accent} />}
     >
       <Button variant="primary" icon={ArrowsClockwiseIcon} loading={refresh.isPending} onPress={() => refresh.mutate()}>
         Obnovit
