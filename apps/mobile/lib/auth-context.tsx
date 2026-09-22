@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { apiClient, login as apiLogin, logout as apiLogout, tryRefresh, UnauthorizedError } from './api-client';
 import { setAccessToken } from './auth-storage';
 import { isBiometricAuthAvailable, isBiometricLockEnabled, promptBiometricUnlock } from './biometric-auth';
+import { registerPushToken } from './push-notifications';
 
 export interface SessionUser {
   id: string;
@@ -45,6 +46,9 @@ async function completeSignIn(setUser: (u: SessionUser | null) => void, setIsAut
     const sessionUser = await fetchSession();
     setUser(sessionUser);
     setIsAuthenticated(sessionUser !== null);
+    // Fire-and-forget: a notifications failure (denied permission, simulator,
+    // offline) must never block or delay sign-in.
+    if (sessionUser !== null) void registerPushToken();
   } catch {
     setIsAuthenticated(false);
   }
