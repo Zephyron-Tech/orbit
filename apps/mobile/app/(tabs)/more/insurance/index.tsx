@@ -2,6 +2,7 @@ import { Link, useRouter } from 'expo-router';
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon } from 'phosphor-react-native';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
+import { Button } from '../../../../components/button';
 import { useInsuranceList, useReorderPolicy } from '../../../../hooks/use-insurance';
 import { formatMoney } from '../../../../lib/format-money';
 import type { InsurancePolicyRow } from '../../../../lib/response-types';
@@ -100,10 +101,9 @@ export default function InsuranceListScreen(): React.JSX.Element {
       )}
 
       <Link href="/(tabs)/more/insurance/new" asChild>
-        <Pressable className="m-4 flex-row items-center justify-center gap-2 rounded-lg bg-accent py-3 active:bg-accent-hover">
-          <PlusIcon color="#f8fcfd" size={16} weight="regular" />
-          <Text className="font-sans-medium text-accent-foreground">Přidat pojistku</Text>
-        </Pressable>
+        <Button variant="primary" icon={PlusIcon} className="m-4">
+          Přidat pojistku
+        </Button>
       </Link>
     </ScrollView>
   );

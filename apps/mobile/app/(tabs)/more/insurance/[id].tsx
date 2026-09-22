@@ -2,8 +2,10 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CloudArrowUpIcon, DownloadSimpleIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { Button } from '../../../../components/button';
+import { TextField } from '../../../../components/text-field';
 import {
   useCreatePolicy,
   useDeletePolicy,
@@ -228,42 +230,43 @@ export default function PolicyDetailScreen(): React.JSX.Element {
         <Text className="font-sans-medium text-sm text-ink-muted">Rozpoznat z PDF</Text>
         <Text className="text-xs text-ink-muted">Vybere se PDF, vyplní se odpovídající pole níže — nic se tím nenahraje.</Text>
         <View className="flex-row gap-2">
-          <Pressable
+          <Button
+            variant="secondary"
+            className="flex-1"
+            disabled={parseDocument.isPending}
             onPress={() => void pickAndParse('CONTRACT', parseDocument, (fields) => setForm((current) => applyContract(current, fields as ContractParsed)))}
-            disabled={parseDocument.isPending}
-            className="flex-1 items-center rounded-lg border border-line py-2 active:bg-surface-subtle"
           >
-            <Text className="text-sm text-ink">Ze smlouvy</Text>
-          </Pressable>
-          <Pressable
+            Ze smlouvy
+          </Button>
+          <Button
+            variant="secondary"
+            className="flex-1"
+            disabled={parseDocument.isPending}
             onPress={() => void pickAndParse('GREEN_CARD', parseDocument, (fields) => setForm((current) => applyGreenCard(current, fields as GreenCardParsed)))}
-            disabled={parseDocument.isPending}
-            className="flex-1 items-center rounded-lg border border-line py-2 active:bg-surface-subtle"
           >
-            <Text className="text-sm text-ink">Ze zelené karty</Text>
-          </Pressable>
+            Ze zelené karty
+          </Button>
         </View>
         {parseDocument.isPending ? <Text className="text-xs text-ink-muted">Čtu PDF…</Text> : null}
       </View>
 
       <View>
         <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Vozidlo</Text>
-        <TextInput
-          className="rounded-lg border border-line px-3 py-2 text-ink"
+        <TextField
           placeholder="Název vozidla"
-          placeholderTextColor="#667570"
           value={form.vehicleName}
           onChangeText={(value) => setForm((current) => ({ ...current, vehicleName: value }))}
+          returnKeyType="next"
         />
       </View>
 
       <View>
         <Text className="font-sans-medium mb-2 text-sm text-ink-muted">SPZ</Text>
-        <TextInput
-          className="rounded-lg border border-line px-3 py-2 text-ink"
+        <TextField
           value={form.licensePlate}
           onChangeText={(value) => setForm((current) => ({ ...current, licensePlate: value }))}
           autoCapitalize="characters"
+          returnKeyType="next"
         />
       </View>
 
@@ -274,29 +277,29 @@ export default function PolicyDetailScreen(): React.JSX.Element {
 
       <View>
         <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Číslo pojistky</Text>
-        <TextInput
-          className="rounded-lg border border-line px-3 py-2 text-ink"
+        <TextField
           value={form.policyNumber}
           onChangeText={(value) => setForm((current) => ({ ...current, policyNumber: value }))}
+          returnKeyType="next"
         />
       </View>
 
       <View>
         <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Pojistník</Text>
-        <TextInput
-          className="rounded-lg border border-line px-3 py-2 text-ink"
+        <TextField
           value={form.policyHolder}
           onChangeText={(value) => setForm((current) => ({ ...current, policyHolder: value }))}
+          returnKeyType="next"
         />
       </View>
 
       <View>
         <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Roční pojistné (Kč)</Text>
-        <TextInput
-          className="rounded-lg border border-line px-3 py-2 text-ink"
-          keyboardType="numbers-and-punctuation"
+        <TextField
+          variant="money"
           value={form.annualCost}
           onChangeText={(value) => setForm((current) => ({ ...current, annualCost: value }))}
+          returnKeyType="next"
         />
       </View>
 
@@ -307,10 +310,10 @@ export default function PolicyDetailScreen(): React.JSX.Element {
 
       <View>
         <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Datum začátku (RRRR-MM-DD)</Text>
-        <TextInput
-          className="rounded-lg border border-line px-3 py-2 text-ink"
+        <TextField
           value={form.startDate}
           onChangeText={(value) => setForm((current) => ({ ...current, startDate: value }))}
+          returnKeyType="done"
         />
       </View>
 
@@ -321,9 +324,9 @@ export default function PolicyDetailScreen(): React.JSX.Element {
 
       {error ? <Text className="text-sm text-critical">{error}</Text> : null}
 
-      <Pressable onPress={handleSave} disabled={saving} className="items-center rounded-lg bg-accent py-3 active:bg-accent-hover">
-        <Text className="font-sans-medium text-accent-foreground">{saving ? 'Ukládám…' : 'Uložit'}</Text>
-      </Pressable>
+      <Button variant="primary" loading={saving} onPress={handleSave}>
+        Uložit
+      </Button>
 
       {!isNew && policy ? (
         <>
@@ -381,9 +384,9 @@ export default function PolicyDetailScreen(): React.JSX.Element {
             {uploadMessage ? <Text className="text-sm text-positive">{uploadMessage}</Text> : null}
           </View>
 
-          <Pressable onPress={handleDelete} className="items-center rounded-lg border border-critical/25 py-3 active:bg-critical-soft">
-            <Text className="font-sans-medium text-critical">Smazat pojistku</Text>
-          </Pressable>
+          <Button variant="destructive" onPress={handleDelete}>
+            Smazat pojistku
+          </Button>
         </>
       ) : null}
     </ScrollView>
