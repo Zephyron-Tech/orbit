@@ -58,8 +58,10 @@ export default function DashboardScreen(): React.JSX.Element {
   }
 
   const currentKey = data.period.key;
-  const canGoBack = data.visibleMonths.length === 0 || currentKey > (data.visibleMonths[0] ?? currentKey);
-  const canGoForward = currentKey < (data.visibleMonths.at(-1) ?? currentKey);
+  // visibleMonths is returned newest-first (apps/api/src/routes/dashboard.ts),
+  // so the oldest bound is the last entry and the newest is the first.
+  const canGoBack = data.visibleMonths.length === 0 || currentKey > (data.visibleMonths.at(-1) ?? currentKey);
+  const canGoForward = currentKey < (data.visibleMonths[0] ?? currentKey);
   const asOf = new Date(data.asOf);
   const previousAsOf = new Date(data.previousAsOf);
   const visibleActions = data.actions.filter((action) => action.count > 0);
