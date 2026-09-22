@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ArrowsClockwiseIcon, MagnifyingGlassIcon, TagIcon, XIcon } from 'phosphor-react-native';
+import { ArrowsClockwiseIcon, CaretDownIcon, FunnelIcon, MagnifyingGlassIcon, TagIcon, XIcon } from 'phosphor-react-native';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
@@ -128,6 +128,7 @@ export default function TransactionsListScreen(): React.JSX.Element {
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<'date' | 'amount'>('date');
   const [direction, setDirection] = useState<'asc' | 'desc'>('desc');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dismissedRecommendations, setDismissedRecommendations] = useState<Set<string>>(new Set());
@@ -153,6 +154,8 @@ export default function TransactionsListScreen(): React.JSX.Element {
   const bulkCategorize = useBulkCategorize();
   const matchTransfers = useMatchTransfers();
   const dismissUnmatchedTransfer = useDismissUnmatchedTransfer();
+
+  const activeFilterCount = [accountId, categoryId || uncategorized, shared, transferOnly].filter(Boolean).length;
 
   const activeRecommendation = useMemo(
     () => data?.recommendations.find((r) => !dismissedRecommendations.has(r.merchantKey)),
@@ -205,37 +208,54 @@ export default function TransactionsListScreen(): React.JSX.Element {
             returnKeyType="search"
           />
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
-          <Chip label="Všechny účty" active={!accountId} onPress={() => { setAccountId(undefined); }} />
-          {data.accounts.map((account) => (
-            <Chip key={account.id} label={account.name} active={accountId === account.id} onPress={() => { setAccountId(account.id); }} />
-          ))}
-        </ScrollView>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
-          <Chip label="Všechny kategorie" active={!categoryId && !uncategorized} onPress={() => { setCategoryId(undefined); setUncategorized(false); }} />
-          <Chip label="Bez kategorie" active={uncategorized} onPress={() => { setUncategorized((v) => !v); setCategoryId(undefined); }} />
-          {data.categories.map((category) => (
-            <Chip
-              key={category.id}
-              label={category.name}
-              active={categoryId === category.id}
-              onPress={() => { setCategoryId(category.id); setUncategorized(false); }}
-            />
-          ))}
-        </ScrollView>
-        <View className="flex-row flex-wrap items-center gap-2">
-          <Chip label="Sdílené" active={shared} onPress={() => { setShared((v) => !v); }} />
-          <Chip label="Nespárované převody" active={transferOnly} onPress={() => { setTransferOnly((v) => !v); }} />
-          <Chip label={sort === 'date' ? 'Řadit: datum' : 'Řadit: částka'} active={false} onPress={() => setSort((s) => (s === 'date' ? 'amount' : 'date'))} />
-          <Chip label={direction === 'desc' ? '↓' : '↑'} active={false} onPress={() => setDirection((d) => (d === 'desc' ? 'asc' : 'desc'))} />
-          <Pressable onPress={() => router.push('/(tabs)/transactions/categories')} className="ml-auto flex-row items-center gap-1 rounded-full border border-line bg-surface px-3 py-1.5 active:bg-surface-subtle">
-            <TagIcon color="#5d6c68" size={14} weight="regular" />
-            <Text className="text-ink-muted">Kategorie</Text>
-          </Pressable>
-        </View>
-        <Button variant="secondary" icon={ArrowsClockwiseIcon} loading={matchTransfers.isPending} onPress={() => matchTransfers.mutate()} className="mt-2">
-          Spárovat převody
-        </Button>
+
+        <Pressable
+          onPress={() => setFiltersOpen((current) => !current)}
+          className="flex-row items-center justify-between rounded-lg py-1.5 active:opacity-70"
+        >
+          <View className="flex-row items-center gap-2">
+            <FunnelIcon color="#5d6c68" size={16} weight="regular" />
+            <Text className="font-sans-medium text-sm text-ink-muted">Filtry</Text>
+            {activeFilterCount > 0 ? <Badge tone="info">{activeFilterCount}</Badge> : null}
+          </View>
+          <CaretDownIcon color="#5d6c68" size={16} weight="regular" style={filtersOpen ? { transform: [{ rotate: '180deg' }] } : undefined} />
+        </Pressable>
+
+        {filtersOpen ? (
+          <View className="mt-2 gap-2">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <Chip label="Všechny účty" active={!accountId} onPress={() => { setAccountId(undefined); }} />
+              {data.accounts.map((account) => (
+                <Chip key={account.id} label={account.name} active={accountId === account.id} onPress={() => { setAccountId(account.id); }} />
+              ))}
+            </ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <Chip label="Všechny kategorie" active={!categoryId && !uncategorized} onPress={() => { setCategoryId(undefined); setUncategorized(false); }} />
+              <Chip label="Bez kategorie" active={uncategorized} onPress={() => { setUncategorized((v) => !v); setCategoryId(undefined); }} />
+              {data.categories.map((category) => (
+                <Chip
+                  key={category.id}
+                  label={category.name}
+                  active={categoryId === category.id}
+                  onPress={() => { setCategoryId(category.id); setUncategorized(false); }}
+                />
+              ))}
+            </ScrollView>
+            <View className="flex-row flex-wrap items-center gap-2">
+              <Chip label="Sdílené" active={shared} onPress={() => { setShared((v) => !v); }} />
+              <Chip label="Nespárované převody" active={transferOnly} onPress={() => { setTransferOnly((v) => !v); }} />
+              <Chip label={sort === 'date' ? 'Řadit: datum' : 'Řadit: částka'} active={false} onPress={() => setSort((s) => (s === 'date' ? 'amount' : 'date'))} />
+              <Chip label={direction === 'desc' ? '↓' : '↑'} active={false} onPress={() => setDirection((d) => (d === 'desc' ? 'asc' : 'desc'))} />
+              <Pressable onPress={() => router.push('/(tabs)/transactions/categories')} className="ml-auto flex-row items-center gap-1 rounded-full border border-line bg-surface px-3 py-1.5 active:bg-surface-subtle">
+                <TagIcon color="#5d6c68" size={14} weight="regular" />
+                <Text className="text-ink-muted">Kategorie</Text>
+              </Pressable>
+            </View>
+            <Button variant="secondary" icon={ArrowsClockwiseIcon} loading={matchTransfers.isPending} onPress={() => matchTransfers.mutate()}>
+              Spárovat převody
+            </Button>
+          </View>
+        ) : null}
       </View>
 
       {activeRecommendation && data.period.from && data.period.to ? (
