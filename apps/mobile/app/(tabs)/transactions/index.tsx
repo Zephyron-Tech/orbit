@@ -9,8 +9,8 @@ import { TextField } from '../../../components/text-field';
 import {
   useApplyMerchantCategory,
   useBulkCategorize,
+  useInfiniteTransactionsList,
   useMatchTransfers,
-  useTransactionsList,
   type TransactionsListParams,
 } from '../../../hooks/use-transactions';
 import { useDismissUnmatchedTransfer } from '../../../hooks/use-net-worth';
@@ -118,7 +118,6 @@ function RecommendationBanner({
 
 export default function TransactionsListScreen(): React.JSX.Element {
   const router = useRouter();
-  const [page, setPage] = useState(1);
   const [accountId, setAccountId] = useState<string | undefined>(undefined);
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
   const [uncategorized, setUncategorized] = useState(false);
@@ -131,8 +130,7 @@ export default function TransactionsListScreen(): React.JSX.Element {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dismissedRecommendations, setDismissedRecommendations] = useState<Set<string>>(new Set());
 
-  const params: TransactionsListParams = {
-    page,
+  const params: Omit<TransactionsListParams, 'page'> = {
     accountId,
     categoryId,
     uncategorized,
@@ -142,7 +140,14 @@ export default function TransactionsListScreen(): React.JSX.Element {
     direction,
     transfer: transferOnly ? 'unmatched' : undefined,
   };
-  const { data, isPending, isError, error, refetch, isRefetching } = useTransactionsList(params);
+  const { data: infiniteData, isPending, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteTransactionsList(params);
+  // Every page shares the same period-wide aggregates (income/expenses/
+  // balance/categories/accounts/recommendations) — only `transactions`
+  // itself needs flattening across pages.
+  const data = infiniteData?.pages[0]
+    ? { ...infiniteData.pages[0], transactions: infiniteData.pages.flatMap((p) => p.transactions) }
+    : undefined;
   const bulkCategorize = useBulkCategorize();
   const matchTransfers = useMatchTransfers();
   const dismissUnmatchedTransfer = useDismissUnmatchedTransfer();
@@ -169,7 +174,7 @@ export default function TransactionsListScreen(): React.JSX.Element {
     );
   }
 
-  if (isPending) {
+  if (isPending || !data) {
     return (
       <View className="flex-1 items-center justify-center bg-canvas">
         <ActivityIndicator color="#17647c" />
@@ -194,31 +199,31 @@ export default function TransactionsListScreen(): React.JSX.Element {
             className="flex-1 border-0 bg-transparent px-0 py-2"
             placeholder="Hledat (protistrana, poznámka)…"
             value={q}
-            onChangeText={(text) => { setQ(text); setPage(1); }}
+            onChangeText={(text) => { setQ(text); }}
             returnKeyType="search"
           />
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
-          <Chip label="Všechny účty" active={!accountId} onPress={() => { setAccountId(undefined); setPage(1); }} />
+          <Chip label="Všechny účty" active={!accountId} onPress={() => { setAccountId(undefined); }} />
           {data.accounts.map((account) => (
-            <Chip key={account.id} label={account.name} active={accountId === account.id} onPress={() => { setAccountId(account.id); setPage(1); }} />
+            <Chip key={account.id} label={account.name} active={accountId === account.id} onPress={() => { setAccountId(account.id); }} />
           ))}
         </ScrollView>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
-          <Chip label="Všechny kategorie" active={!categoryId && !uncategorized} onPress={() => { setCategoryId(undefined); setUncategorized(false); setPage(1); }} />
-          <Chip label="Bez kategorie" active={uncategorized} onPress={() => { setUncategorized((v) => !v); setCategoryId(undefined); setPage(1); }} />
+          <Chip label="Všechny kategorie" active={!categoryId && !uncategorized} onPress={() => { setCategoryId(undefined); setUncategorized(false); }} />
+          <Chip label="Bez kategorie" active={uncategorized} onPress={() => { setUncategorized((v) => !v); setCategoryId(undefined); }} />
           {data.categories.map((category) => (
             <Chip
               key={category.id}
               label={category.name}
               active={categoryId === category.id}
-              onPress={() => { setCategoryId(category.id); setUncategorized(false); setPage(1); }}
+              onPress={() => { setCategoryId(category.id); setUncategorized(false); }}
             />
           ))}
         </ScrollView>
         <View className="flex-row flex-wrap items-center gap-2">
-          <Chip label="Sdílené" active={shared} onPress={() => { setShared((v) => !v); setPage(1); }} />
-          <Chip label="Nespárované převody" active={transferOnly} onPress={() => { setTransferOnly((v) => !v); setPage(1); }} />
+          <Chip label="Sdílené" active={shared} onPress={() => { setShared((v) => !v); }} />
+          <Chip label="Nespárované převody" active={transferOnly} onPress={() => { setTransferOnly((v) => !v); }} />
           <Chip label={sort === 'date' ? 'Řadit: datum' : 'Řadit: částka'} active={false} onPress={() => setSort((s) => (s === 'date' ? 'amount' : 'date'))} />
           <Chip label={direction === 'desc' ? '↓' : '↑'} active={false} onPress={() => setDirection((d) => (d === 'desc' ? 'asc' : 'desc'))} />
           <Pressable onPress={() => router.push('/(tabs)/transactions/categories')} className="ml-auto flex-row items-center gap-1 rounded-full border border-line bg-surface px-3 py-1.5 active:bg-surface-subtle">
@@ -292,26 +297,23 @@ export default function TransactionsListScreen(): React.JSX.Element {
           />
         )}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+        }}
+        onEndReachedThreshold={0.4}
         ListEmptyComponent={
           <View className="items-center py-10">
             <Text className="text-ink-muted">Žádné transakce v tomto období.</Text>
           </View>
         }
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View className="items-center py-4">
+              <ActivityIndicator color="#17647c" />
+            </View>
+          ) : null
+        }
       />
-
-      {data.totalPages > 1 ? (
-        <View className="flex-row items-center justify-between border-t border-line bg-surface px-4 py-3">
-          <Button variant="secondary" size="chip" disabled={data.page <= 1} onPress={() => setPage((current) => Math.max(1, current - 1))}>
-            Předchozí
-          </Button>
-          <Text className="text-ink-muted">
-            {data.page} / {data.totalPages}
-          </Text>
-          <Button variant="secondary" size="chip" disabled={data.page >= data.totalPages} onPress={() => setPage((current) => Math.min(data.totalPages, current + 1))}>
-            Další
-          </Button>
-        </View>
-      ) : null}
     </View>
   );
 }

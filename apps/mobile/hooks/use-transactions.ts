@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiClient, UnauthorizedError } from '../lib/api-client';
 import type { TransactionCategory, TransactionRow, TransactionsListResponse } from '../lib/response-types';
@@ -60,6 +60,39 @@ export function useTransactionsList(params: TransactionsListParams) {
           },
         })
         .then((response) => unwrap<TransactionsListResponse>(response, 'Nepodařilo se načíst transakce')),
+  });
+}
+
+/**
+ * Same list endpoint as useTransactionsList, but paged with useInfiniteQuery
+ * for the transactions/index.tsx screen's infinite-scroll — the endpoint's
+ * aggregate fields (income/expenses/balance/categories/accounts/period)
+ * are computed over the whole filtered range regardless of page, so only
+ * `transactions` itself needs accumulating across pages; every other field
+ * is read off the most recently fetched page.
+ */
+export function useInfiniteTransactionsList(params: Omit<TransactionsListParams, 'page'>) {
+  return useInfiniteQuery({
+    queryKey: [TRANSACTIONS_KEY, 'infinite-list', params],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      apiClient.transactions
+        .$get({
+          query: {
+            period: params.period ?? '',
+            page: String(pageParam),
+            accountId: params.accountId ?? '',
+            categoryId: params.categoryId ?? '',
+            uncategorized: params.uncategorized ? '1' : '',
+            shared: params.shared ? '1' : '',
+            q: params.q ?? '',
+            sort: params.sort ?? '',
+            direction: params.direction ?? '',
+            transfer: params.transfer ?? '',
+          },
+        })
+        .then((response) => unwrap<TransactionsListResponse>(response, 'Nepodařilo se načíst transakce')),
+    getNextPageParam: (lastPage) => (lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined),
   });
 }
 
