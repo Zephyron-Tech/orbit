@@ -1,7 +1,10 @@
 import { CalendarBlankIcon, EnvelopeSimpleIcon, FingerprintIcon, LockKeyIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { Button } from '../../../components/button';
+import { Switch } from '../../../components/switch';
+import { TextField } from '../../../components/text-field';
 import { useChangeEmail, useChangePassword, useSettings, useUpdateReportingStartMonth } from '../../../hooks/use-settings';
 import { useAuth } from '../../../lib/auth-context';
 import { isBiometricAuthAvailable, isBiometricLockEnabled, promptBiometricUnlock, setBiometricLockEnabled } from '../../../lib/biometric-auth';
@@ -90,41 +93,34 @@ export default function SettingsScreen(): React.JSX.Element {
     <ScrollView className="flex-1 bg-canvas" contentContainerClassName="gap-6 p-4">
       <View className="gap-2 rounded-xl border border-line bg-surface p-4">
         <SectionHeading icon={<EnvelopeSimpleIcon color="#5d6c68" size={16} weight="regular" />} title="E-mail" />
-        <TextInput
-          className="rounded-lg border border-line bg-canvas px-3 py-2 text-ink"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
+        <TextField variant="email" value={email} onChangeText={setEmail} returnKeyType="done" onSubmitEditing={handleSaveEmail} />
         {emailMessage ? <Text className={changeEmail.isError ? 'text-sm text-critical' : 'text-sm text-positive'}>{emailMessage}</Text> : null}
-        <Pressable onPress={handleSaveEmail} disabled={changeEmail.isPending} className="items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
-          <Text className="font-sans-medium text-accent-foreground">{changeEmail.isPending ? 'Ukládám…' : 'Uložit e-mail'}</Text>
-        </Pressable>
+        <Button variant="primary" loading={changeEmail.isPending} onPress={handleSaveEmail}>
+          Uložit e-mail
+        </Button>
       </View>
 
       <View className="gap-2 rounded-xl border border-line bg-surface p-4">
         <SectionHeading icon={<LockKeyIcon color="#5d6c68" size={16} weight="regular" />} title="Změna hesla" />
-        <TextInput
-          className="rounded-lg border border-line bg-canvas px-3 py-2 text-ink"
+        <TextField
           placeholder="Současné heslo"
-          placeholderTextColor="#667570"
           secureTextEntry
           value={currentPassword}
           onChangeText={setCurrentPassword}
+          returnKeyType="next"
         />
-        <TextInput
-          className="rounded-lg border border-line bg-canvas px-3 py-2 text-ink"
+        <TextField
           placeholder="Nové heslo (min. 10 znaků)"
-          placeholderTextColor="#667570"
           secureTextEntry
           value={newPassword}
           onChangeText={setNewPassword}
+          returnKeyType="done"
+          onSubmitEditing={handleSavePassword}
         />
         {passwordMessage ? <Text className={changePassword.isError ? 'text-sm text-critical' : 'text-sm text-positive'}>{passwordMessage}</Text> : null}
-        <Pressable onPress={handleSavePassword} disabled={changePassword.isPending} className="items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
-          <Text className="font-sans-medium text-accent-foreground">{changePassword.isPending ? 'Ukládám…' : 'Změnit heslo'}</Text>
-        </Pressable>
+        <Button variant="primary" loading={changePassword.isPending} onPress={handleSavePassword}>
+          Změnit heslo
+        </Button>
       </View>
 
       <View className="gap-2 rounded-xl border border-line bg-surface p-4">
@@ -152,7 +148,7 @@ export default function SettingsScreen(): React.JSX.Element {
         <View className="gap-2 rounded-xl border border-line bg-surface p-4">
           <View className="flex-row items-center justify-between">
             <SectionHeading icon={<FingerprintIcon color="#5d6c68" size={16} weight="regular" />} title="Face ID / Touch ID" />
-            <Switch value={biometricEnabled} onValueChange={(next) => void handleToggleBiometric(next)} trackColor={{ false: '#d8e0dd', true: '#17647c' }} />
+            <Switch value={biometricEnabled} onValueChange={(next) => void handleToggleBiometric(next)} />
           </View>
           <Text className="text-xs text-ink-faint">Appka bude při otevření vyžadovat biometrické ověření místo automatického přihlášení.</Text>
           {biometricMessage ? <Text className="text-sm text-critical">{biometricMessage}</Text> : null}

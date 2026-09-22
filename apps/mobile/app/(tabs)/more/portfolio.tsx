@@ -1,6 +1,7 @@
 import { ArrowsClockwiseIcon, TrendDownIcon, TrendUpIcon } from 'phosphor-react-native';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
 
+import { Button } from '../../../components/button';
 import { LineChart } from '../../../components/line-chart';
 import { usePortfolio, useRefreshPortfolio } from '../../../hooks/use-portfolio';
 import { formatMoney } from '../../../lib/format-money';
@@ -50,10 +51,9 @@ export default function PortfolioScreen(): React.JSX.Element {
       contentContainerClassName="gap-4 p-4"
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
     >
-      <Pressable onPress={() => refresh.mutate()} disabled={refresh.isPending} className="flex-row items-center justify-center gap-2 rounded-lg bg-accent py-3 active:bg-accent-hover">
-        <ArrowsClockwiseIcon color="#f8fcfd" size={18} weight="regular" />
-        <Text className="font-sans-medium text-accent-foreground">{refresh.isPending ? 'Synchronizuji…' : 'Obnovit'}</Text>
-      </Pressable>
+      <Button variant="primary" icon={ArrowsClockwiseIcon} loading={refresh.isPending} onPress={() => refresh.mutate()}>
+        Obnovit
+      </Button>
 
       {refresh.isError ? <Text className="text-sm text-critical">{refresh.error instanceof Error ? refresh.error.message : 'Synchronizace selhala'}</Text> : null}
 
