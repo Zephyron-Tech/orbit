@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../../components/button';
+import { DateField } from '../../../../components/date-field';
 import { Switch } from '../../../../components/switch';
 import { TextField } from '../../../../components/text-field';
 import {
@@ -42,8 +43,8 @@ function CreditDebtForm({
         <TextField variant="money" value={debt} onChangeText={setDebt} placeholder="5000" returnKeyType="done" />
       </View>
       <View>
-        <Text className="mb-1 text-xs font-sans-medium text-ink-muted">Platný k datu (RRRR-MM-DD)</Text>
-        <TextField value={asOf} onChangeText={setAsOf} placeholder="2026-01-01" returnKeyType="done" />
+        <Text className="mb-1 text-xs font-sans-medium text-ink-muted">Platný k datu</Text>
+        <DateField value={asOf} onChange={setAsOf} />
       </View>
       <View className="flex-row gap-2">
         <Button variant="secondary" className="flex-1" disabled={disabled} onPress={onCancel}>

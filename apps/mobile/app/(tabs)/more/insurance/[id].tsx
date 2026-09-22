@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../../components/button';
+import { DateField } from '../../../../components/date-field';
 import { TextField } from '../../../../components/text-field';
 import {
   useCreatePolicy,
@@ -310,12 +311,8 @@ export default function PolicyDetailScreen(): React.JSX.Element {
       </View>
 
       <View>
-        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Datum začátku (RRRR-MM-DD)</Text>
-        <TextField
-          value={form.startDate}
-          onChangeText={(value) => setForm((current) => ({ ...current, startDate: value }))}
-          returnKeyType="done"
-        />
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Datum začátku</Text>
+        <DateField value={form.startDate} onChange={(value) => setForm((current) => ({ ...current, startDate: value }))} />
       </View>
 
       <View>
