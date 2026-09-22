@@ -2,6 +2,8 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 
+import { apiClient } from './api-client';
+
 export type PushPermissionStatus = 'granted' | 'denied' | 'undetermined';
 
 /** Push tokens don't work on simulators/emulators — guard before calling anything else here. */
@@ -46,16 +48,24 @@ export async function getExpoPushToken(): Promise<string | null> {
 
 /**
  * Fire-and-forget registration, called once per successful sign-in.
- * Logs the token for now — Step 2 will POST it to the backend instead.
+ * Never throws — a notifications failure must never affect sign-in.
  */
 export async function registerPushToken(): Promise<void> {
   try {
     const token = await getExpoPushToken();
     if (token) {
-      // Placeholder until the Step 2 backend endpoint exists.
-      console.log('[push] Expo push token:', token);
+      await apiClient.settings['push-token'].$patch({ json: { token } });
     }
   } catch {
     // Never let a notifications failure affect sign-in.
+  }
+}
+
+/** Clears the stored token, e.g. on logout, so a stale device stops receiving pushes. */
+export async function unregisterPushToken(): Promise<void> {
+  try {
+    await apiClient.settings['push-token'].$patch({ json: { token: null } });
+  } catch {
+    // Best-effort — logout must proceed regardless.
   }
 }

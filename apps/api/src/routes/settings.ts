@@ -9,6 +9,8 @@ import { requireAuth } from '@orbit-api/middleware/auth';
 
 const emailSchema = z.email().transform((value) => value.trim().toLowerCase());
 const passwordSchema = z.object({ currentPassword: z.string().min(1, 'Zadejte současné heslo'), newPassword: z.string().min(1, 'Zadejte nové heslo') });
+/** `token: null` clears the stored token (e.g. on logout) — the mobile client sends that explicitly rather than this endpoint ever guessing intent from an absent field. */
+const pushTokenSchema = z.object({ token: z.string().min(1).nullable() });
 
 /** Same shape as `lib/ui/period.ts`'s `isPeriod` on the web side — a pure "YYYY-MM" check, not worth a whole file for one regex. */
 const PERIOD_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
@@ -81,6 +83,14 @@ export const settings = new Hono<AuthEnv>()
     }
 
     await prisma.user.update({ where: { id: claims.sub }, data: { passwordHash: newHash } });
+    return c.json({ ok: true });
+  })
+  .patch('/push-token', async (c) => {
+    const claims = c.get('user');
+    const parsed = pushTokenSchema.safeParse(await c.req.json());
+    if (!parsed.success) return c.json({ error: 'Neplatný token' }, 400);
+
+    await prisma.user.update({ where: { id: claims.sub }, data: { expoPushToken: parsed.data.token } });
     return c.json({ ok: true });
   })
   .patch('/reporting-start-month', async (c) => {

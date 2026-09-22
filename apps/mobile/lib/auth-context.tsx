@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { apiClient, login as apiLogin, logout as apiLogout, tryRefresh, UnauthorizedError } from './api-client';
 import { setAccessToken } from './auth-storage';
 import { isBiometricAuthAvailable, isBiometricLockEnabled, promptBiometricUnlock } from './biometric-auth';
-import { registerPushToken } from './push-notifications';
+import { registerPushToken, unregisterPushToken } from './push-notifications';
 
 export interface SessionUser {
   id: string;
@@ -119,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
   }, []);
 
   const logout = useCallback(async () => {
+    await unregisterPushToken();
     await apiLogout();
     setAccessToken(null);
     setUser(null);
