@@ -7,7 +7,9 @@ import { Button } from '../../components/button';
 import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
 import { TextField } from '../../components/text-field';
 import { useCloseSettlement, useMarkSettled, useReopenSettlement, useSettlement } from '../../hooks/use-settlement';
+import { formatDate } from '../../lib/format-date';
 import { formatMoney } from '../../lib/format-money';
+import { formatPeriod } from '../../lib/period';
 import type { SettlementLine } from '../../lib/response-types';
 
 const MONTH_LABELS = ['leden', 'únor', 'březen', 'duben', 'květen', 'červen', 'červenec', 'srpen', 'září', 'říjen', 'listopad', 'prosinec'];
@@ -60,7 +62,7 @@ function LineRow({ line }: { line: SettlementLine }): React.JSX.Element {
         <Text className="font-sans-medium text-ink">{formatMoney(line.total, line.currency)}</Text>
       </View>
       <View className="mt-1 flex-row items-center justify-between">
-        <Text className="text-xs text-ink-muted">{line.date}</Text>
+        <Text className="text-xs text-ink-muted">{formatDate(line.date)}</Text>
         {line.kind !== 'EXPENSE' ? <Badge tone={line.kind === 'UNCONVERTED' ? 'warning' : 'neutral'}>{KIND_LABELS[line.kind]}</Badge> : null}
       </View>
       {line.myShare !== null && line.partnerShare !== null ? (
@@ -236,7 +238,7 @@ export default function SettlementScreen(): React.JSX.Element {
                   onPress={() => jumpToPeriod(entry.period)}
                   className="flex-row items-center justify-between rounded-lg border border-line bg-surface p-3 active:bg-surface-subtle"
                 >
-                  <Text className="text-ink">{entry.period}</Text>
+                  <Text className="text-ink capitalize">{formatPeriod(entry.period)}</Text>
                   <View className="flex-row items-center gap-2">
                     <Text className="font-sans-medium text-ink">{formatMoney(entry.balance)}</Text>
                     {entry.settledAt ? <Badge tone="success">zaplaceno</Badge> : null}

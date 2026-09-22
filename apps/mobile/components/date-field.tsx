@@ -3,6 +3,8 @@ import { CalendarBlankIcon } from 'phosphor-react-native';
 import { useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 
+import { formatDate } from '../lib/format-date';
+
 function parseDateOnly(value: string): Date {
   const parsed = new Date(`${value}T00:00:00`);
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
@@ -38,7 +40,7 @@ export function DateField({ value, onChange }: { value: string; onChange: (value
         className={`flex-row items-center gap-2 rounded-lg border px-3 py-2 active:bg-surface-subtle ${open ? 'border-accent' : 'border-line'}`}
       >
         <CalendarBlankIcon color="#5d6c68" size={16} weight="regular" />
-        <Text className="text-ink">{value || 'Vybrat datum'}</Text>
+        <Text className="text-ink">{value ? formatDate(value) : 'Vybrat datum'}</Text>
       </Pressable>
       {open ? (
         <DateTimePicker

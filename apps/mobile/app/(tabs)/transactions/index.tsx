@@ -15,6 +15,7 @@ import {
   type TransactionsListParams,
 } from '../../../hooks/use-transactions';
 import { useDismissUnmatchedTransfer } from '../../../hooks/use-net-worth';
+import { formatDate } from '../../../lib/format-date';
 import { formatMoney } from '../../../lib/format-money';
 import type { MerchantCategoryRecommendation, TransactionRow } from '../../../lib/response-types';
 
@@ -62,7 +63,7 @@ function TransactionListItem({
           {transaction.merchant}
         </Text>
         <Text className="text-xs text-ink-muted">
-          {transaction.date} · {transaction.accountName}
+          {formatDate(transaction.date)} · {transaction.accountName}
         </Text>
         {isUnmatchedTransfer && onDismissTransfer ? (
           <Pressable onPress={onDismissTransfer} disabled={dismissPending} className="mt-1 self-start rounded bg-warning-soft px-2 py-0.5">

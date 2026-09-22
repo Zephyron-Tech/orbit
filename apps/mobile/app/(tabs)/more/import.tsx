@@ -15,6 +15,7 @@ import {
   useRematchFuelReceipts,
   type CsvImportSummary,
 } from '../../../hooks/use-import';
+import { formatDate } from '../../../lib/format-date';
 import { formatMoney } from '../../../lib/format-money';
 import type { ImportAccountOption } from '../../../lib/response-types';
 
@@ -129,7 +130,7 @@ function CsvImportSection({ accounts }: { accounts: ImportAccountOption[] }): Re
                       {row.merchant ?? '—'}
                     </Text>
                     <Text className="text-xs text-ink-muted">
-                      {row.date}
+                      {formatDate(row.date)}
                       {row.duplicate ? ' · duplicitní' : ''}
                       {row.internalTransfer ? ' · vlastní převod' : ''}
                     </Text>

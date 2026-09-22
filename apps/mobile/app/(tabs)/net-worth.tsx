@@ -6,6 +6,7 @@ import { Badge } from '../../components/badge';
 import { Button } from '../../components/button';
 import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
 import { useDismissUnmatchedTransfer, useNetWorth } from '../../hooks/use-net-worth';
+import { formatDate } from '../../lib/format-date';
 import { formatMoney } from '../../lib/format-money';
 import type { NetWorthCardAccount } from '../../lib/response-types';
 
@@ -195,7 +196,7 @@ export default function NetWorthScreen(): React.JSX.Element {
               <View className="flex-row items-center justify-between">
                 <View className="flex-1 pr-3">
                   <Text className="font-sans-semibold text-ink">{transfer.accountName}</Text>
-                  <Text className="text-xs text-ink-muted">{transfer.date.slice(0, 10)} · {transfer.merchant}</Text>
+                  <Text className="text-xs text-ink-muted">{formatDate(transfer.date)} · {transfer.merchant}</Text>
                 </View>
                 <Text className="text-ink">{transfer.amount.toLocaleString('cs-CZ')} {transfer.currency}</Text>
               </View>

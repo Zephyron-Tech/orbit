@@ -3,6 +3,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { Button } from '../../../../components/button';
 import { ListSkeleton } from '../../../../components/skeleton';
 import { useConfirmCreditPayoffFromChecking, useConfirmCreditRepayment, useCreditRepaymentCandidates } from '../../../../hooks/use-accounts';
+import { formatDate } from '../../../../lib/format-date';
 import { formatMoney } from '../../../../lib/format-money';
 import type { CreditRepaymentCandidate } from '../../../../lib/response-types';
 
@@ -53,7 +54,7 @@ export default function CreditRepaymentScreen(): React.JSX.Element {
         data.map((candidate) => (
           <View key={candidate.sourceTransactionId} className="gap-2 rounded-xl border border-line bg-surface p-4">
             <Text className="text-sm text-ink-muted">
-              {candidate.date} · {candidate.sourceAccountName} →{' '}
+              {formatDate(candidate.date)} · {candidate.sourceAccountName} →{' '}
               {candidate.matchedBy === 'VARIABLE_SYMBOL' ? candidate.creditAccountName : 'kreditní karta'}
             </Text>
             <Text className="text-base font-sans-semibold text-ink">{formatMoney(candidate.amount, 'CZK')}</Text>

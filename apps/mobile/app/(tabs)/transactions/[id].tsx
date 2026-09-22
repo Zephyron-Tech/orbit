@@ -17,6 +17,7 @@ import {
   useUpdateTransaction,
 } from '../../../hooks/use-transactions';
 import type { SplitLineInput } from '../../../hooks/use-transactions';
+import { formatDate } from '../../../lib/format-date';
 import { formatMoney } from '../../../lib/format-money';
 
 /** Dynamic add/remove-line split editor, 2–20 lines (SPLIT_MIN_LINES/SPLIT_MAX_LINES mirror the API's own bound). */
@@ -155,7 +156,7 @@ export default function TransactionDetailScreen(): React.JSX.Element {
     <ScrollView className="flex-1 bg-canvas" contentContainerClassName="p-4">
       <Text className="font-sans-semibold text-xl text-ink">{transaction.merchant}</Text>
       <Text className="mt-1 text-sm text-ink-muted">
-        {transaction.date} · {transaction.accountName}
+        {formatDate(transaction.date)} · {transaction.accountName}
       </Text>
       <Text className={`font-sans-semibold mt-2 text-2xl ${isExpense ? 'text-ink' : 'text-positive'}`}>
         {formatMoney(transaction.amount, transaction.currency)}
