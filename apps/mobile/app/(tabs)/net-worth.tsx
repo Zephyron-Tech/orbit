@@ -166,7 +166,10 @@ export default function NetWorthScreen(): React.JSX.Element {
           const TypeIcon = TYPE_ICON[account.type];
           return (
             <View key={account.id} className="overflow-hidden rounded-lg border border-line bg-surface">
-              <Pressable onPress={() => setExpandedId(isOpen ? null : account.id)} className="flex-row items-center gap-3 p-3 active:bg-surface-subtle">
+              <Pressable
+                onPress={() => { haptics.tapLight(); setExpandedId(isOpen ? null : account.id); }}
+                className="flex-row items-center gap-3 p-3 active:bg-surface-subtle"
+              >
                 <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
                   <TypeIcon color="#17647c" size={20} weight="regular" />
                 </View>

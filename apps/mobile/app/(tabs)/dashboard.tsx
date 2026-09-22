@@ -79,7 +79,7 @@ export default function DashboardScreen(): React.JSX.Element {
       {/* Period picker */}
       <View className="flex-row items-center justify-between">
         <Pressable
-          onPress={() => canGoBack && setPeriod(offsetPeriod(currentKey, -1))}
+          onPress={() => canGoBack && (haptics.tapLight(), setPeriod(offsetPeriod(currentKey, -1)))}
           disabled={!canGoBack}
           hitSlop={8}
           className={`rounded-lg border border-line bg-surface px-3 py-2 active:bg-surface-subtle ${canGoBack ? '' : 'opacity-30'}`}
@@ -88,7 +88,7 @@ export default function DashboardScreen(): React.JSX.Element {
         </Pressable>
         <Text className="font-sans-medium text-base capitalize text-ink">{formatPeriod(currentKey)}</Text>
         <Pressable
-          onPress={() => canGoForward && setPeriod(offsetPeriod(currentKey, 1))}
+          onPress={() => canGoForward && (haptics.tapLight(), setPeriod(offsetPeriod(currentKey, 1)))}
           disabled={!canGoForward}
           hitSlop={8}
           className={`rounded-lg border border-line bg-surface px-3 py-2 active:bg-surface-subtle ${canGoForward ? '' : 'opacity-30'}`}

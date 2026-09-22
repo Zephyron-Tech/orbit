@@ -119,13 +119,19 @@ export default function SettlementScreen(): React.JSX.Element {
   return (
     <View className="flex-1 bg-canvas">
       <View className="flex-row items-center justify-between border-b border-line bg-surface px-4 py-3">
-        <Pressable onPress={() => setPeriod((current) => shiftMonth(current.year, current.month, -1))} className="rounded-lg px-3 py-1 active:bg-surface-subtle">
+        <Pressable
+          onPress={() => { haptics.tapLight(); setPeriod((current) => shiftMonth(current.year, current.month, -1)); }}
+          className="rounded-lg px-3 py-1 active:bg-surface-subtle"
+        >
           <Text className="text-lg text-ink">‹</Text>
         </Pressable>
-        <Pressable onPress={() => setJumpMenuOpen(true)}>
+        <Pressable onPress={() => { haptics.tapLight(); setJumpMenuOpen(true); }}>
           <Text className="font-sans-medium text-ink underline decoration-line-strong">{periodLabel(period.year, period.month)}</Text>
         </Pressable>
-        <Pressable onPress={() => setPeriod((current) => shiftMonth(current.year, current.month, 1))} className="rounded-lg px-3 py-1 active:bg-surface-subtle">
+        <Pressable
+          onPress={() => { haptics.tapLight(); setPeriod((current) => shiftMonth(current.year, current.month, 1)); }}
+          className="rounded-lg px-3 py-1 active:bg-surface-subtle"
+        >
           <Text className="text-lg text-ink">›</Text>
         </Pressable>
       </View>
