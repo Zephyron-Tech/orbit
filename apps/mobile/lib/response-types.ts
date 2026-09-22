@@ -497,10 +497,20 @@ export interface ImportRowPreview {
 // Fuel
 // ---------------------------------------------------------------------------
 
+export interface FuelMonthlyPurchase {
+  id: string;
+  purchasedAt: string;
+  amountCzk: string;
+  quantityLiters: string;
+  stationName: string;
+  missingReceipt: boolean;
+}
+
 export interface FuelMonthlyRow {
   month: string;
   totalCzk: string;
   liters: string;
+  purchases: FuelMonthlyPurchase[];
 }
 
 export interface FuelReceiptRow {

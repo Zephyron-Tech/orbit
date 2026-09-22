@@ -11,7 +11,19 @@ export const fuel = new Hono<AuthEnv>()
     return c.json({
       overview: {
         ...overview,
-        monthly: overview.monthly.map((row) => ({ month: row.month, totalCzk: row.totalCzk.toFixed(2), liters: row.liters.toFixed(3) })),
+        monthly: overview.monthly.map((row) => ({
+          month: row.month,
+          totalCzk: row.totalCzk.toFixed(2),
+          liters: row.liters.toFixed(3),
+          purchases: row.purchases.map((purchase) => ({
+            id: purchase.id,
+            purchasedAt: purchase.purchasedAt.toISOString(),
+            amountCzk: purchase.amountCzk.toFixed(2),
+            quantityLiters: purchase.quantityLiters.toFixed(3),
+            stationName: purchase.stationName,
+            missingReceipt: purchase.missingReceipt,
+          })),
+        })),
       },
       receipts: receipts.map((receipt) => ({ ...receipt, purchasedAt: receipt.purchasedAt.toISOString() })),
     });

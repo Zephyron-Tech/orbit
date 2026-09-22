@@ -31,9 +31,22 @@ const ZERO = new Prisma.Decimal(0);
 export const FUEL_DATA_CUTOFF = new Date('2026-08-01T00:00:00.000Z');
 
 export interface FuelPurchaseAmount {
+  id: string;
   purchasedAt: Date;
   amountCzk: Prisma.Decimal;
   quantityLiters: Prisma.Decimal;
+  stationName: string;
+  /** Whether any FuelReceipt has been matched to this purchase — the caller (fuel-service.ts) computes this from FuelReceipt.purchaseId, since this file stays pure/DB-free. */
+  hasReceipt: boolean;
+}
+
+export interface MonthlyFuelPurchase {
+  id: string;
+  purchasedAt: Date;
+  amountCzk: Prisma.Decimal;
+  quantityLiters: Prisma.Decimal;
+  stationName: string;
+  missingReceipt: boolean;
 }
 
 export interface MonthlyFuelSpend {
@@ -41,21 +54,35 @@ export interface MonthlyFuelSpend {
   month: string;
   totalCzk: Prisma.Decimal;
   liters: Prisma.Decimal;
+  purchases: MonthlyFuelPurchase[];
 }
 
 export function monthlyFuelSpend(purchases: readonly FuelPurchaseAmount[]): MonthlyFuelSpend[] {
-  const byMonth = new Map<string, { totalCzk: Prisma.Decimal; liters: Prisma.Decimal }>();
+  const byMonth = new Map<string, { totalCzk: Prisma.Decimal; liters: Prisma.Decimal; purchases: MonthlyFuelPurchase[] }>();
 
   for (const purchase of purchases) {
     const month = purchase.purchasedAt.toISOString().slice(0, 7);
-    const existing = byMonth.get(month) ?? { totalCzk: ZERO, liters: ZERO };
+    const existing = byMonth.get(month) ?? { totalCzk: ZERO, liters: ZERO, purchases: [] };
+
+    existing.purchases.push({
+      id: purchase.id,
+      purchasedAt: purchase.purchasedAt,
+      amountCzk: purchase.amountCzk,
+      quantityLiters: purchase.quantityLiters,
+      stationName: purchase.stationName,
+      missingReceipt: !purchase.hasReceipt,
+    });
 
     byMonth.set(month, {
       totalCzk: existing.totalCzk.plus(purchase.amountCzk),
       liters: existing.liters.plus(purchase.quantityLiters),
+      purchases: existing.purchases,
     });
   }
 
+  // Oldest first — apps/web's FuelManager relies on this order (reads
+  // monthly[monthly.length - 1] for "latest" and reverses client-side for
+  // display), so keep it and let each consumer order for display itself.
   return [...byMonth.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, totals]) => ({ month, ...totals }));

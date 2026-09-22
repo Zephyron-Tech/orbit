@@ -1,12 +1,18 @@
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { CaretDownIcon, WarningCircleIcon } from 'phosphor-react-native';
+import { useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../../components/badge';
 import { ListSkeleton, SkeletonCard } from '../../../components/skeleton';
 import { useFuel } from '../../../hooks/use-fuel';
+import { formatDate } from '../../../lib/format-date';
 import { formatMoney } from '../../../lib/format-money';
+import { formatPeriod } from '../../../lib/period';
+import type { FuelMonthlyRow } from '../../../lib/response-types';
 
 export default function FuelScreen(): React.JSX.Element {
   const { data, isPending, isError, error, refetch, isRefetching } = useFuel();
+  const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
 
   if (isPending) {
     return (
@@ -25,6 +31,10 @@ export default function FuelScreen(): React.JSX.Element {
     );
   }
 
+  // API returns oldest-first (apps/web's FuelManager relies on that order) —
+  // newest-first is what makes sense to read on mobile, so reverse here.
+  const monthsNewestFirst: FuelMonthlyRow[] = [...data.overview.monthly].reverse();
+
   return (
     <ScrollView
       className="flex-1 bg-canvas"
@@ -32,39 +42,67 @@ export default function FuelScreen(): React.JSX.Element {
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor="#17647c" />}
     >
       <View className="gap-2">
-        <Text className="font-sans-semibold text-base text-ink">Poslední měsíce</Text>
-        {data.overview.monthly.map((row) => (
-          <View key={row.month} className="flex-row items-center justify-between rounded-lg border border-line bg-surface p-3">
-            <Text className="text-ink">{row.month}</Text>
-            <Text className="font-sans-medium text-ink">
-              {formatMoney(row.totalCzk)} · {row.liters} l
-            </Text>
-          </View>
-        ))}
-      </View>
-
-      <View className="gap-2">
-        <Text className="font-sans-semibold text-base text-ink">Poslední účtenky</Text>
-        {data.receipts.length === 0 ? (
-          <Text className="text-ink-muted">Žádné účtenky.</Text>
+        <Text className="font-sans-semibold text-base text-ink">Přehled podle měsíce</Text>
+        {monthsNewestFirst.length === 0 ? (
+          <Text className="text-ink-muted">Zatím žádná data.</Text>
         ) : (
-          data.receipts.map((receipt) => (
-            <View key={receipt.id} className="rounded-lg border border-line bg-surface p-3">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-1 pr-3">
-                  <Text className="text-ink" numberOfLines={1}>
-                    {receipt.stationName ?? 'Neznámá stanice'}
+          monthsNewestFirst.map((row) => {
+            const isOpen = expandedMonth === row.month;
+            const missingCount = row.purchases.filter((p) => p.missingReceipt).length;
+            return (
+              <View key={row.month} className="overflow-hidden rounded-lg border border-line bg-surface">
+                <Pressable
+                  onPress={() => setExpandedMonth(isOpen ? null : row.month)}
+                  className="flex-row items-center justify-between p-3 active:bg-surface-subtle"
+                >
+                  <View className="flex-1 pr-2">
+                    <Text className="font-sans-medium capitalize text-ink">{formatPeriod(row.month)}</Text>
+                    {missingCount > 0 ? (
+                      <View className="mt-1 flex-row items-center gap-1 self-start">
+                        <Badge tone="warning">{`${missingCount}× chybí účtenka`}</Badge>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text className="font-sans-medium text-ink">
+                    {formatMoney(row.totalCzk)} · {row.liters} l
                   </Text>
-                  <Text className="text-xs text-ink-muted">{new Date(receipt.purchasedAt).toLocaleDateString('cs-CZ')}</Text>
-                </View>
-                <Text className="font-sans-medium text-ink">{formatMoney(receipt.totalAfterDiscount)}</Text>
+                  <CaretDownIcon
+                    color="#5d6c68"
+                    size={16}
+                    weight="regular"
+                    style={[{ marginLeft: 8 }, isOpen ? { transform: [{ rotate: '180deg' }] } : undefined]}
+                  />
+                </Pressable>
+                {isOpen ? (
+                  <View className="border-t border-line bg-surface-subtle">
+                    {row.purchases.length === 0 ? (
+                      <Text className="p-3 text-sm text-ink-muted">Žádné nákupy.</Text>
+                    ) : (
+                      row.purchases.map((purchase, index) => (
+                        <View
+                          key={purchase.id}
+                          className={`flex-row items-center justify-between p-3 ${index < row.purchases.length - 1 ? 'border-b border-line' : ''}`}
+                        >
+                          <View className="flex-1 pr-3">
+                            <View className="flex-row items-center gap-1.5">
+                              <Text className="text-sm text-ink" numberOfLines={1}>
+                                {purchase.stationName}
+                              </Text>
+                              {purchase.missingReceipt ? <WarningCircleIcon color="#8a5a13" size={14} weight="fill" /> : null}
+                            </View>
+                            <Text className="text-xs text-ink-muted">
+                              {formatDate(purchase.purchasedAt)} · {purchase.quantityLiters} l
+                            </Text>
+                          </View>
+                          <Text className="text-sm font-sans-medium text-ink">{formatMoney(purchase.amountCzk)}</Text>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                ) : null}
               </View>
-              <View className="mt-1.5 flex-row items-center justify-between">
-                {receipt.matched ? <Badge tone="success">Spárováno</Badge> : <Badge tone="warning">Čeká</Badge>}
-                {Number(receipt.discountAmount) > 0 ? <Text className="text-xs text-positive">sleva {formatMoney(receipt.discountAmount)}</Text> : null}
-              </View>
-            </View>
-          ))
+            );
+          })
         )}
       </View>
 
