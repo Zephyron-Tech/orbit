@@ -1,8 +1,10 @@
+import { CheckCircleIcon, XCircleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
 import { Switch } from '../../../components/switch';
+import { SwipeableRow } from '../../../components/swipeable-row';
 import { TextField } from '../../../components/text-field';
 import { useCreateCategory, useTransactionsList, useUpdateCategory } from '../../../hooks/use-transactions';
 import type { TransactionCategory } from '../../../lib/response-types';
@@ -48,15 +50,19 @@ function CategoryRow({ category }: { category: TransactionCategory }): React.JSX
   }
 
   return (
-    <Pressable onPress={() => setEditing(true)} className="flex-row items-center justify-between border-b border-line bg-surface px-4 py-3 active:bg-surface-subtle">
-      <View className="flex-1">
-        <Text className={category.isActive ? 'font-sans-medium text-ink' : 'font-sans-medium text-ink-faint'}>{category.name}</Text>
-        <Text className="text-xs text-ink-muted">{category.transactionCount} transakcí{category.defaultIsShared ? ' · sdílená' : ''}</Text>
-      </View>
-      <Button variant="secondary" size="chip" onPress={handleToggleActive}>
-        {category.isActive ? 'Deaktivovat' : 'Aktivovat'}
-      </Button>
-    </Pressable>
+    <SwipeableRow
+      actionLabel={category.isActive ? 'Deaktivovat' : 'Aktivovat'}
+      actionIcon={category.isActive ? XCircleIcon : CheckCircleIcon}
+      actionTone={category.isActive ? 'critical' : 'accent'}
+      onAction={handleToggleActive}
+    >
+      <Pressable onPress={() => setEditing(true)} className="flex-row items-center justify-between border-b border-line bg-surface px-4 py-3 active:bg-surface-subtle">
+        <View className="flex-1">
+          <Text className={category.isActive ? 'font-sans-medium text-ink' : 'font-sans-medium text-ink-faint'}>{category.name}</Text>
+          <Text className="text-xs text-ink-muted">{category.transactionCount} transakcí{category.defaultIsShared ? ' · sdílená' : ''}</Text>
+        </View>
+      </Pressable>
+    </SwipeableRow>
   );
 }
 

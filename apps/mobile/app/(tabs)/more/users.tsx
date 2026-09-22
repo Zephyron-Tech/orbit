@@ -1,10 +1,11 @@
-import { EnvelopeSimpleIcon, LinkSimpleIcon, UserCircleIcon } from 'phosphor-react-native';
+import { EnvelopeSimpleIcon, LinkSimpleIcon, TrashIcon, UserCircleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../../components/badge';
 import { Button } from '../../../components/button';
 import { Switch } from '../../../components/switch';
+import { SwipeableRow } from '../../../components/swipeable-row';
 import { TextField } from '../../../components/text-field';
 import { useCreateInvite, useInvitesList, useRevokeInvite, useUpdateHouseholdUser, useUsers } from '../../../hooks/use-users';
 import type { HouseholdUserRow } from '../../../lib/response-types';
@@ -50,6 +51,13 @@ export default function UsersScreen(): React.JSX.Element {
       { id: input.id, name: input.name, email: input.email, role: input.role, isActive: input.isActive },
       { onError: (mutationError) => Alert.alert('Nepodařilo se uložit', mutationError instanceof Error ? mutationError.message : 'Zkuste to znovu.') },
     );
+  }
+
+  function handleRevoke(invite: { id: string; email: string }): void {
+    Alert.alert('Zrušit pozvánku?', invite.email, [
+      { text: 'Zrušit', style: 'cancel' },
+      { text: 'Zrušit pozvánku', style: 'destructive', onPress: () => revokeInvite.mutate(invite.id) },
+    ]);
   }
 
   function handleCreateInvite(): void {
@@ -113,27 +121,16 @@ export default function UsersScreen(): React.JSX.Element {
           <Text className="px-4 pb-2 pt-6 font-sans-semibold text-base text-ink">Otevřené pozvánky</Text>
           {openInvites.length ? (
             openInvites.map((invite) => (
-              <View key={invite.id} className="flex-row items-center gap-3 border-b border-line bg-surface px-4 py-3">
-                <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
-                  <EnvelopeSimpleIcon color="#17647c" size={18} weight="regular" />
+              <SwipeableRow key={invite.id} actionLabel="Zrušit" actionIcon={TrashIcon} actionTone="critical" onAction={() => handleRevoke(invite)}>
+                <View className="flex-row items-center gap-3 border-b border-line bg-surface px-4 py-3">
+                  <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
+                    <EnvelopeSimpleIcon color="#17647c" size={18} weight="regular" />
+                  </View>
+                  <Text className="flex-1 pr-3 text-ink" numberOfLines={1}>
+                    {invite.email}
+                  </Text>
                 </View>
-                <Text className="flex-1 pr-3 text-ink" numberOfLines={1}>
-                  {invite.email}
-                </Text>
-                <Button
-                  variant="destructive"
-                  size="chip"
-                  loading={revokeInvite.isPending}
-                  onPress={() =>
-                    Alert.alert('Zrušit pozvánku?', invite.email, [
-                      { text: 'Zrušit', style: 'cancel' },
-                      { text: 'Zrušit pozvánku', style: 'destructive', onPress: () => revokeInvite.mutate(invite.id) },
-                    ])
-                  }
-                >
-                  Zrušit
-                </Button>
-              </View>
+              </SwipeableRow>
             ))
           ) : (
             <Text className="px-4 pb-4 text-ink-muted">Žádné otevřené pozvánky.</Text>

@@ -1,9 +1,10 @@
-import { PlusIcon } from 'phosphor-react-native';
+import { PlusIcon, TrashIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
 import { Switch } from '../../../components/switch';
+import { SwipeableRow } from '../../../components/swipeable-row';
 import { TextField } from '../../../components/text-field';
 import {
   useCreateIncomeSourceRule,
@@ -76,18 +77,17 @@ function ListRow({
   }
 
   return (
-    <Pressable onPress={onEdit} className="flex-row items-center justify-between border-b border-line bg-surface px-4 py-3 active:bg-surface-subtle">
-      <View className="flex-1 pr-3">
-        <Text className="font-sans-semibold text-ink" numberOfLines={1}>
-          {title}
-        </Text>
-        <Text className="text-xs text-ink-muted">{subtitle}</Text>
-      </View>
-      <Switch value={isActive} onValueChange={onToggleActive} disabled={togglePending} />
-      <Button variant="destructive" size="chip" className="ml-3" onPress={handleDeletePress}>
-        Smazat
-      </Button>
-    </Pressable>
+    <SwipeableRow actionLabel="Smazat" actionIcon={TrashIcon} actionTone="critical" onAction={handleDeletePress}>
+      <Pressable onPress={onEdit} className="flex-row items-center justify-between border-b border-line bg-surface px-4 py-3 active:bg-surface-subtle">
+        <View className="flex-1 pr-3">
+          <Text className="font-sans-semibold text-ink" numberOfLines={1}>
+            {title}
+          </Text>
+          <Text className="text-xs text-ink-muted">{subtitle}</Text>
+        </View>
+        <Switch value={isActive} onValueChange={onToggleActive} disabled={togglePending} />
+      </Pressable>
+    </SwipeableRow>
   );
 }
 
