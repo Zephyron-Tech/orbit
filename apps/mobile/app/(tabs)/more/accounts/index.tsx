@@ -1,6 +1,7 @@
 import { Link, useRouter } from 'expo-router';
 import { ArchiveIcon, BankIcon, PlusIcon } from 'phosphor-react-native';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
 import { Badge } from '../../../../components/badge';
 import { Button } from '../../../../components/button';
@@ -115,7 +116,9 @@ export default function AccountsListScreen(): React.JSX.Element {
         <>
           <Text className="px-4 pb-2 pt-6 font-sans-semibold text-base text-ink">Archivované</Text>
           {archived.map((account) => (
-            <AccountListItem key={account.id} account={account} onPress={() => router.push(`/(tabs)/more/accounts/${account.id}`)} />
+            <Animated.View key={account.id} entering={FadeIn.duration(200)} layout={LinearTransition.duration(200)}>
+              <AccountListItem account={account} onPress={() => router.push(`/(tabs)/more/accounts/${account.id}`)} />
+            </Animated.View>
           ))}
         </>
       ) : (

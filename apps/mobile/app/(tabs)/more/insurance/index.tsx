@@ -1,6 +1,7 @@
 import { Link, useRouter } from 'expo-router';
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon } from 'phosphor-react-native';
 import { Pressable as RNPressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
 import { Button } from '../../../../components/button';
 import { Pressable } from '../../../../components/pressable';
@@ -112,16 +113,17 @@ export default function InsuranceListScreen(): React.JSX.Element {
         </View>
       ) : (
         data.policies.map((policy, index) => (
-          <PolicyListItem
-            key={policy.id}
-            policy={policy}
-            onPress={() => router.push(`/(tabs)/more/insurance/${policy.id}`)}
-            isFirst={index === 0}
-            isLast={index === data.policies.length - 1}
-            reorderPending={reorderPolicy.isPending}
-            onMoveUp={() => reorderPolicy.mutate({ id: policy.id, direction: -1 })}
-            onMoveDown={() => reorderPolicy.mutate({ id: policy.id, direction: 1 })}
-          />
+          <Animated.View key={policy.id} entering={FadeIn.duration(200)} layout={LinearTransition.duration(200)}>
+            <PolicyListItem
+              policy={policy}
+              onPress={() => router.push(`/(tabs)/more/insurance/${policy.id}`)}
+              isFirst={index === 0}
+              isLast={index === data.policies.length - 1}
+              reorderPending={reorderPolicy.isPending}
+              onMoveUp={() => reorderPolicy.mutate({ id: policy.id, direction: -1 })}
+              onMoveDown={() => reorderPolicy.mutate({ id: policy.id, direction: 1 })}
+            />
+          </Animated.View>
         ))
       )}
 

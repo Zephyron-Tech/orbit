@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { ArrowsClockwiseIcon, CaretDownIcon, FunnelIcon, MagnifyingGlassIcon, TagIcon, XIcon } from 'phosphor-react-native';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, View } from 'react-native';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
 import { Badge } from '../../../components/badge';
 import { Button } from '../../../components/button';
@@ -24,6 +25,7 @@ import type { MerchantCategoryRecommendation, TransactionRow } from '../../../li
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }): React.JSX.Element {
   return (
+    <Animated.View layout={LinearTransition.duration(150)}>
     <Pressable
       onPress={onPress}
       accessibilityLabel={label}
@@ -33,6 +35,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
     >
       <Text className={`font-sans-medium text-sm ${active ? 'text-accent' : 'text-ink-muted'}`}>{label}</Text>
     </Pressable>
+    </Animated.View>
   );
 }
 
@@ -57,6 +60,7 @@ function TransactionListItem({
   const isUnmatchedTransfer = (transaction.kind === 'INTERNAL_TRANSFER' || transaction.kind === 'PENDING_TRANSFER') && transaction.transferCounterpartyAccount === null;
 
   return (
+    <Animated.View entering={FadeIn.duration(200)} layout={LinearTransition.duration(200)}>
     <Pressable
       onPress={selectMode ? onToggleSelect : onPress}
       onLongPress={onToggleSelect}
@@ -91,6 +95,7 @@ function TransactionListItem({
         {formatMoney(transaction.amount, transaction.currency)}
       </Text>
     </Pressable>
+    </Animated.View>
   );
 }
 
