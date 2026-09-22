@@ -73,6 +73,7 @@ export default function DashboardScreen(): React.JSX.Element {
         <Pressable
           onPress={() => canGoBack && setPeriod(offsetPeriod(currentKey, -1))}
           disabled={!canGoBack}
+          hitSlop={8}
           className={`rounded-lg border border-line bg-surface px-3 py-2 active:bg-surface-subtle ${canGoBack ? '' : 'opacity-30'}`}
         >
           <Text className="text-ink">‹</Text>
@@ -81,6 +82,7 @@ export default function DashboardScreen(): React.JSX.Element {
         <Pressable
           onPress={() => canGoForward && setPeriod(offsetPeriod(currentKey, 1))}
           disabled={!canGoForward}
+          hitSlop={8}
           className={`rounded-lg border border-line bg-surface px-3 py-2 active:bg-surface-subtle ${canGoForward ? '' : 'opacity-30'}`}
         >
           <Text className="text-ink">›</Text>
