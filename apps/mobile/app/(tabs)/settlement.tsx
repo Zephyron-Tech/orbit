@@ -4,6 +4,7 @@ import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl
 
 import { Badge } from '../../components/badge';
 import { Button } from '../../components/button';
+import { FadeInView } from '../../components/fade-in';
 import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
 import { TextField } from '../../components/text-field';
 import { useCloseSettlement, useMarkSettled, useReopenSettlement, useSettlement } from '../../hooks/use-settlement';
@@ -160,7 +161,7 @@ export default function SettlementScreen(): React.JSX.Element {
             {!data.isClosed ? <Badge tone="info">Otevřené</Badge> : data.settledAt ? <Badge tone="success">Uzavřené · zaplaceno</Badge> : <Badge tone="warning">Uzavřené · nezaplaceno</Badge>}
           </View>
 
-          <View className="rounded-lg border border-line bg-surface p-5">
+          <FadeInView className="rounded-lg border border-line bg-surface p-5">
             <View className="flex-row items-center gap-2">
               <HandshakeIcon color="#5d6c68" size={19} weight="regular" />
               <Text className="font-sans-medium text-sm text-ink-muted">{directionLabel(data.summary.direction)}</Text>
@@ -173,7 +174,7 @@ export default function SettlementScreen(): React.JSX.Element {
               {data.isClosed ? <LockKeyIcon color="#5d6c68" size={16} weight="regular" /> : <ReceiptIcon color="#5d6c68" size={16} weight="regular" />}
               <Text className="text-xs text-ink-muted">{data.summary.sharedCount} sdílených výdajů</Text>
             </View>
-          </View>
+          </FadeInView>
 
           {data.unconvertedCount > 0 ? (
             <View className="rounded-lg border border-warning/25 bg-warning-soft p-3">

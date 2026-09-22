@@ -17,6 +17,7 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 
 import { Badge } from '../../components/badge';
 import { DashboardMetric } from '../../components/dashboard-metric';
+import { FadeInView } from '../../components/fade-in';
 import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
 import { useDashboard } from '../../hooks/use-dashboard';
 import { colors } from '../../lib/colors';
@@ -97,7 +98,7 @@ export default function DashboardScreen(): React.JSX.Element {
       </View>
 
       {/* Net worth hero card */}
-      <View className="overflow-hidden rounded-lg border border-line bg-surface">
+      <FadeInView className="overflow-hidden rounded-lg border border-line bg-surface">
         <View className="p-5">
           <View className="flex-row items-start justify-between gap-3">
             <Text className="font-sans-semibold flex-1 text-xs uppercase tracking-wide text-ink-muted">
@@ -138,7 +139,7 @@ export default function DashboardScreen(): React.JSX.Element {
             </View>
           </View>
         </View>
-      </View>
+      </FadeInView>
 
       {/* Delta + ratio cards */}
       <Pressable className="rounded-lg border border-line bg-surface p-5 active:bg-surface-subtle">

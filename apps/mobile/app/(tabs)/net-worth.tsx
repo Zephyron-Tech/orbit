@@ -4,6 +4,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-
 
 import { Badge } from '../../components/badge';
 import { Button } from '../../components/button';
+import { FadeInView } from '../../components/fade-in';
 import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
 import { useDismissUnmatchedTransfer, useNetWorth } from '../../hooks/use-net-worth';
 import { colors } from '../../lib/colors';
@@ -137,7 +138,7 @@ export default function NetWorthScreen(): React.JSX.Element {
       contentContainerClassName="gap-4 p-4"
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}
     >
-      <View className="rounded-lg border border-line bg-surface p-5">
+      <FadeInView className="rounded-lg border border-line bg-surface p-5">
         <Text className="text-sm text-ink-muted">Celkové čisté jmění</Text>
         <Text className="font-sans-semibold mt-1 text-3xl text-ink">{formatMoney(String(data.totalWorth))}</Text>
         <View className="mt-4 flex-row gap-3 border-t border-line pt-3">
@@ -154,7 +155,7 @@ export default function NetWorthScreen(): React.JSX.Element {
             <Text className="font-sans-medium text-ink">{formatMoney(String(data.liabilityValue))}</Text>
           </View>
         </View>
-      </View>
+      </FadeInView>
 
       <View className="gap-2">
         <Text className="font-sans-semibold text-base text-ink">Účty</Text>
