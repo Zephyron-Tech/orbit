@@ -54,6 +54,7 @@ export function Button({
   className,
   onPress,
   haptic = true,
+  accessibilityLabel,
   ...rest
 }: {
   variant?: ButtonVariant;
@@ -71,6 +72,9 @@ export function Button({
     <Pressable
       hitSlop={HIT_SLOP}
       disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? children}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
       onPress={(event) => {
         if (haptic) (variant === 'destructive' ? haptics.tapMedium : haptics.tapLight)();
         onPress?.(event);

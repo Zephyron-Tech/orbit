@@ -8,15 +8,18 @@ import { haptics } from '../lib/haptics';
  * for both states (most call sites only set `true`, leaving the untracked
  * state at the OS default) plus a haptic tick on toggle.
  */
-export function Switch({ onValueChange, ...rest }: SwitchProps): React.JSX.Element {
+export function Switch({ onValueChange, value, ...rest }: SwitchProps): React.JSX.Element {
   return (
     <RNSwitch
       trackColor={{ false: colors.line, true: colors.accent }}
       thumbColor="#ffffff"
       ios_backgroundColor={colors.line}
-      onValueChange={(value) => {
+      value={value}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value ?? false }}
+      onValueChange={(newValue) => {
         haptics.toggle();
-        onValueChange?.(value);
+        onValueChange?.(newValue);
       }}
       {...rest}
     />
