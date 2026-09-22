@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PlusIcon, XIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
+import { Pressable } from '../../../components/pressable';
 import { FormSkeleton } from '../../../components/skeleton';
 import { Switch } from '../../../components/switch';
 import { TextField } from '../../../components/text-field';
@@ -19,6 +20,7 @@ import {
 import type { SplitLineInput } from '../../../hooks/use-transactions';
 import { formatDate } from '../../../lib/format-date';
 import { formatMoney } from '../../../lib/format-money';
+import { haptics } from '../../../lib/haptics';
 
 /** Dynamic add/remove-line split editor, 2–20 lines (SPLIT_MIN_LINES/SPLIT_MAX_LINES mirror the API's own bound). */
 function SplitPanel({ transactionId, totalAmount, onDone }: { transactionId: string; totalAmount: string; onDone: () => void }): React.JSX.Element {
@@ -44,7 +46,7 @@ function SplitPanel({ transactionId, totalAmount, onDone }: { transactionId: str
     splitTransaction.mutate(
       { parentId: transactionId, lines },
       {
-        onSuccess: onDone,
+        onSuccess: () => { haptics.notifySuccess(); onDone(); },
         onError: (mutationError) => setError(mutationError instanceof Error ? mutationError.message : 'Rozdělení se nezdařilo'),
       },
     );
@@ -64,7 +66,12 @@ function SplitPanel({ transactionId, totalAmount, onDone }: { transactionId: str
             returnKeyType="done"
           />
           {amounts.length > SPLIT_MIN_LINES ? (
-            <Pressable onPress={() => removeLine(index)} hitSlop={8} className="rounded-lg border border-line px-3 py-2 active:bg-surface-subtle">
+            <Pressable
+              onPress={() => removeLine(index)}
+              accessibilityLabel="Odebrat řádek"
+              hitSlop={8}
+              className="rounded-lg border border-line px-3 py-2 active:bg-surface-subtle"
+            >
               <XIcon color="#5d6c68" size={16} weight="regular" />
             </Pressable>
           ) : null}
@@ -173,6 +180,8 @@ export default function TransactionDetailScreen(): React.JSX.Element {
                 <Pressable
                   key={category.id}
                   onPress={() => setCategoryId(category.id)}
+                  accessibilityLabel={category.name}
+                  accessibilityState={{ selected: categoryId === category.id }}
                   className={`rounded-full border px-3 py-1.5 active:bg-surface-subtle ${categoryId === category.id ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
                 >
                   <Text className={categoryId === category.id ? 'font-sans-medium text-accent' : 'text-ink-muted'}>{category.name}</Text>
@@ -193,6 +202,8 @@ export default function TransactionDetailScreen(): React.JSX.Element {
                 <Pressable
                   key={option}
                   onPress={() => setPaidBy(option)}
+                  accessibilityLabel={option === 'ME' ? 'Já' : 'Partner'}
+                  accessibilityState={{ selected: paidBy === option }}
                   className={`rounded-full border px-3 py-1.5 active:bg-surface-subtle ${paidBy === option ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
                 >
                   <Text className={paidBy === option ? 'font-sans-medium text-accent' : 'text-ink-muted'}>{option === 'ME' ? 'Já' : 'Partner'}</Text>

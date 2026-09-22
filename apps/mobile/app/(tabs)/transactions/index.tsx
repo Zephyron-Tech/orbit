@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
 import { ArrowsClockwiseIcon, CaretDownIcon, FunnelIcon, MagnifyingGlassIcon, TagIcon, XIcon } from 'phosphor-react-native';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../../components/badge';
 import { Button } from '../../../components/button';
+import { Pressable } from '../../../components/pressable';
 import { ListSkeleton } from '../../../components/skeleton';
 import { TextField } from '../../../components/text-field';
 import {
@@ -17,12 +18,19 @@ import {
 import { useDismissUnmatchedTransfer } from '../../../hooks/use-net-worth';
 import { colors } from '../../../lib/colors';
 import { formatDate } from '../../../lib/format-date';
+import { haptics } from '../../../lib/haptics';
 import { formatMoney } from '../../../lib/format-money';
 import type { MerchantCategoryRecommendation, TransactionRow } from '../../../lib/response-types';
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }): React.JSX.Element {
   return (
-    <Pressable onPress={onPress} className={`mr-2 rounded-full border px-3 py-1.5 active:bg-surface-subtle ${active ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}>
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      className={`mr-2 rounded-full border px-3 py-1.5 active:bg-surface-subtle ${active ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
+    >
       <Text className={`font-sans-medium text-sm ${active ? 'text-accent' : 'text-ink-muted'}`}>{label}</Text>
     </Pressable>
   );
@@ -52,6 +60,8 @@ function TransactionListItem({
     <Pressable
       onPress={selectMode ? onToggleSelect : onPress}
       onLongPress={onToggleSelect}
+      accessibilityLabel={`${transaction.merchant}, ${formatMoney(transaction.amount, transaction.currency)}`}
+      accessibilityRole="button"
       className="flex-row items-center justify-between border-b border-line px-4 py-3 active:bg-surface-subtle"
     >
       {selectMode ? (
@@ -67,7 +77,12 @@ function TransactionListItem({
           {formatDate(transaction.date)} · {transaction.accountName}
         </Text>
         {isUnmatchedTransfer && onDismissTransfer ? (
-          <Pressable onPress={onDismissTransfer} disabled={dismissPending} className="mt-1 self-start rounded bg-warning-soft px-2 py-0.5">
+          <Pressable
+            onPress={onDismissTransfer}
+            disabled={dismissPending}
+            accessibilityLabel="Skrýt nespárovaný převod"
+            className="mt-1 self-start rounded bg-warning-soft px-2 py-0.5"
+          >
             <Text className="text-xs text-warning">{dismissPending ? 'Skrývám…' : 'Skrýt nespárovaný převod'}</Text>
           </Pressable>
         ) : null}
@@ -212,6 +227,8 @@ export default function TransactionsListScreen(): React.JSX.Element {
 
         <Pressable
           onPress={() => setFiltersOpen((current) => !current)}
+          accessibilityLabel="Filtry"
+          accessibilityState={{ expanded: filtersOpen }}
           className="flex-row items-center justify-between rounded-lg py-1.5 active:opacity-70"
         >
           <View className="flex-row items-center gap-2">
@@ -247,7 +264,11 @@ export default function TransactionsListScreen(): React.JSX.Element {
               <Chip label="Nespárované převody" active={transferOnly} onPress={() => { setTransferOnly((v) => !v); }} />
               <Chip label={sort === 'date' ? 'Řadit: datum' : 'Řadit: částka'} active={false} onPress={() => setSort((s) => (s === 'date' ? 'amount' : 'date'))} />
               <Chip label={direction === 'desc' ? '↓' : '↑'} active={false} onPress={() => setDirection((d) => (d === 'desc' ? 'asc' : 'desc'))} />
-              <Pressable onPress={() => router.push('/(tabs)/transactions/categories')} className="ml-auto flex-row items-center gap-1 rounded-full border border-line bg-surface px-3 py-1.5 active:bg-surface-subtle">
+              <Pressable
+                onPress={() => router.push('/(tabs)/transactions/categories')}
+                accessibilityLabel="Kategorie"
+                className="ml-auto flex-row items-center gap-1 rounded-full border border-line bg-surface px-3 py-1.5 active:bg-surface-subtle"
+              >
                 <TagIcon color="#5d6c68" size={14} weight="regular" />
                 <Text className="text-ink-muted">Kategorie</Text>
               </Pressable>
@@ -292,13 +313,18 @@ export default function TransactionsListScreen(): React.JSX.Element {
                 key={category.id}
                 onPress={() => handleBulkCategorize(category.id)}
                 disabled={selectedIds.size === 0 || bulkCategorize.isPending}
+                accessibilityLabel={category.name}
                 className="mr-2 rounded-full border border-line bg-surface px-3 py-1 active:bg-surface-subtle"
               >
                 <Text className="text-sm text-ink-muted">{category.name}</Text>
               </Pressable>
             ))}
           </ScrollView>
-          <Pressable onPress={() => { setSelectMode(false); setSelectedIds(new Set()); }} className="flex-row items-center gap-1">
+          <Pressable
+            onPress={() => { setSelectMode(false); setSelectedIds(new Set()); }}
+            accessibilityLabel="Zrušit výběr"
+            className="flex-row items-center gap-1"
+          >
             <XIcon color="#5d6c68" size={14} weight="regular" />
             <Text className="text-sm text-ink-muted">Zrušit</Text>
           </Pressable>
@@ -319,7 +345,9 @@ export default function TransactionsListScreen(): React.JSX.Element {
             dismissPending={dismissUnmatchedTransfer.isPending}
           />
         )}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.accent} />}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />
+        }
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
         }}

@@ -56,6 +56,7 @@ export default function UnlockScreen(): React.JSX.Element {
   }, []);
 
   async function handleUsePasswordInstead(): Promise<void> {
+    haptics.tapLight();
     await logout();
     router.replace('/(auth)/login');
   }

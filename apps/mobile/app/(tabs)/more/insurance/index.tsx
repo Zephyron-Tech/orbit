@@ -1,12 +1,14 @@
 import { Link, useRouter } from 'expo-router';
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon } from 'phosphor-react-native';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable as RNPressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../../components/button';
+import { Pressable } from '../../../../components/pressable';
 import { ListSkeleton } from '../../../../components/skeleton';
 import { useInsuranceList, useReorderPolicy } from '../../../../hooks/use-insurance';
 import { colors } from '../../../../lib/colors';
 import { formatMoney } from '../../../../lib/format-money';
+import { haptics } from '../../../../lib/haptics';
 import type { InsurancePolicyRow } from '../../../../lib/response-types';
 
 const STATUS_LABELS: Record<InsurancePolicyRow['status'], string> = {
@@ -35,7 +37,7 @@ function PolicyListItem({
 }): React.JSX.Element {
   return (
     <View className="flex-row items-center border-b border-line bg-surface px-4 py-3">
-      <Pressable onPress={onPress} className="flex-1 active:opacity-70">
+      <RNPressable onPress={onPress} className="flex-1 active:opacity-70">
         <View className="flex-row items-center justify-between">
           <Text className="font-sans-semibold text-ink">{policy.vehicleName}</Text>
           <Text className="font-sans-medium text-ink">{formatMoney(policy.annualCost)}</Text>
@@ -44,13 +46,25 @@ function PolicyListItem({
           {policy.licensePlate} · {policy.policyNumber}
         </Text>
         <Text className="mt-1 text-xs text-ink-muted">{STATUS_LABELS[policy.status]}</Text>
-      </Pressable>
+      </RNPressable>
       <View className="flex-row gap-1">
-        <Pressable onPress={onMoveUp} disabled={isFirst || reorderPending} className="rounded-lg p-2 active:bg-surface-subtle" hitSlop={8}>
-          <ArrowUpIcon color={isFirst ? '#bdcac6' : '#5d6c68'} size={16} weight="regular" />
+        <Pressable
+          onPress={onMoveUp}
+          disabled={isFirst || reorderPending}
+          accessibilityLabel="Posunout nahoru"
+          className="rounded-lg p-2 active:bg-surface-subtle"
+          hitSlop={8}
+        >
+          <ArrowUpIcon color={isFirst ? colors.lineStrong : colors.inkMuted} size={16} weight="regular" />
         </Pressable>
-        <Pressable onPress={onMoveDown} disabled={isLast || reorderPending} className="rounded-lg p-2 active:bg-surface-subtle" hitSlop={8}>
-          <ArrowDownIcon color={isLast ? '#bdcac6' : '#5d6c68'} size={16} weight="regular" />
+        <Pressable
+          onPress={onMoveDown}
+          disabled={isLast || reorderPending}
+          accessibilityLabel="Posunout dolů"
+          className="rounded-lg p-2 active:bg-surface-subtle"
+          hitSlop={8}
+        >
+          <ArrowDownIcon color={isLast ? colors.lineStrong : colors.inkMuted} size={16} weight="regular" />
         </Pressable>
       </View>
     </View>
@@ -81,7 +95,9 @@ export default function InsuranceListScreen(): React.JSX.Element {
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.accent} />}
+      refreshControl={
+        <RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />
+      }
     >
       {data.policies.length > 0 ? (
         <View className="m-4 rounded-lg border border-line bg-surface p-4">

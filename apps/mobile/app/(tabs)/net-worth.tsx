@@ -7,6 +7,7 @@ import { Button } from '../../components/button';
 import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
 import { useDismissUnmatchedTransfer, useNetWorth } from '../../hooks/use-net-worth';
 import { colors } from '../../lib/colors';
+import { haptics } from '../../lib/haptics';
 import { formatDate } from '../../lib/format-date';
 import { formatMoney } from '../../lib/format-money';
 import type { NetWorthCardAccount } from '../../lib/response-types';
@@ -134,7 +135,7 @@ export default function NetWorthScreen(): React.JSX.Element {
     <ScrollView
       className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.accent} />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}
     >
       <View className="rounded-lg border border-line bg-surface p-5">
         <Text className="text-sm text-ink-muted">Celkové čisté jmění</Text>

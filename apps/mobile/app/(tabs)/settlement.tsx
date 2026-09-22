@@ -8,6 +8,7 @@ import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
 import { TextField } from '../../components/text-field';
 import { useCloseSettlement, useMarkSettled, useReopenSettlement, useSettlement } from '../../hooks/use-settlement';
 import { colors } from '../../lib/colors';
+import { haptics } from '../../lib/haptics';
 import { formatDate } from '../../lib/format-date';
 import { formatMoney } from '../../lib/format-money';
 import { formatPeriod } from '../../lib/period';
@@ -153,7 +154,7 @@ export default function SettlementScreen(): React.JSX.Element {
         </View>
       ) : (
         <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerClassName="gap-4 p-4" refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.accent} />}>
+        <ScrollView contentContainerClassName="gap-4 p-4" refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}>
           <View className="flex-row flex-wrap gap-2">
             {data.summary.direction === 'EVEN' ? <Badge tone="success">Vyrovnáno</Badge> : null}
             {!data.isClosed ? <Badge tone="info">Otevřené</Badge> : data.settledAt ? <Badge tone="success">Uzavřené · zaplaceno</Badge> : <Badge tone="warning">Uzavřené · nezaplaceno</Badge>}

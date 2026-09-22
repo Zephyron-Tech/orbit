@@ -9,6 +9,7 @@ import { useChangeEmail, useChangePassword, useSettings, useUpdateReportingStart
 import { useAuth } from '../../../lib/auth-context';
 import { isBiometricAuthAvailable, isBiometricLockEnabled, promptBiometricUnlock, setBiometricLockEnabled } from '../../../lib/biometric-auth';
 import { colors } from '../../../lib/colors';
+import { haptics } from '../../../lib/haptics';
 
 function SectionHeading({ icon, title }: { icon: React.ReactNode; title: string }): React.JSX.Element {
   return (
@@ -81,6 +82,7 @@ export default function SettingsScreen(): React.JSX.Element {
       { currentPassword, newPassword },
       {
         onSuccess: () => {
+          haptics.notifySuccess();
           setPasswordMessage('Heslo bylo změněno.');
           setCurrentPassword('');
           setNewPassword('');

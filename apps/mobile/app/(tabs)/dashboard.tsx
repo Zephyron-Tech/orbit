@@ -20,6 +20,7 @@ import { DashboardMetric } from '../../components/dashboard-metric';
 import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
 import { useDashboard } from '../../hooks/use-dashboard';
 import { colors } from '../../lib/colors';
+import { haptics } from '../../lib/haptics';
 import { formatMoney } from '../../lib/format-money';
 import { formatPeriod, offsetPeriod } from '../../lib/period';
 
@@ -72,7 +73,7 @@ export default function DashboardScreen(): React.JSX.Element {
     <ScrollView
       className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={colors.accent} />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}
     >
       {/* Period picker */}
       <View className="flex-row items-center justify-between">
