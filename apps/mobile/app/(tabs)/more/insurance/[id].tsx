@@ -2,10 +2,11 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { CloudArrowUpIcon, DownloadSimpleIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../../components/button';
 import { DateField } from '../../../../components/date-field';
+import { FormSkeleton } from '../../../../components/skeleton';
 import { TextField } from '../../../../components/text-field';
 import {
   useCreatePolicy,
@@ -194,8 +195,8 @@ export default function PolicyDetailScreen(): React.JSX.Element {
 
   if (!isNew && !policy) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 bg-canvas">
+        <FormSkeleton fields={6} />
       </View>
     );
   }

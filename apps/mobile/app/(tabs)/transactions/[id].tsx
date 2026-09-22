@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PlusIcon, XIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
+import { FormSkeleton } from '../../../components/skeleton';
 import { Switch } from '../../../components/switch';
 import { TextField } from '../../../components/text-field';
 import {
@@ -110,8 +111,8 @@ export default function TransactionDetailScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 bg-canvas">
+        <FormSkeleton fields={4} />
       </View>
     );
   }

@@ -1,8 +1,9 @@
 import { PlusIcon, TrashIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
+import { ListSkeleton } from '../../../components/skeleton';
 import { Switch } from '../../../components/switch';
 import { SwipeableRow } from '../../../components/swipeable-row';
 import { TextField } from '../../../components/text-field';
@@ -427,8 +428,8 @@ export default function PlanningScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 bg-canvas">
+        <ListSkeleton rows={5} />
       </View>
     );
   }

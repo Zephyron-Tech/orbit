@@ -1,8 +1,9 @@
 import { CheckCircleIcon, XCircleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
+import { ListSkeleton } from '../../../components/skeleton';
 import { Switch } from '../../../components/switch';
 import { SwipeableRow } from '../../../components/swipeable-row';
 import { TextField } from '../../../components/text-field';
@@ -83,8 +84,8 @@ export default function CategoriesScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 bg-canvas">
+        <ListSkeleton rows={6} />
       </View>
     );
   }

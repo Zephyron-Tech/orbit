@@ -1,9 +1,10 @@
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, HandshakeIcon, LockKeyIcon, ReceiptIcon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../components/badge';
 import { Button } from '../../components/button';
+import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
 import { TextField } from '../../components/text-field';
 import { useCloseSettlement, useMarkSettled, useReopenSettlement, useSettlement } from '../../hooks/use-settlement';
 import { formatMoney } from '../../lib/format-money';
@@ -139,8 +140,9 @@ export default function SettlementScreen(): React.JSX.Element {
       </Modal>
 
       {isPending ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#17647c" />
+        <View className="flex-1 gap-4 p-4">
+          <SkeletonCard />
+          <ListSkeleton rows={4} />
         </View>
       ) : isError ? (
         <View className="flex-1 items-center justify-center px-6">

@@ -1,6 +1,7 @@
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../../components/badge';
+import { ListSkeleton, SkeletonCard } from '../../../components/skeleton';
 import { useFuel } from '../../../hooks/use-fuel';
 import { formatMoney } from '../../../lib/format-money';
 
@@ -9,8 +10,9 @@ export default function FuelScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 gap-4 bg-canvas p-4">
+        <SkeletonCard />
+        <ListSkeleton rows={4} />
       </View>
     );
   }

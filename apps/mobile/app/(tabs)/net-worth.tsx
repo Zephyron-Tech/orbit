@@ -1,9 +1,10 @@
 import { CaretDownIcon, ChartLineUpIcon, CreditCardIcon, PiggyBankIcon, WalletIcon, type Icon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../components/badge';
 import { Button } from '../../components/button';
+import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
 import { useDismissUnmatchedTransfer, useNetWorth } from '../../hooks/use-net-worth';
 import { formatMoney } from '../../lib/format-money';
 import type { NetWorthCardAccount } from '../../lib/response-types';
@@ -104,8 +105,9 @@ export default function NetWorthScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 gap-4 bg-canvas p-4">
+        <SkeletonCard />
+        <ListSkeleton rows={4} />
       </View>
     );
   }

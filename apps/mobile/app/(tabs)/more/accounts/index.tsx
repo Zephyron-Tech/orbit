@@ -1,10 +1,11 @@
 import { Link, useRouter } from 'expo-router';
 import { ArchiveIcon, BankIcon, PlusIcon } from 'phosphor-react-native';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../../../components/badge';
 import { Button } from '../../../../components/button';
 import { ReorderableList } from '../../../../components/reorderable-list';
+import { ListSkeleton } from '../../../../components/skeleton';
 import { useAccountsList, useCreditRepaymentCandidates, useReorderAccount } from '../../../../hooks/use-accounts';
 import type { AccountRow } from '../../../../lib/response-types';
 
@@ -46,8 +47,8 @@ export default function AccountsListScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 bg-canvas">
+        <ListSkeleton rows={4} />
       </View>
     );
   }

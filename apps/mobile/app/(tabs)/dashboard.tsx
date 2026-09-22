@@ -13,10 +13,11 @@ import {
   type Icon,
 } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../components/badge';
 import { DashboardMetric } from '../../components/dashboard-metric';
+import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
 import { useDashboard } from '../../hooks/use-dashboard';
 import { formatMoney } from '../../lib/format-money';
 import { formatPeriod, offsetPeriod } from '../../lib/period';
@@ -40,8 +41,10 @@ export default function DashboardScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 gap-4 bg-canvas p-4">
+        <SkeletonCard />
+        <SkeletonCard />
+        <ListSkeleton rows={3} />
       </View>
     );
   }

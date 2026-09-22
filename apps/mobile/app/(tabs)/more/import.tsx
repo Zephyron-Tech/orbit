@@ -1,9 +1,10 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { ArrowsClockwiseIcon, UploadSimpleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
+import { ListSkeleton } from '../../../components/skeleton';
 import { TextField } from '../../../components/text-field';
 import {
   useImportBatches,
@@ -182,8 +183,8 @@ export default function ImportScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 bg-canvas">
+        <ListSkeleton rows={5} />
       </View>
     );
   }

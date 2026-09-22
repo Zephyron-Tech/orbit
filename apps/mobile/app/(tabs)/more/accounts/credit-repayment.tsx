@@ -1,6 +1,7 @@
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../../components/button';
+import { ListSkeleton } from '../../../../components/skeleton';
 import { useConfirmCreditPayoffFromChecking, useConfirmCreditRepayment, useCreditRepaymentCandidates } from '../../../../hooks/use-accounts';
 import { formatMoney } from '../../../../lib/format-money';
 import type { CreditRepaymentCandidate } from '../../../../lib/response-types';
@@ -18,8 +19,8 @@ export default function CreditRepaymentScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 bg-canvas p-4">
+        <ListSkeleton rows={3} />
       </View>
     );
   }

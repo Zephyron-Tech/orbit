@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Tex
 
 import { Badge } from '../../../components/badge';
 import { Button } from '../../../components/button';
+import { ListSkeleton } from '../../../components/skeleton';
 import { TextField } from '../../../components/text-field';
 import {
   useApplyMerchantCategory,
@@ -176,8 +177,8 @@ export default function TransactionsListScreen(): React.JSX.Element {
 
   if (isPending || !data) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 bg-canvas">
+        <ListSkeleton rows={6} />
       </View>
     );
   }

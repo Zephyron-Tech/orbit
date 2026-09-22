@@ -1,8 +1,9 @@
 import { ArrowsClockwiseIcon, TrendDownIcon, TrendUpIcon } from 'phosphor-react-native';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
 import { LineChart } from '../../../components/line-chart';
+import { ListSkeleton, SkeletonCard } from '../../../components/skeleton';
 import { usePortfolio, useRefreshPortfolio } from '../../../hooks/use-portfolio';
 import { formatMoney } from '../../../lib/format-money';
 import { parseSnapshotRawData } from '../../../lib/portfolio-parse';
@@ -15,8 +16,9 @@ export default function PortfolioScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 gap-4 bg-canvas p-4">
+        <SkeletonCard />
+        <ListSkeleton rows={4} />
       </View>
     );
   }

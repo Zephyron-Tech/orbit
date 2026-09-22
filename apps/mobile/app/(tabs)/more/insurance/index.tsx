@@ -1,9 +1,10 @@
 import { Link, useRouter } from 'expo-router';
 import { PlusIcon } from 'phosphor-react-native';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../../components/button';
 import { ReorderableList } from '../../../../components/reorderable-list';
+import { ListSkeleton } from '../../../../components/skeleton';
 import { useInsuranceList, useReorderPolicy } from '../../../../hooks/use-insurance';
 import { formatMoney } from '../../../../lib/format-money';
 import type { InsurancePolicyRow } from '../../../../lib/response-types';
@@ -43,8 +44,8 @@ export default function InsuranceListScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-canvas">
-        <ActivityIndicator color="#17647c" />
+      <View className="flex-1 bg-canvas">
+        <ListSkeleton rows={4} />
       </View>
     );
   }
