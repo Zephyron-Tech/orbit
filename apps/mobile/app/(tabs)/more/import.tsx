@@ -1,8 +1,10 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { ArrowsClockwiseIcon, UploadSimpleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { Button } from '../../../components/button';
+import { TextField } from '../../../components/text-field';
 import {
   useImportBatches,
   useImportCsv,
@@ -94,10 +96,9 @@ function CsvImportSection({ accounts }: { accounts: ImportAccountOption[] }): Re
     <View className="gap-3 border-b border-line bg-surface p-4">
       <Text className="font-sans-medium text-sm text-ink-muted">Bankovní výpis (CSV, XML, PDF)</Text>
       <AccountPicker accounts={accounts} selectedId={accountId} onSelect={setAccountId} />
-      <Pressable onPress={() => void handlePick()} disabled={importCsv.isPending} className="flex-row items-center justify-center gap-2 rounded-lg border border-line py-2.5 active:bg-surface-subtle">
-        <UploadSimpleIcon color="#17211f" size={16} weight="regular" />
-        <Text className="font-sans-medium text-ink">{importCsv.isPending && !preview ? 'Načítám náhled…' : 'Vybrat soubor'}</Text>
-      </Pressable>
+      <Button variant="secondary" icon={UploadSimpleIcon} loading={importCsv.isPending && !preview} onPress={() => void handlePick()}>
+        Vybrat soubor
+      </Button>
 
       {preview ? (
         <View className="gap-2 rounded-lg bg-surface-subtle p-3">
@@ -107,13 +108,12 @@ function CsvImportSection({ accounts }: { accounts: ImportAccountOption[] }): Re
           {preview.needsAnchor ? (
             <View className="gap-1">
               <Text className="text-sm text-warning">Chybí počáteční zůstatek — doplňte ho ručně, ať se výpis dá ukotvit.</Text>
-              <TextInput
-                className="rounded-lg border border-line bg-surface px-3 py-2 text-ink"
+              <TextField
+                variant="money"
                 placeholder="Zůstatek po posledním řádku, např. 12345,67"
-                placeholderTextColor="#667570"
-                keyboardType="numeric"
                 value={closingBalance}
                 onChangeText={setClosingBalance}
+                returnKeyType="done"
               />
             </View>
           ) : null}
@@ -141,9 +141,9 @@ function CsvImportSection({ accounts }: { accounts: ImportAccountOption[] }): Re
             </View>
           ) : null}
 
-          <Pressable onPress={handleCommit} disabled={importCsv.isPending} className="items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
-            <Text className="font-sans-medium text-accent-foreground">{importCsv.isPending ? 'Importuji…' : 'Potvrdit import'}</Text>
-          </Pressable>
+          <Button variant="primary" loading={importCsv.isPending} onPress={handleCommit}>
+            Potvrdit import
+          </Button>
         </View>
       ) : null}
     </View>
@@ -167,10 +167,9 @@ function SingleFileUploadButton({
   }
 
   return (
-    <Pressable onPress={() => void handlePress()} disabled={pending} className="flex-row items-center justify-center gap-2 rounded-lg border border-line py-2.5 active:bg-surface-subtle">
-      <UploadSimpleIcon color="#17211f" size={16} weight="regular" />
-      <Text className="font-sans-medium text-ink">{pending ? 'Nahrávám…' : label}</Text>
-    </Pressable>
+    <Button variant="secondary" icon={UploadSimpleIcon} loading={pending} onPress={() => void handlePress()}>
+      {label}
+    </Button>
   );
 }
 
@@ -214,14 +213,14 @@ export default function ImportScreen(): React.JSX.Element {
             })
           }
         />
-        <Pressable
+        <Button
+          variant="secondary"
+          icon={ArrowsClockwiseIcon}
+          loading={rematchFuelReceipts.isPending}
           onPress={() => rematchFuelReceipts.mutate(undefined, { onSuccess: () => Alert.alert('Hotovo', 'Spárování bylo dokončeno.') })}
-          disabled={rematchFuelReceipts.isPending}
-          className="flex-row items-center justify-center gap-2 rounded-lg border border-line py-2.5 active:bg-surface-subtle"
         >
-          <ArrowsClockwiseIcon color="#17211f" size={16} weight="regular" />
-          <Text className="font-sans-medium text-ink">{rematchFuelReceipts.isPending ? 'Spárovávám…' : 'Znovu spárovat účtenky'}</Text>
-        </Pressable>
+          Znovu spárovat účtenky
+        </Button>
         <SingleFileUploadButton
           label="Nahrát ChargingPrepaids.xls"
           accept="application/vnd.ms-excel"

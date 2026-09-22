@@ -1,8 +1,11 @@
 import { EnvelopeSimpleIcon, LinkSimpleIcon, UserCircleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../../components/badge';
+import { Button } from '../../../components/button';
+import { Switch } from '../../../components/switch';
+import { TextField } from '../../../components/text-field';
 import { useCreateInvite, useInvitesList, useRevokeInvite, useUpdateHouseholdUser, useUsers } from '../../../hooks/use-users';
 import type { HouseholdUserRow } from '../../../lib/response-types';
 
@@ -24,12 +27,7 @@ function UserRow({ user, isOwner, onSave, saving }: { user: HouseholdUserRow; is
         <Text className="mt-1 text-xs text-ink-muted">{user.email}</Text>
       </View>
       {isOwner && !user.isCurrentUser ? (
-        <Switch
-          value={user.isActive}
-          disabled={saving}
-          onValueChange={(value) => onSave({ ...user, isActive: value })}
-          trackColor={{ false: '#d8e0dd', true: '#17647c' }}
-        />
+        <Switch value={user.isActive} disabled={saving} onValueChange={(value) => onSave({ ...user, isActive: value })} />
       ) : null}
     </View>
   );
@@ -97,24 +95,18 @@ export default function UsersScreen(): React.JSX.Element {
         <>
           <Text className="px-4 pb-2 pt-6 font-sans-semibold text-base text-ink">Pozvat člena</Text>
           <View className="gap-2 px-4">
-            <TextInput
-              className="rounded-lg border border-line bg-surface px-3 py-2 text-ink"
+            <TextField
+              variant="email"
               placeholder="E-mail"
-              placeholderTextColor="#667570"
-              autoCapitalize="none"
-              keyboardType="email-address"
               value={inviteEmail}
               onChangeText={setInviteEmail}
+              returnKeyType="send"
+              onSubmitEditing={handleCreateInvite}
             />
             {inviteMessage ? <Text className={createInvite.isError ? 'text-sm text-critical' : 'text-sm text-positive'}>{inviteMessage}</Text> : null}
-            <Pressable
-              onPress={handleCreateInvite}
-              disabled={createInvite.isPending || !inviteEmail.trim()}
-              className="flex-row items-center justify-center gap-2 rounded-lg bg-accent py-2.5 active:bg-accent-hover"
-            >
-              <LinkSimpleIcon color="#f8fcfd" size={16} weight="bold" />
-              <Text className="font-sans-medium text-accent-foreground">{createInvite.isPending ? 'Odesílám…' : 'Vytvořit pozvánku'}</Text>
-            </Pressable>
+            <Button variant="primary" icon={LinkSimpleIcon} loading={createInvite.isPending} disabled={!inviteEmail.trim()} onPress={handleCreateInvite}>
+              Vytvořit pozvánku
+            </Button>
           </View>
 
           <Text className="px-4 pb-2 pt-6 font-sans-semibold text-base text-ink">Otevřené pozvánky</Text>
@@ -127,9 +119,9 @@ export default function UsersScreen(): React.JSX.Element {
                 <Text className="flex-1 pr-3 text-ink" numberOfLines={1}>
                   {invite.email}
                 </Text>
-                <Pressable onPress={() => revokeInvite.mutate(invite.id)} disabled={revokeInvite.isPending} className="rounded-md bg-critical-soft px-2 py-1.5 active:opacity-70">
-                  <Text className="text-xs font-sans-medium text-critical">Zrušit</Text>
-                </Pressable>
+                <Button variant="destructive" size="chip" loading={revokeInvite.isPending} onPress={() => revokeInvite.mutate(invite.id)}>
+                  Zrušit
+                </Button>
               </View>
             ))
           ) : (

@@ -1,8 +1,10 @@
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, HandshakeIcon, LockKeyIcon, ReceiptIcon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../components/badge';
+import { Button } from '../../components/button';
+import { TextField } from '../../components/text-field';
 import { useCloseSettlement, useMarkSettled, useReopenSettlement, useSettlement } from '../../hooks/use-settlement';
 import { formatMoney } from '../../lib/format-money';
 import type { SettlementLine } from '../../lib/response-types';
@@ -193,39 +195,32 @@ export default function SettlementScreen(): React.JSX.Element {
           {data.isClosed ? (
             <View className="gap-2">
               {data.closedId ? (
-                <Pressable
+                <Button
+                  variant="secondary"
+                  icon={ArrowCounterClockwiseIcon}
+                  loading={reopenSettlement.isPending}
                   onPress={() => handleReopen(data.closedId as string)}
-                  disabled={reopenSettlement.isPending}
-                  className="flex-row items-center justify-center gap-2 rounded-lg border border-line py-3 active:bg-surface-subtle"
                 >
-                  <ArrowCounterClockwiseIcon color="#17211f" size={18} weight="regular" />
-                  <Text className="font-sans-medium text-ink">Znovu otevřít</Text>
-                </Pressable>
+                  Znovu otevřít
+                </Button>
               ) : null}
               {data.closedId ? (
-                <Pressable
+                <Button
+                  variant="primary"
+                  icon={CheckCircleIcon}
+                  loading={markSettled.isPending}
                   onPress={() => markSettled.mutate({ id: data.closedId as string, settled: !data.settledAt, year: period.year, month: period.month })}
-                  disabled={markSettled.isPending}
-                  className="flex-row items-center justify-center gap-2 rounded-lg bg-accent py-3 active:bg-accent-hover"
                 >
-                  <CheckCircleIcon color="#f8fcfd" size={18} weight="regular" />
-                  <Text className="font-sans-medium text-accent-foreground">{data.settledAt ? 'Odznačit jako zaplaceno' : 'Označit jako zaplaceno'}</Text>
-                </Pressable>
+                  {data.settledAt ? 'Odznačit jako zaplaceno' : 'Označit jako zaplaceno'}
+                </Button>
               ) : null}
             </View>
           ) : (
             <View className="gap-2">
-              <TextInput
-                className="rounded-lg border border-line px-3 py-2 text-ink"
-                placeholder="Poznámka (nepovinné)"
-                placeholderTextColor="#667570"
-                value={notes}
-                onChangeText={setNotes}
-              />
-              <Pressable onPress={handleClose} disabled={closeSettlement.isPending || data.lines.length === 0} className="flex-row items-center justify-center gap-2 rounded-lg bg-accent py-3 active:bg-accent-hover">
-                <LockKeyIcon color="#f8fcfd" size={18} weight="regular" />
-                <Text className="font-sans-medium text-accent-foreground">{closeSettlement.isPending ? 'Uzavírám…' : 'Uzavřít vyrovnání'}</Text>
-              </Pressable>
+              <TextField placeholder="Poznámka (nepovinné)" value={notes} onChangeText={setNotes} returnKeyType="done" />
+              <Button variant="primary" icon={LockKeyIcon} loading={closeSettlement.isPending} disabled={data.lines.length === 0} onPress={handleClose}>
+                Uzavřít vyrovnání
+              </Button>
             </View>
           )}
 

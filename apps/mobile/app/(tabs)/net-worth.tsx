@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../components/badge';
+import { Button } from '../../components/button';
 import { useDismissUnmatchedTransfer, useNetWorth } from '../../hooks/use-net-worth';
 import { formatMoney } from '../../lib/format-money';
 import type { NetWorthCardAccount } from '../../lib/response-types';
@@ -196,13 +197,9 @@ export default function NetWorthScreen(): React.JSX.Element {
                 </View>
                 <Text className="text-ink">{transfer.amount.toLocaleString('cs-CZ')} {transfer.currency}</Text>
               </View>
-              <Pressable
-                onPress={() => dismissTransfer.mutate(transfer.id)}
-                disabled={dismissTransfer.isPending}
-                className="mt-2 self-start rounded-md bg-surface-subtle px-3 py-1.5 active:bg-line"
-              >
-                <Text className="text-sm text-ink-muted">Skrýt</Text>
-              </Pressable>
+              <Button variant="secondary" size="chip" className="mt-2 self-start" loading={dismissTransfer.isPending} onPress={() => dismissTransfer.mutate(transfer.id)}>
+                Skrýt
+              </Button>
             </View>
           ))}
         </View>
