@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/button';
 import { haptics } from '../../lib/haptics';
@@ -59,6 +60,7 @@ export default function UnlockScreen(): React.JSX.Element {
   }
 
   return (
+    <SafeAreaView className="flex-1 bg-canvas">
     <View className="flex-1 items-center justify-center gap-6 bg-canvas px-6">
       <Animated.View style={brandStyle} className="items-center gap-2">
         <View className="size-14 items-center justify-center rounded-2xl bg-accent">
@@ -78,5 +80,6 @@ export default function UnlockScreen(): React.JSX.Element {
         <Text className="text-sm text-ink-muted underline">Přihlásit se heslem místo toho</Text>
       </Pressable>
     </View>
+    </SafeAreaView>
   );
 }

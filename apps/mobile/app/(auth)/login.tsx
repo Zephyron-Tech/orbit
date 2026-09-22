@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/button';
 import { TextField } from '../../components/text-field';
@@ -31,6 +32,7 @@ export default function LoginScreen(): React.JSX.Element {
   }
 
   return (
+    <SafeAreaView className="flex-1 bg-canvas">
     <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <View className="flex-1 items-center justify-center bg-canvas px-6">
       <View className="mb-8 size-14 items-center justify-center rounded-2xl bg-accent">
@@ -65,5 +67,6 @@ export default function LoginScreen(): React.JSX.Element {
       </Button>
     </View>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
