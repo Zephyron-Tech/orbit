@@ -205,11 +205,16 @@ export interface InsurancePolicyRow {
   documents: { contract: InsuranceDocumentInfo | null; greenCard: InsuranceDocumentInfo | null };
 }
 
+export interface InsuranceOverview {
+  /** Sum of `annualCost` across accruing (ACTIVE/PENDING_RENEWAL) policies. */
+  annualCostTotal: string;
+}
+
 export interface InsuranceListResponse {
   policies: InsurancePolicyRow[];
-  // The dashboard-style renewal overview — not rendered in this pass, kept
-  // as `unknown` rather than fully typed since nothing here reads it yet.
-  overview: unknown;
+  // Only annualCostTotal is read on mobile so far — the rest of the API's
+  // dashboard-style renewal overview isn't rendered in this pass.
+  overview: InsuranceOverview & Record<string, unknown>;
 }
 
 export interface InsurancePolicyInput {

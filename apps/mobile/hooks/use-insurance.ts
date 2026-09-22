@@ -1,6 +1,7 @@
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Linking } from 'react-native';
 
 import { API_URL, apiClient, UnauthorizedError } from '../lib/api-client';
 import { getAccessToken } from '../lib/auth-storage';
@@ -137,9 +138,13 @@ export function useParsePolicyDocument() {
  * Downloads a stored document via an authenticated request (the download
  * route needs the same bearer token every other call does — a plain
  * `<a href>`/browser-navigated GET, the web app's approach, isn't available
- * on native) and opens the OS share/preview sheet on it. `expo-file-system`'s
- * class-based `File.downloadFileAsync` accepts custom headers directly, so
- * no separate fetch-then-write-to-disk step is needed.
+ * on native) and opens it directly — `Linking.openURL` on a local `file://`
+ * URI hands the PDF to the system's own viewer (Quick Look on iOS), which
+ * already has its own share/save controls, so "open first, share/save from
+ * there" needs no extra UI. Falls back to the OS share sheet only if the
+ * platform can't open the file URI directly (e.g. Android without a
+ * content:// URI). `expo-file-system`'s class-based `File.downloadFileAsync`
+ * accepts custom headers directly, so no separate fetch-then-write step.
  */
 export function useDownloadPolicyDocument() {
   return useMutation({
@@ -152,10 +157,17 @@ export function useDownloadPolicyDocument() {
         idempotent: true,
       });
 
+      try {
+        await Linking.openURL(file.uri);
+        return;
+      } catch {
+        // Fall through to the share sheet below.
+      }
+
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(file.uri);
       } else {
-        throw new Error(`Dokument uložen do ${file.uri}, ale sdílení není na tomto zařízení dostupné.`);
+        throw new Error(`Dokument uložen do ${file.uri}, ale otevření ani sdílení není na tomto zařízení dostupné.`);
       }
     },
   });
