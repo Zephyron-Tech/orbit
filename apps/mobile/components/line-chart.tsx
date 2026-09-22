@@ -25,6 +25,10 @@ export function LineChart({ points, height = 160, currency = '' }: { points: Lin
   }
 
   const padding = 12;
+  // The last point's value label is drawn above its dot — reserve extra
+  // headroom so it never gets clipped by the Svg's hard canvas edge when
+  // the last point sits near the top of the range.
+  const topPadding = padding + 16;
   const minY = Math.min(...points.map((p) => p.y));
   const maxY = Math.max(...points.map((p) => p.y));
   const range = maxY - minY || 1;
@@ -33,7 +37,7 @@ export function LineChart({ points, height = 160, currency = '' }: { points: Lin
     return padding + (index / (points.length - 1)) * (width - padding * 2);
   }
   function toSvgY(y: number): number {
-    return height - padding - ((y - minY) / range) * (height - padding * 2);
+    return height - padding - ((y - minY) / range) * (height - padding - topPadding);
   }
 
   const pathData = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${toSvgX(index)} ${toSvgY(point.y)}`).join(' ');
@@ -42,7 +46,7 @@ export function LineChart({ points, height = 160, currency = '' }: { points: Lin
   return (
     <View className="rounded-xl border border-neutral-200 p-3" onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
       {width > 0 ? (
-        <Svg width={width} height={height}>
+        <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
           <Line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#e5e5e5" strokeWidth={1} />
           <Path d={pathData} stroke="#171717" strokeWidth={2} fill="none" />
           {points.map((point, index) => (

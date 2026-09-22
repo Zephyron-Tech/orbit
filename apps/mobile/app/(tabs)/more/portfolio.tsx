@@ -1,5 +1,6 @@
 import { ArrowsClockwiseIcon, TrendDownIcon, TrendUpIcon } from 'phosphor-react-native';
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
 import { LineChart } from '../../../components/line-chart';
@@ -10,9 +11,26 @@ import { parseSnapshotRawData } from '../../../lib/portfolio-parse';
 
 const QUANTITY_FORMAT = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 4 });
 
+const CHART_PERIODS: { label: string; days: number | null }[] = [
+  { label: '7D', days: 7 },
+  { label: '1M', days: 30 },
+  { label: '3M', days: 90 },
+  { label: '1R', days: 365 },
+  { label: 'Vše', days: null },
+];
+
+function PeriodChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }): React.JSX.Element {
+  return (
+    <Pressable onPress={onPress} className={`rounded-full border px-3 py-1 active:bg-surface-subtle ${active ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}>
+      <Text className={`text-xs font-sans-medium ${active ? 'text-accent' : 'text-ink-muted'}`}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export default function PortfolioScreen(): React.JSX.Element {
   const { data, isPending, isError, error, refetch, isRefetching } = usePortfolio();
   const refresh = useRefreshPortfolio();
+  const [chartDays, setChartDays] = useState<number | null>(null);
 
   if (isPending) {
     return (
@@ -39,8 +57,12 @@ export default function PortfolioScreen(): React.JSX.Element {
 
   // Only include snapshots in the same currency as the latest one — the
   // same guard apps/web's portfolio page applies before plotting history.
+  // Period filtering is client-side only — the API has no date-range
+  // param and already returns the full (bounded) history in one call.
+  const chartCutoff = chartDays === null ? null : Date.now() - chartDays * 24 * 60 * 60 * 1000;
   const historyPoints = data.snapshots
     .filter((snapshot) => snapshot.currency.trim().toUpperCase() === currency)
+    .filter((snapshot) => chartCutoff === null || new Date(snapshot.capturedAt).getTime() >= chartCutoff)
     .map((snapshot) => ({
       x: new Date(snapshot.capturedAt).getTime(),
       y: Number(snapshot.balance),
@@ -99,7 +121,14 @@ export default function PortfolioScreen(): React.JSX.Element {
           </View>
 
           <View className="gap-2">
-            <Text className="font-sans-semibold text-base text-ink">Vývoj hodnoty</Text>
+            <View className="flex-row items-center justify-between">
+              <Text className="font-sans-semibold text-base text-ink">Vývoj hodnoty</Text>
+              <View className="flex-row gap-1.5">
+                {CHART_PERIODS.map((period) => (
+                  <PeriodChip key={period.label} label={period.label} active={chartDays === period.days} onPress={() => setChartDays(period.days)} />
+                ))}
+              </View>
+            </View>
             <LineChart points={historyPoints} currency={currency} />
           </View>
 

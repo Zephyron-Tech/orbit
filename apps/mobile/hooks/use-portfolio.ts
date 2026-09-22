@@ -32,10 +32,17 @@ export function useRefreshPortfolio() {
 
   return useMutation({
     mutationFn: () => apiClient.portfolio.refresh.$post().then((response) => unwrap<{ ok: true; capturedAt: string }>(response, 'Synchronizace selhala')),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: PORTFOLIO_KEY });
-      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      void queryClient.invalidateQueries({ queryKey: ['net-worth'] });
+    // Awaited (React Query holds the mutation "pending" through onSuccess)
+    // so the button's own spinner covers the whole refresh — otherwise it
+    // clears the instant the POST resolves, and the query's own background
+    // refetch spinner (RefreshControl) kicks in right after, reading as
+    // two sequential loads for one tap.
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: PORTFOLIO_KEY }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['net-worth'] }),
+      ]);
     },
   });
 }
