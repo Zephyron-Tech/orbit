@@ -1,8 +1,9 @@
 import { Link, useRouter } from 'expo-router';
-import { ArrowDownIcon, ArrowUpIcon, PlusIcon } from 'phosphor-react-native';
+import { PlusIcon } from 'phosphor-react-native';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../../components/button';
+import { ReorderableList } from '../../../../components/reorderable-list';
 import { useInsuranceList, useReorderPolicy } from '../../../../hooks/use-insurance';
 import { formatMoney } from '../../../../lib/format-money';
 import type { InsurancePolicyRow } from '../../../../lib/response-types';
@@ -14,44 +15,24 @@ const STATUS_LABELS: Record<InsurancePolicyRow['status'], string> = {
   TERMINATED: 'Ukončeno',
 };
 
-function PolicyListItem({
-  policy,
-  onPress,
-  isFirst,
-  isLast,
-  onMoveUp,
-  onMoveDown,
-  reorderPending,
-}: {
-  policy: InsurancePolicyRow;
-  onPress: () => void;
-  isFirst: boolean;
-  isLast: boolean;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  reorderPending: boolean;
-}): React.JSX.Element {
+const ROW_HEIGHT = 84;
+
+function PolicyListItem({ policy, onPress }: { policy: InsurancePolicyRow; onPress: () => void }): React.JSX.Element {
   return (
-    <View className="flex-row items-center border-b border-line bg-surface px-4 py-3">
-      <Pressable onPress={onPress} className="flex-1 active:opacity-70">
-        <View className="flex-row items-center justify-between">
-          <Text className="font-sans-semibold text-ink">{policy.vehicleName}</Text>
-          <Text className="font-sans-medium text-ink">{formatMoney(policy.annualCost)}</Text>
-        </View>
-        <Text className="mt-1 text-xs text-ink-muted">
-          {policy.licensePlate} · {policy.policyNumber}
+    <Pressable onPress={onPress} className="justify-center border-b border-line bg-surface px-2 py-3 active:opacity-70" style={{ height: ROW_HEIGHT }}>
+      <View className="flex-row items-center justify-between">
+        <Text className="flex-1 font-sans-semibold text-ink" numberOfLines={1}>
+          {policy.vehicleName}
         </Text>
-        <Text className="mt-1 text-xs text-ink-muted">{STATUS_LABELS[policy.status]}</Text>
-      </Pressable>
-      <View className="flex-row gap-1">
-        <Pressable onPress={onMoveUp} disabled={isFirst || reorderPending} className="rounded-lg p-2 active:bg-surface-subtle" hitSlop={8}>
-          <ArrowUpIcon color={isFirst ? '#bdcac6' : '#5d6c68'} size={16} weight="regular" />
-        </Pressable>
-        <Pressable onPress={onMoveDown} disabled={isLast || reorderPending} className="rounded-lg p-2 active:bg-surface-subtle" hitSlop={8}>
-          <ArrowDownIcon color={isLast ? '#bdcac6' : '#5d6c68'} size={16} weight="regular" />
-        </Pressable>
+        <Text className="font-sans-medium text-ink">{formatMoney(policy.annualCost)}</Text>
       </View>
-    </View>
+      <Text className="mt-1 text-xs text-ink-muted" numberOfLines={1}>
+        {policy.licensePlate} · {policy.policyNumber}
+      </Text>
+      <Text className="mt-1 text-xs text-ink-muted" numberOfLines={1}>
+        {STATUS_LABELS[policy.status]}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -76,6 +57,15 @@ export default function InsuranceListScreen(): React.JSX.Element {
     );
   }
 
+  async function handleReorder(id: string, toIndex: number): Promise<void> {
+    const fromIndex = data!.policies.findIndex((policy) => policy.id === id);
+    if (fromIndex === -1) return;
+    const direction: -1 | 1 = toIndex < fromIndex ? -1 : 1;
+    for (let step = 0; step < Math.abs(toIndex - fromIndex); step += 1) {
+      await reorderPolicy.mutateAsync({ id, direction });
+    }
+  }
+
   return (
     <ScrollView
       className="flex-1 bg-canvas"
@@ -86,18 +76,13 @@ export default function InsuranceListScreen(): React.JSX.Element {
           <Text className="text-ink-muted">Zatím žádné pojistky.</Text>
         </View>
       ) : (
-        data.policies.map((policy, index) => (
-          <PolicyListItem
-            key={policy.id}
-            policy={policy}
-            onPress={() => router.push(`/(tabs)/more/insurance/${policy.id}`)}
-            isFirst={index === 0}
-            isLast={index === data.policies.length - 1}
-            reorderPending={reorderPolicy.isPending}
-            onMoveUp={() => reorderPolicy.mutate({ id: policy.id, direction: -1 })}
-            onMoveDown={() => reorderPolicy.mutate({ id: policy.id, direction: 1 })}
-          />
-        ))
+        <ReorderableList
+          data={data.policies}
+          keyExtractor={(policy) => policy.id}
+          rowHeight={ROW_HEIGHT}
+          onReorder={(id, toIndex) => void handleReorder(id, toIndex)}
+          renderItem={(policy) => <PolicyListItem policy={policy} onPress={() => router.push(`/(tabs)/more/insurance/${policy.id}`)} />}
+        />
       )}
 
       <Link href="/(tabs)/more/insurance/new" asChild>

@@ -1,9 +1,10 @@
 import { Link, useRouter } from 'expo-router';
-import { ArchiveIcon, ArrowDownIcon, ArrowUpIcon, BankIcon, PlusIcon } from 'phosphor-react-native';
+import { ArchiveIcon, BankIcon, PlusIcon } from 'phosphor-react-native';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../../../components/badge';
 import { Button } from '../../../../components/button';
+import { ReorderableList } from '../../../../components/reorderable-list';
 import { useAccountsList, useCreditRepaymentCandidates, useReorderAccount } from '../../../../hooks/use-accounts';
 import type { AccountRow } from '../../../../lib/response-types';
 
@@ -14,50 +15,26 @@ const TYPE_LABELS: Record<AccountRow['type'], string> = {
   CREDIT: 'Kreditní účet',
 };
 
-function AccountListItem({
-  account,
-  onPress,
-  isFirst,
-  isLast,
-  onMoveUp,
-  onMoveDown,
-  reorderPending,
-}: {
-  account: AccountRow;
-  onPress: () => void;
-  isFirst: boolean;
-  isLast: boolean;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  reorderPending: boolean;
-}): React.JSX.Element {
+const ROW_HEIGHT = 66;
+
+function AccountListItem({ account, onPress }: { account: AccountRow; onPress: () => void }): React.JSX.Element {
   return (
-    <View className="flex-row items-center gap-3 border-b border-line bg-surface px-4 py-3">
+    <Pressable onPress={onPress} className="flex-row items-center gap-3 border-b border-line bg-surface px-2 py-3 active:opacity-70" style={{ height: ROW_HEIGHT }}>
       <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
         <BankIcon color="#17647c" size={18} weight="regular" />
       </View>
-      <Pressable onPress={onPress} className="flex-1 active:opacity-70">
+      <View className="flex-1">
         <View className="flex-row items-center justify-between gap-2">
           <Text className="flex-1 font-sans-semibold text-ink" numberOfLines={1}>
             {account.name}
           </Text>
           {account.isArchived ? <Badge tone="neutral">Archivováno</Badge> : null}
         </View>
-        <Text className="mt-1 text-xs text-ink-muted">
+        <Text className="mt-1 text-xs text-ink-muted" numberOfLines={1}>
           {TYPE_LABELS[account.type]} · {account.currency}
         </Text>
-      </Pressable>
-      {!account.isArchived ? (
-        <View className="flex-row gap-1">
-          <Pressable onPress={onMoveUp} disabled={isFirst || reorderPending} className="rounded-lg p-2 active:bg-surface-subtle" hitSlop={8}>
-            <ArrowUpIcon color={isFirst ? '#bdcac6' : '#5d6c68'} size={16} weight="regular" />
-          </Pressable>
-          <Pressable onPress={onMoveDown} disabled={isLast || reorderPending} className="rounded-lg p-2 active:bg-surface-subtle" hitSlop={8}>
-            <ArrowDownIcon color={isLast ? '#bdcac6' : '#5d6c68'} size={16} weight="regular" />
-          </Pressable>
-        </View>
-      ) : null}
-    </View>
+      </View>
+    </Pressable>
   );
 }
 
@@ -86,6 +63,15 @@ export default function AccountsListScreen(): React.JSX.Element {
   const active = data.filter((account) => !account.isArchived);
   const archived = data.filter((account) => account.isArchived);
 
+  async function handleReorder(id: string, toIndex: number): Promise<void> {
+    const fromIndex = active.findIndex((account) => account.id === id);
+    if (fromIndex === -1) return;
+    const direction: -1 | 1 = toIndex < fromIndex ? -1 : 1;
+    for (let step = 0; step < Math.abs(toIndex - fromIndex); step += 1) {
+      await reorderAccount.mutateAsync({ id, direction });
+    }
+  }
+
   return (
     <ScrollView
       className="flex-1 bg-canvas"
@@ -113,34 +99,20 @@ export default function AccountsListScreen(): React.JSX.Element {
       {active.length === 0 ? (
         <Text className="px-4 pb-4 text-ink-muted">Zatím žádný aktivní účet.</Text>
       ) : (
-        active.map((account, index) => (
-          <AccountListItem
-            key={account.id}
-            account={account}
-            onPress={() => router.push(`/(tabs)/more/accounts/${account.id}`)}
-            isFirst={index === 0}
-            isLast={index === active.length - 1}
-            reorderPending={reorderAccount.isPending}
-            onMoveUp={() => reorderAccount.mutate({ id: account.id, direction: -1 })}
-            onMoveDown={() => reorderAccount.mutate({ id: account.id, direction: 1 })}
-          />
-        ))
+        <ReorderableList
+          data={active}
+          keyExtractor={(account) => account.id}
+          rowHeight={ROW_HEIGHT}
+          onReorder={(id, toIndex) => void handleReorder(id, toIndex)}
+          renderItem={(account) => <AccountListItem account={account} onPress={() => router.push(`/(tabs)/more/accounts/${account.id}`)} />}
+        />
       )}
 
       {archived.length > 0 ? (
         <>
           <Text className="px-4 pb-2 pt-6 font-sans-semibold text-base text-ink">Archivované</Text>
           {archived.map((account) => (
-            <AccountListItem
-              key={account.id}
-              account={account}
-              onPress={() => router.push(`/(tabs)/more/accounts/${account.id}`)}
-              isFirst
-              isLast
-              reorderPending={false}
-              onMoveUp={() => {}}
-              onMoveDown={() => {}}
-            />
+            <AccountListItem key={account.id} account={account} onPress={() => router.push(`/(tabs)/more/accounts/${account.id}`)} />
           ))}
         </>
       ) : (
