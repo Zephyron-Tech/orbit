@@ -1,14 +1,14 @@
 import { CalendarBlankIcon, EnvelopeSimpleIcon, FingerprintIcon, LockKeyIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '../../../components/button';
+import { Skeleton } from '../../../components/skeleton';
 import { Switch } from '../../../components/switch';
 import { TextField } from '../../../components/text-field';
 import { useChangeEmail, useChangePassword, useSettings, useUpdateReportingStartMonth } from '../../../hooks/use-settings';
 import { useAuth } from '../../../lib/auth-context';
 import { isBiometricAuthAvailable, isBiometricLockEnabled, promptBiometricUnlock, setBiometricLockEnabled } from '../../../lib/biometric-auth';
-import { colors } from '../../../lib/colors';
 import { haptics } from '../../../lib/haptics';
 
 function SectionHeading({ icon, title }: { icon: React.ReactNode; title: string }): React.JSX.Element {
@@ -130,7 +130,11 @@ export default function SettingsScreen(): React.JSX.Element {
       <View className="gap-2 rounded-xl border border-line bg-surface p-4">
         <SectionHeading icon={<CalendarBlankIcon color="#5d6c68" size={16} weight="regular" />} title="Počáteční měsíc reportování" />
         {isPending ? (
-          <ActivityIndicator color={colors.accent} />
+          <View className="flex-row flex-wrap gap-2">
+            {Array.from({ length: 5 }, (_, index) => (
+              <Skeleton key={index} className="h-8 w-16 rounded-full" />
+            ))}
+          </View>
         ) : isError ? (
           <Text className="text-sm text-critical">{error instanceof Error ? error.message : 'Nepodařilo se načíst'}</Text>
         ) : (

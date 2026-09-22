@@ -147,7 +147,7 @@ export default function PolicyDetailScreen(): React.JSX.Element {
   const router = useRouter();
   const isNew = id === 'new';
 
-  const { data: listData } = useInsuranceList();
+  const { data: listData, isError: isListError, error: listError } = useInsuranceList();
   const policy = listData?.policies.find((row) => row.id === id) ?? null;
 
   const createPolicy = useCreatePolicy();
@@ -184,6 +184,14 @@ export default function PolicyDetailScreen(): React.JSX.Element {
       });
     }
   }, [policy]);
+
+  if (isListError) {
+    return (
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">{listError instanceof Error ? listError.message : 'Pojistku se nepodařilo načíst'}</Text>
+      </View>
+    );
+  }
 
   if (!isNew && !policy && listData) {
     return (

@@ -108,7 +108,7 @@ export default function AccountDetailScreen(): React.JSX.Element {
   const router = useRouter();
   const isNew = id === 'new';
 
-  const { data: accounts } = useAccountsList();
+  const { data: accounts, isError: isListError, error: listError } = useAccountsList();
   const account = accounts?.find((row) => row.id === id) ?? null;
 
   const createAccount = useCreateAccount();
@@ -141,6 +141,14 @@ export default function AccountDetailScreen(): React.JSX.Element {
       });
     }
   }, [account]);
+
+  if (isListError) {
+    return (
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">{listError instanceof Error ? listError.message : 'Účet se nepodařilo načíst'}</Text>
+      </View>
+    );
+  }
 
   if (!isNew && !account && accounts) {
     return (
