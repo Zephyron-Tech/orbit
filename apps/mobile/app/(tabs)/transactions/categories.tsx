@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { Button } from '../../../components/button';
+import { Switch } from '../../../components/switch';
+import { TextField } from '../../../components/text-field';
 import { useCreateCategory, useTransactionsList, useUpdateCategory } from '../../../hooks/use-transactions';
 import type { TransactionCategory } from '../../../lib/response-types';
 
@@ -26,19 +29,19 @@ function CategoryRow({ category }: { category: TransactionCategory }): React.JSX
   if (editing) {
     return (
       <View className="gap-2 border-b border-line bg-surface px-4 py-3">
-        <TextInput className="rounded-lg border border-line px-3 py-2 text-ink" value={name} onChangeText={setName} />
+        <TextField value={name} onChangeText={setName} returnKeyType="done" onSubmitEditing={handleSave} />
         <View className="flex-row items-center justify-between">
           <Text className="text-sm text-ink-muted">Sdílená ve výchozím stavu</Text>
-          <Switch value={isShared} onValueChange={setIsShared} trackColor={{ true: '#17647c' }} />
+          <Switch value={isShared} onValueChange={setIsShared} />
         </View>
         {error ? <Text className="text-sm text-critical">{error}</Text> : null}
         <View className="flex-row gap-2">
-          <Pressable onPress={handleSave} disabled={updateCategory.isPending} className="flex-1 items-center rounded-lg bg-accent py-2 active:bg-accent-hover">
-            <Text className="font-sans-medium text-accent-foreground">{updateCategory.isPending ? 'Ukládám…' : 'Uložit'}</Text>
-          </Pressable>
-          <Pressable onPress={() => setEditing(false)} className="flex-1 items-center rounded-lg border border-line py-2 active:bg-surface-subtle">
-            <Text className="text-ink">Zrušit</Text>
-          </Pressable>
+          <Button variant="primary" className="flex-1" loading={updateCategory.isPending} onPress={handleSave}>
+            Uložit
+          </Button>
+          <Button variant="secondary" className="flex-1" onPress={() => setEditing(false)}>
+            Zrušit
+          </Button>
         </View>
       </View>
     );
@@ -50,9 +53,9 @@ function CategoryRow({ category }: { category: TransactionCategory }): React.JSX
         <Text className={category.isActive ? 'font-sans-medium text-ink' : 'font-sans-medium text-ink-faint'}>{category.name}</Text>
         <Text className="text-xs text-ink-muted">{category.transactionCount} transakcí{category.defaultIsShared ? ' · sdílená' : ''}</Text>
       </View>
-      <Pressable onPress={handleToggleActive} className="rounded-full border border-line px-3 py-1 active:bg-surface-subtle">
-        <Text className="text-xs text-ink-muted">{category.isActive ? 'Deaktivovat' : 'Aktivovat'}</Text>
-      </Pressable>
+      <Button variant="secondary" size="chip" onPress={handleToggleActive}>
+        {category.isActive ? 'Deaktivovat' : 'Aktivovat'}
+      </Button>
     </Pressable>
   );
 }
@@ -92,15 +95,15 @@ export default function CategoriesScreen(): React.JSX.Element {
     <ScrollView className="flex-1 bg-canvas">
       <View className="gap-2 border-b border-line bg-surface p-4">
         <Text className="font-sans-medium text-sm text-ink-muted">Nová kategorie</Text>
-        <TextInput className="rounded-lg border border-line px-3 py-2 text-ink" placeholder="Název" placeholderTextColor="#667570" value={newName} onChangeText={setNewName} />
+        <TextField placeholder="Název" value={newName} onChangeText={setNewName} returnKeyType="done" onSubmitEditing={handleCreate} />
         <View className="flex-row items-center justify-between">
           <Text className="text-sm text-ink-muted">Sdílená ve výchozím stavu</Text>
-          <Switch value={newShared} onValueChange={setNewShared} trackColor={{ true: '#17647c' }} />
+          <Switch value={newShared} onValueChange={setNewShared} />
         </View>
         {createError ? <Text className="text-sm text-critical">{createError}</Text> : null}
-        <Pressable onPress={handleCreate} disabled={createCategory.isPending || newName.trim().length === 0} className="items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
-          <Text className="font-sans-medium text-accent-foreground">{createCategory.isPending ? 'Vytvářím…' : 'Vytvořit'}</Text>
-        </Pressable>
+        <Button variant="primary" disabled={newName.trim().length === 0} loading={createCategory.isPending} onPress={handleCreate}>
+          Vytvořit
+        </Button>
       </View>
 
       {data.categories.map((category) => (

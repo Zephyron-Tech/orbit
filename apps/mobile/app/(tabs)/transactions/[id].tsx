@@ -1,8 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PlusIcon, XIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { Button } from '../../../components/button';
+import { Switch } from '../../../components/switch';
+import { TextField } from '../../../components/text-field';
 import {
   SPLIT_MAX_LINES,
   SPLIT_MIN_LINES,
@@ -50,31 +53,30 @@ function SplitPanel({ transactionId, totalAmount, onDone }: { transactionId: str
       <Text className="font-sans-medium text-sm text-ink-muted">Rozdělit na {amounts.length} částí (celkem musí sedět na {totalAmount})</Text>
       {amounts.map((amount, index) => (
         <View key={index} className="flex-row items-center gap-2">
-          <TextInput
-            className="flex-1 rounded-lg border border-line px-3 py-2 text-ink"
+          <TextField
+            variant="money"
+            className="flex-1"
             placeholder={`Částka ${index + 1}`}
-            placeholderTextColor="#667570"
-            keyboardType="numbers-and-punctuation"
             value={amount}
             onChangeText={(value) => updateAmount(index, value)}
+            returnKeyType="done"
           />
           {amounts.length > SPLIT_MIN_LINES ? (
-            <Pressable onPress={() => removeLine(index)} className="rounded-lg border border-line px-3 py-2 active:bg-surface-subtle">
+            <Pressable onPress={() => removeLine(index)} hitSlop={8} className="rounded-lg border border-line px-3 py-2 active:bg-surface-subtle">
               <XIcon color="#5d6c68" size={16} weight="regular" />
             </Pressable>
           ) : null}
         </View>
       ))}
       {amounts.length < SPLIT_MAX_LINES ? (
-        <Pressable onPress={addLine} className="flex-row items-center justify-center gap-1 rounded-lg border border-dashed border-line-strong py-2 active:bg-surface-subtle">
-          <PlusIcon color="#5d6c68" size={14} weight="regular" />
-          <Text className="text-ink-muted">Přidat řádek</Text>
-        </Pressable>
+        <Button variant="ghost" icon={PlusIcon} onPress={addLine} className="border border-dashed border-line-strong">
+          Přidat řádek
+        </Button>
       ) : null}
       {error ? <Text className="text-sm text-critical">{error}</Text> : null}
-      <Pressable onPress={handleSplit} disabled={splitTransaction.isPending} className="items-center rounded-lg bg-accent py-2.5 active:bg-accent-hover">
-        <Text className="font-sans-medium text-accent-foreground">{splitTransaction.isPending ? 'Ukládám…' : 'Rozdělit'}</Text>
-      </Pressable>
+      <Button variant="primary" loading={splitTransaction.isPending} onPress={handleSplit}>
+        Rozdělit
+      </Button>
     </View>
   );
 }
@@ -178,7 +180,7 @@ export default function TransactionDetailScreen(): React.JSX.Element {
 
           <View className="flex-row items-center justify-between">
             <Text className="font-sans-medium text-sm text-ink-muted">Sdílená platba</Text>
-            <Switch value={isShared} onValueChange={setIsShared} trackColor={{ true: '#17647c' }} />
+            <Switch value={isShared} onValueChange={setIsShared} />
           </View>
 
           <View>
@@ -198,33 +200,30 @@ export default function TransactionDetailScreen(): React.JSX.Element {
 
           <View>
             <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Poznámka</Text>
-            <TextInput
-              className="rounded-lg border border-line px-3 py-2 text-ink"
+            <TextField
               multiline
               value={notes}
               onChangeText={setNotes}
+              returnKeyType="done"
+              blurOnSubmit
             />
           </View>
 
           {saveError ? <Text className="text-sm text-critical">{saveError}</Text> : null}
           {saved ? <Text className="text-sm text-positive">Uloženo.</Text> : null}
 
-          <Pressable onPress={handleSave} disabled={updateTransaction.isPending} className="items-center rounded-lg bg-accent py-3 active:bg-accent-hover">
-            <Text className="font-sans-medium text-accent-foreground">{updateTransaction.isPending ? 'Ukládám…' : 'Uložit'}</Text>
-          </Pressable>
+          <Button variant="primary" loading={updateTransaction.isPending} onPress={handleSave}>
+            Uložit
+          </Button>
 
           {transaction.kind === 'SPLIT_PARENT' ? (
-            <Pressable
-              onPress={() => mergeSplit.mutate(transaction.id, { onSuccess: () => router.back() })}
-              disabled={mergeSplit.isPending}
-              className="items-center rounded-lg border border-line py-3 active:bg-surface-subtle"
-            >
-              <Text className="font-sans-medium text-ink">{mergeSplit.isPending ? 'Slučuji…' : 'Zrušit rozdělení'}</Text>
-            </Pressable>
+            <Button variant="secondary" loading={mergeSplit.isPending} onPress={() => mergeSplit.mutate(transaction.id, { onSuccess: () => router.back() })}>
+              Zrušit rozdělení
+            </Button>
           ) : (
-            <Pressable onPress={() => setShowSplit((current) => !current)} className="items-center rounded-lg border border-line py-3 active:bg-surface-subtle">
-              <Text className="font-sans-medium text-ink">{showSplit ? 'Skrýt rozdělení' : 'Rozdělit transakci'}</Text>
-            </Pressable>
+            <Button variant="secondary" onPress={() => setShowSplit((current) => !current)}>
+              {showSplit ? 'Skrýt rozdělení' : 'Rozdělit transakci'}
+            </Button>
           )}
 
           {showSplit ? <SplitPanel transactionId={transaction.id} totalAmount={transaction.amount} onDone={() => router.back()} /> : null}

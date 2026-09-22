@@ -1,9 +1,11 @@
 import { useRouter } from 'expo-router';
 import { ArrowsClockwiseIcon, MagnifyingGlassIcon, TagIcon, XIcon } from 'phosphor-react-native';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../../components/badge';
+import { Button } from '../../../components/button';
+import { TextField } from '../../../components/text-field';
 import {
   useApplyMerchantCategory,
   useBulkCategorize,
@@ -103,12 +105,12 @@ function RecommendationBanner({
       </Text>
       {error ? <Text className="text-xs text-critical">{error}</Text> : null}
       <View className="flex-row gap-2">
-        <Pressable onPress={handleApply} disabled={applyMerchantCategory.isPending} className="rounded-lg bg-accent px-3 py-1.5 active:bg-accent-hover">
-          <Text className="font-sans-medium text-sm text-accent-foreground">{applyMerchantCategory.isPending ? 'Přiřazuji…' : 'Přiřadit'}</Text>
-        </Pressable>
-        <Pressable onPress={onDismiss} className="rounded-lg border border-accent/25 px-3 py-1.5 active:bg-surface-subtle">
-          <Text className="text-sm text-accent">Zavřít</Text>
-        </Pressable>
+        <Button variant="primary" size="chip" loading={applyMerchantCategory.isPending} onPress={handleApply}>
+          Přiřadit
+        </Button>
+        <Button variant="secondary" size="chip" onPress={onDismiss}>
+          Zavřít
+        </Button>
       </View>
     </View>
   );
@@ -188,12 +190,12 @@ export default function TransactionsListScreen(): React.JSX.Element {
       <View className="border-b border-line bg-surface px-4 py-3">
         <View className="mb-2 flex-row items-center gap-2 rounded-lg border border-line bg-canvas px-3">
           <MagnifyingGlassIcon color="#5d6c68" size={16} weight="regular" />
-          <TextInput
-            className="flex-1 py-2 text-ink"
+          <TextField
+            className="flex-1 border-0 bg-transparent px-0 py-2"
             placeholder="Hledat (protistrana, poznámka)…"
-            placeholderTextColor="#5d6c68"
             value={q}
             onChangeText={(text) => { setQ(text); setPage(1); }}
+            returnKeyType="search"
           />
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
@@ -224,16 +226,9 @@ export default function TransactionsListScreen(): React.JSX.Element {
             <Text className="text-ink-muted">Kategorie</Text>
           </Pressable>
         </View>
-        <Pressable
-          onPress={() => matchTransfers.mutate()}
-          disabled={matchTransfers.isPending}
-          className="mt-2 flex-row items-center justify-center gap-2 rounded-lg border border-line py-2 active:bg-surface-subtle"
-        >
-          <ArrowsClockwiseIcon color="#5d6c68" size={16} weight="regular" />
-          <Text className="text-ink-muted">
-            {matchTransfers.isPending ? 'Páruji…' : 'Spárovat převody'}
-          </Text>
-        </Pressable>
+        <Button variant="secondary" icon={ArrowsClockwiseIcon} loading={matchTransfers.isPending} onPress={() => matchTransfers.mutate()} className="mt-2">
+          Spárovat převody
+        </Button>
       </View>
 
       {activeRecommendation && data.period.from && data.period.to ? (
@@ -306,23 +301,15 @@ export default function TransactionsListScreen(): React.JSX.Element {
 
       {data.totalPages > 1 ? (
         <View className="flex-row items-center justify-between border-t border-line bg-surface px-4 py-3">
-          <Pressable
-            onPress={() => setPage((current) => Math.max(1, current - 1))}
-            disabled={data.page <= 1}
-            className="rounded-md bg-surface-subtle px-3 py-1.5 disabled:opacity-40"
-          >
-            <Text className="text-ink">Předchozí</Text>
-          </Pressable>
+          <Button variant="secondary" size="chip" disabled={data.page <= 1} onPress={() => setPage((current) => Math.max(1, current - 1))}>
+            Předchozí
+          </Button>
           <Text className="text-ink-muted">
             {data.page} / {data.totalPages}
           </Text>
-          <Pressable
-            onPress={() => setPage((current) => Math.min(data.totalPages, current + 1))}
-            disabled={data.page >= data.totalPages}
-            className="rounded-md bg-surface-subtle px-3 py-1.5 disabled:opacity-40"
-          >
-            <Text className="text-ink">Další</Text>
-          </Pressable>
+          <Button variant="secondary" size="chip" disabled={data.page >= data.totalPages} onPress={() => setPage((current) => Math.min(data.totalPages, current + 1))}>
+            Další
+          </Button>
         </View>
       ) : null}
     </View>
