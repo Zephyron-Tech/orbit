@@ -12,18 +12,19 @@ import {
   PiggyBankIcon,
   ReceiptIcon,
   TagIcon,
+  TrashIcon,
   TrendUpIcon,
   WarningCircleIcon,
   type Icon,
 } from 'phosphor-react-native';
 import { useState } from 'react';
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, Text, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import { Pressable } from '../../../components/pressable';
 import { Skeleton } from '../../../components/skeleton';
 import { FadeInView } from '../../../components/fade-in';
-import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications } from '../../../hooks/use-notifications';
+import { useDeleteAllNotifications, useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications } from '../../../hooks/use-notifications';
 import { colors } from '../../../lib/colors';
 import { haptics } from '../../../lib/haptics';
 import type { NotificationRow } from '../../../lib/response-types';
@@ -138,6 +139,7 @@ export default function NotificationLogScreen(): React.JSX.Element {
   const { data, isPending, isError, error, refetch } = useNotifications();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
+  const deleteAll = useDeleteAllNotifications();
   // Deliberately local, not tied to isRefetching — same fix as every other
   // screen's RefreshControl in this app: a pull only ever sets this itself,
   // never a background refetch triggered elsewhere (e.g. mark-as-read's own
@@ -154,6 +156,14 @@ export default function NotificationLogScreen(): React.JSX.Element {
   function handleMarkAllRead(): void {
     haptics.tapLight();
     markAllRead.mutate();
+  }
+
+  function handleDeleteAll(): void {
+    haptics.tapLight();
+    Alert.alert('Smazat všechna oznámení?', 'Historii oznámení nejde vrátit zpět.', [
+      { text: 'Zrušit', style: 'cancel' },
+      { text: 'Smazat vše', style: 'destructive', onPress: () => deleteAll.mutate() },
+    ]);
   }
 
   async function handlePullRefresh(): Promise<void> {
@@ -207,11 +217,16 @@ export default function NotificationLogScreen(): React.JSX.Element {
         <Text className="text-sm text-ink-muted">
           {data.unreadCount > 0 ? `${data.unreadCount} ${data.unreadCount === 1 ? 'nepřečtené' : data.unreadCount < 5 ? 'nepřečtená' : 'nepřečtených'}` : 'Vše přečteno'}
         </Text>
-        {data.unreadCount > 0 ? (
-          <Pressable accessibilityLabel="Označit vše jako přečtené" onPress={handleMarkAllRead} hitSlop={8}>
-            <Text className="font-sans-medium text-sm text-accent">Označit vše</Text>
+        <View className="flex-row items-center gap-4">
+          {data.unreadCount > 0 ? (
+            <Pressable accessibilityLabel="Označit vše jako přečtené" onPress={handleMarkAllRead} hitSlop={8}>
+              <Text className="font-sans-medium text-sm text-accent">Označit vše</Text>
+            </Pressable>
+          ) : null}
+          <Pressable accessibilityLabel="Smazat všechna oznámení" onPress={handleDeleteAll} hitSlop={8}>
+            <TrashIcon color={colors.critical} size={18} weight="regular" />
           </Pressable>
-        ) : null}
+        </View>
       </View>
 
       {groups.map((group) => (

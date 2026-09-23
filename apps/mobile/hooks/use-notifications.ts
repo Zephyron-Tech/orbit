@@ -44,3 +44,12 @@ export function useMarkAllNotificationsRead() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
   });
 }
+
+export function useDeleteAllNotifications() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiClient.notifications.$delete().then((response) => unwrap<{ ok: true; count: number }>(response, 'Nepodařilo se smazat oznámení')),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
+  });
+}

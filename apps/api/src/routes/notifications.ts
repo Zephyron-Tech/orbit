@@ -12,7 +12,7 @@ export const notifications = new Hono<AuthEnv>()
   .get('/', async (c) => {
     const claims = c.get('user');
     const rows = await prisma.sentNotification.findMany({
-      where: { userId: claims.sub },
+      where: { userId: claims.sub, clearedAt: null },
       orderBy: { sentAt: 'desc' },
       take: LIST_LIMIT,
       select: { id: true, type: true, title: true, body: true, data: true, sentAt: true, readAt: true },
@@ -34,6 +34,13 @@ export const notifications = new Hono<AuthEnv>()
   .patch('/read-all', async (c) => {
     const claims = c.get('user');
     const result = await prisma.sentNotification.updateMany({ where: { userId: claims.sub, readAt: null }, data: { readAt: new Date() } });
+    return c.json({ ok: true, count: result.count });
+  })
+  .delete('/', async (c) => {
+    const claims = c.get('user');
+    // Soft delete (clearedAt), not a row delete — see the schema comment on
+    // SentNotification.clearedAt for why the row has to survive.
+    const result = await prisma.sentNotification.updateMany({ where: { userId: claims.sub, clearedAt: null }, data: { clearedAt: new Date() } });
     return c.json({ ok: true, count: result.count });
   })
   .patch('/:id/read', async (c) => {
