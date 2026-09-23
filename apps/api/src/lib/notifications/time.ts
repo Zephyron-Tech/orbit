@@ -18,13 +18,25 @@ export function isPragueWeekday(now: Date): boolean {
   return !WEEKEND_DAYS.has(WEEKDAY_FORMAT.format(now));
 }
 
-/** `hour` is 0-23, Prague local time (CET/CEST already accounted for by Intl). */
-export function isPragueHour(now: Date, hour: number): boolean {
-  // "24" is what Intl prints for midnight in hour12:false — never actually
-  // matches a 0-23 `hour` argument, but guard against comparing "24" to 0.
+/** 0-23, Prague local time (CET/CEST already accounted for by Intl). */
+export function pragueHour(now: Date): number {
+  // "24" is what Intl prints for midnight in hour12:false.
   const formatted = HOUR_FORMAT.format(now);
-  const parsed = formatted === '24' ? 0 : Number(formatted);
-  return parsed === hour;
+  return formatted === '24' ? 0 : Number(formatted);
+}
+
+/**
+ * `hour` or later, Prague local time. Deliberately not an exact-hour match:
+ * the cron loop's `sleep 3600` drifts later by however long each cycle's
+ * curls take, and that drift compounds — a real production run skipped
+ * Prague hour 19 entirely, landing at 18:59 then 20:00 on consecutive
+ * ticks, because one cycle happened to take just over 61 minutes. An
+ * exact-hour check has no way to catch a miss like that; a floor check
+ * combined with a per-day dedupe key (see pragueDateKey) still sends at
+ * most once a day, whichever tick after `hour` happens to land first.
+ */
+export function isPragueHourOrLater(now: Date, hour: number): boolean {
+  return pragueHour(now) >= hour;
 }
 
 export function pragueDayOfMonth(now: Date): number {
