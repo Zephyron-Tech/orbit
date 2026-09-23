@@ -75,12 +75,29 @@ function positionMatches(position: PortfolioPosition, query: string): boolean {
 }
 
 export default function PortfolioScreen(): React.JSX.Element {
-  const { data, isPending, isError, error, refetch, isRefetching } = usePortfolio();
+  const { data, isPending, isError, error, refetch } = usePortfolio();
   const refresh = useRefreshPortfolio();
   const [chartPeriod, setChartPeriod] = useState('Vše');
   const [positionQuery, setPositionQuery] = useState('');
   const [sortKey, setSortKey] = useState<PositionSortKey>('value');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  // Deliberately local, not tied to isRefetching: that flag also flips true
+  // for the background refetch the "Obnovit" button's own invalidateQueries
+  // triggers, which raced with refresh.isPending clearing and made the pull
+  // spinner pop in right after the button's spinner stopped — two spins for
+  // one tap. A pull only ever sets this itself, so it can never react to
+  // anything the button does.
+  const [pulling, setPulling] = useState(false);
+
+  async function handlePullRefresh(): Promise<void> {
+    haptics.tapLight();
+    setPulling(true);
+    try {
+      await refetch();
+    } finally {
+      setPulling(false);
+    }
+  }
 
   if (isPending) {
     return (
@@ -145,10 +162,7 @@ export default function PortfolioScreen(): React.JSX.Element {
     <ScrollView
       className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
-      // Never show the pull-to-refresh spinner while the "Obnovit" button's
-      // own sync is running — otherwise a button tap ends up flipping both
-      // on at once, reading as two separate loads for the same action.
-      refreshControl={<RefreshControl refreshing={isRefetching && !refresh.isPending} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}
+      refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void handlePullRefresh()} tintColor={colors.accent} />}
     >
       <RefreshButton pending={refresh.isPending} onPress={() => refresh.mutate()} />
 
