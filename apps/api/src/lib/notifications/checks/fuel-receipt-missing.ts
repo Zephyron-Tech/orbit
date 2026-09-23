@@ -1,7 +1,8 @@
 import { prisma } from '@orbit-api/lib/db/prisma';
 import { NotificationType } from '@orbit-api/lib/generated/prisma/enums';
 
-import { notifyEligibleUsers } from '../notify';
+import { notifyEligibleUsersBatch, type NotifiableEntity } from '../notify';
+import { pluralizeCs } from '../pluralize';
 import { getReportingFloor } from '../reporting-floor';
 
 const AGE_THRESHOLD_DAYS = 3;
@@ -14,6 +15,12 @@ const AGE_THRESHOLD_DAYS = 3;
  * null). Each fires once ever, aged past AGE_THRESHOLD_DAYS so a same-day
  * purchase doesn't nag before there's been a real chance to upload the
  * receipt.
+ *
+ * Batched (notifyEligibleUsersBatch): a real production run fired 340
+ * individual pushes in one minute the first time this check ran against a
+ * genuine backlog — every entity still gets its own SentNotification row
+ * (so the in-app center lists each one with its own open/delete), but the
+ * user is only interrupted with one push summarizing the count.
  */
 export async function checkFuelReceiptMissing(now: Date): Promise<number> {
   const cutoff = new Date(now.getTime() - AGE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000);
@@ -30,25 +37,24 @@ export async function checkFuelReceiptMissing(now: Date): Promise<number> {
     }),
   ]);
 
-  let sent = 0;
-
-  for (const purchase of purchasesWithoutReceipt) {
-    const dedupeKey = `purchase:${purchase.id}`;
-    sent += await notifyEligibleUsers(NotificationType.FUEL_RECEIPT_MISSING, dedupeKey, {
+  const entities: NotifiableEntity[] = [
+    ...purchasesWithoutReceipt.map((purchase): NotifiableEntity => ({
+      dedupeKey: `purchase:${purchase.id}`,
       title: 'Chybí účtenka za palivo',
       body: `Nákup ${purchase.amountCzk.toFixed(0)} Kč na ${purchase.stationName} ze dne ${purchase.purchasedAt.toISOString().slice(0, 10)} nemá nahranou účtenku.`,
       data: { type: 'fuel-receipt-missing', kind: 'purchase', fuelPurchaseId: purchase.id },
-    });
-  }
-
-  for (const receipt of unmatchedReceipts) {
-    const dedupeKey = `receipt:${receipt.id}`;
-    sent += await notifyEligibleUsers(NotificationType.FUEL_RECEIPT_MISSING, dedupeKey, {
+    })),
+    ...unmatchedReceipts.map((receipt): NotifiableEntity => ({
+      dedupeKey: `receipt:${receipt.id}`,
       title: 'Nespárovaná účtenka za palivo',
       body: `Účtenka ${receipt.totalAfterDiscount.toFixed(0)} Kč z ${receipt.stationName} ze dne ${receipt.purchasedAt.toISOString().slice(0, 10)} zatím není spárovaná s nákupem.`,
       data: { type: 'fuel-receipt-missing', kind: 'receipt', fuelReceiptId: receipt.id },
-    });
-  }
+    })),
+  ];
 
-  return sent;
+  return notifyEligibleUsersBatch(NotificationType.FUEL_RECEIPT_MISSING, entities, (newEntities) => ({
+    title: 'Palivo — chybí doklady',
+    body: `${newEntities.length} ${pluralizeCs(newEntities.length, 'položka čeká', 'položky čekají', 'položek čeká')} na doplnění nebo spárování účtenky.`,
+    data: { type: 'fuel-receipt-missing-batch', count: newEntities.length },
+  }));
 }
