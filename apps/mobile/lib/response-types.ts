@@ -527,7 +527,16 @@ export interface FuelReceiptRow {
   matched: boolean;
 }
 
+export interface FuelOverview {
+  monthly: FuelMonthlyRow[];
+  walletBalanceCzk: string;
+  topUpCount: number;
+  purchaseCount: number;
+  totalDiscountCzk: string;
+  receiptCount: number;
+}
+
 export interface FuelResponse {
-  overview: { monthly: FuelMonthlyRow[] } & Record<string, unknown>;
+  overview: FuelOverview;
   receipts: FuelReceiptRow[];
 }
