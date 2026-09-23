@@ -23,6 +23,7 @@ export default function MoreLayout(): React.JSX.Element {
       <Stack.Screen name="settings" options={{ title: 'Nastavení' }} />
       <Stack.Screen name="notifications" options={{ title: 'Push notifikace' }} />
       <Stack.Screen name="notification-log" options={{ title: 'Oznámení' }} />
+      <Stack.Screen name="notification-detail" options={{ title: 'Detail oznámení' }} />
     </Stack>
   );
 }

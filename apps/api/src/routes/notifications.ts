@@ -58,4 +58,15 @@ export const notifications = new Hono<AuthEnv>()
 
     await prisma.sentNotification.updateMany({ where: { id, userId: claims.sub, readAt: null }, data: { readAt: new Date() } });
     return c.json({ ok: true });
+  })
+  .delete('/:id', async (c) => {
+    const claims = c.get('user');
+    const id = c.req.param('id');
+
+    const owned = await prisma.sentNotification.findFirst({ where: { id, userId: claims.sub }, select: { id: true } });
+    if (!owned) return c.json({ error: 'Oznámení nenalezeno' }, 404);
+
+    // Soft delete, same reasoning as DELETE / — the dedupeKey has to survive.
+    await prisma.sentNotification.updateMany({ where: { id, userId: claims.sub, clearedAt: null }, data: { clearedAt: new Date() } });
+    return c.json({ ok: true });
   });
