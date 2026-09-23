@@ -785,12 +785,54 @@ model User {
   /// history of every device the user has ever used.
   expoPushToken String?
 
-  invitesSent   Invite[]       @relation("InviteCreatedBy")
-  refreshTokens RefreshToken[]
+  /// Per-notification-type on/off flags. Validated through
+  /// lib/notifications/preferences.ts's NotificationPreferencesSchema (the
+  /// single source of truth for the key names) — this column is never read
+  /// or written without going through that schema. Defaults to every type
+  /// enabled, so existing users opt out rather than silently getting none.
+  notificationPreferences Json @default("{\"insuranceRenewal\":true,\"portfolioDigest\":true,\"dcaOverdue\":true,\"recurringExpenseOverdue\":true,\"unmatchedTransferStuck\":true,\"statementCoverageGap\":true,\"failedImportRow\":true,\"settlementNotClosed\":true,\"dividendReceived\":true,\"uncategorizedPileup\":true,\"bigPortfolioMove\":true,\"cashBufferLow\":true,\"creditUtilizationHigh\":true,\"fuelReceiptMissing\":true}")
+
+  invitesSent       Invite[]           @relation("InviteCreatedBy")
+  refreshTokens     RefreshToken[]
+  sentNotifications SentNotification[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   lastLogin DateTime?
+}
+
+enum NotificationType {
+  INSURANCE_RENEWAL
+  PORTFOLIO_DIGEST
+  DCA_OVERDUE
+  RECURRING_EXPENSE_OVERDUE
+  UNMATCHED_TRANSFER_STUCK
+  STATEMENT_COVERAGE_GAP
+  FAILED_IMPORT_ROW
+  SETTLEMENT_NOT_CLOSED
+  DIVIDEND_RECEIVED
+  UNCATEGORIZED_PILEUP
+  BIG_PORTFOLIO_MOVE
+  CASH_BUFFER_LOW
+  CREDIT_UTILIZATION_HIGH
+  FUEL_RECEIPT_MISSING
+}
+
+/// One row per push notification actually sent, purely to stop the hourly
+/// notifications cron from re-sending the same still-true condition every
+/// hour. The cadence (once ever, once/day, once/month, ...) lives entirely
+/// in how each check in lib/notifications/checks/*.ts builds `dedupeKey` —
+/// see that directory's dedupeKey table — never in this table's shape.
+model SentNotification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  dedupeKey String
+  sentAt    DateTime         @default(now())
+
+  @@unique([userId, type, dedupeKey])
+  @@index([userId, type, sentAt])
 }
 
 /// Hono API JWT refresh tokens. Only the SHA-256 hash of the opaque token is

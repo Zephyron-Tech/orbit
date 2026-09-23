@@ -398,8 +398,21 @@ function SectionHeaderRow({ title, onAdd }: { title: string; onAdd?: () => void 
 }
 
 export default function PlanningScreen(): React.JSX.Element {
-  const { data, isPending, isError, error, refetch, isRefetching } = usePlanning();
+  const { data, isPending, isError, error, refetch } = usePlanning();
   const saveSpendingTarget = useSaveSpendingTarget();
+  // Deliberately local, not tied to isRefetching — same fix as dashboard.tsx:
+  // a pull only ever sets this itself, never a background refetch elsewhere.
+  const [pulling, setPulling] = useState(false);
+
+  async function handlePullRefresh(): Promise<void> {
+    haptics.tapLight();
+    setPulling(true);
+    try {
+      await refetch();
+    } finally {
+      setPulling(false);
+    }
+  }
 
   const createPlan = useCreateInvestmentPlan();
   const updatePlan = useUpdateInvestmentPlan();
@@ -463,7 +476,7 @@ export default function PlanningScreen(): React.JSX.Element {
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}
+      refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void handlePullRefresh()} tintColor={colors.accent} />}
     >
       <View className="gap-3 border-b border-line bg-surface p-4">
         <Text className="font-sans-medium text-sm text-ink-muted">Měsíční cíl výdajů (Kč)</Text>

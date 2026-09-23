@@ -21,6 +21,7 @@ export default function MoreLayout(): React.JSX.Element {
       <Stack.Screen name="settlement" options={{ title: 'Vyrovnání' }} />
       <Stack.Screen name="users" options={{ title: 'Domácnost' }} />
       <Stack.Screen name="settings" options={{ title: 'Nastavení' }} />
+      <Stack.Screen name="notifications" options={{ title: 'Push notifikace' }} />
     </Stack>
   );
 }

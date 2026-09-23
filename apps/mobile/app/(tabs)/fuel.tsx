@@ -1,5 +1,6 @@
+import { useScrollToTop } from 'expo-router';
 import { CalendarBlankIcon, CaretDownIcon, ChartLineUpIcon, TagIcon, WalletIcon, WarningCircleIcon, type Icon } from 'phosphor-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -66,8 +67,24 @@ function ExpandChevronIcon({ open }: { open: boolean }): React.JSX.Element {
 }
 
 export default function FuelScreen(): React.JSX.Element {
-  const { data, isPending, isError, error, refetch, isRefetching } = useFuel();
+  const { data, isPending, isError, error, refetch } = useFuel();
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
+  // Deliberately local, not tied to isRefetching — same fix as dashboard.tsx
+  // and net-worth.tsx: a pull only ever sets this itself, so it can never
+  // react to a background refetch of this query triggered elsewhere.
+  const [pulling, setPulling] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
+
+  async function handlePullRefresh(): Promise<void> {
+    haptics.tapLight();
+    setPulling(true);
+    try {
+      await refetch();
+    } finally {
+      setPulling(false);
+    }
+  }
 
   if (isPending) {
     return (
@@ -102,9 +119,10 @@ export default function FuelScreen(): React.JSX.Element {
 
   return (
     <ScrollView
+      ref={scrollRef}
       className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}
+      refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void handlePullRefresh()} tintColor={colors.accent} />}
     >
       <View className="flex-row flex-wrap justify-between gap-y-3">
         <StatCard

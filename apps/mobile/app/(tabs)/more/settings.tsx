@@ -1,4 +1,5 @@
-import { CalendarBlankIcon, EnvelopeSimpleIcon, FingerprintIcon, LockKeyIcon, MoonIcon } from 'phosphor-react-native';
+import { useRouter } from 'expo-router';
+import { BellIcon, CalendarBlankIcon, CaretRightIcon, EnvelopeSimpleIcon, FingerprintIcon, LockKeyIcon, MoonIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -22,6 +23,7 @@ function SectionHeading({ icon, title }: { icon: React.ReactNode; title: string 
 }
 
 export default function SettingsScreen(): React.JSX.Element {
+  const router = useRouter();
   const { user } = useAuth();
   const { scheme, setScheme } = useTheme();
   const { data, isPending, isError, error } = useSettings();
@@ -160,6 +162,15 @@ export default function SettingsScreen(): React.JSX.Element {
           <Switch value={scheme === 'dark'} onValueChange={(next) => setScheme(next ? 'dark' : 'light')} />
         </View>
       </View>
+
+      <Pressable
+        accessibilityLabel="Push notifikace"
+        onPress={() => { haptics.tapLight(); router.push('/(tabs)/more/notifications'); }}
+        className="flex-row items-center justify-between rounded-xl border border-line bg-surface p-4 active:bg-surface-subtle"
+      >
+        <SectionHeading icon={<BellIcon color="#5d6c68" size={16} weight="regular" />} title="Push notifikace" />
+        <CaretRightIcon color="#5d6c68" size={18} weight="regular" />
+      </Pressable>
 
       {biometricAvailable ? (
         <View className="gap-2 rounded-xl border border-line bg-surface p-4">

@@ -48,8 +48,6 @@ export interface Trading212Config {
 
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 2_000;
-/** account/summary allows 1/5s, positions 1/1s — five seconds covers both. */
-const REQUEST_SPACING_MS = 5_000;
 /** history/dividends and history/transactions allow 6 requests per minute. */
 const HISTORY_REQUEST_SPACING_MS = 10_000;
 const PAGE_SIZE = 50;
@@ -161,11 +159,14 @@ export class Trading212Client {
     return this.request('positions', positionsSchema);
   }
 
-  /** Fetches everything one snapshot needs, spaced to stay inside the rate limit. */
+  /**
+   * account/summary (1/5s) and positions (1/1s) are separate rate-limit
+   * buckets and each is only ever called once per snapshot, so there is
+   * nothing to space between them — only repeated calls to the *same*
+   * endpoint need the gap, which `requestPath`'s own 429 retry handles.
+   */
   async getSnapshot(): Promise<Trading212Snapshot> {
     const summary = await this.getAccountSummary();
-    await this.sleep(REQUEST_SPACING_MS);
-
     const positions = await this.getPositions();
 
     return { summary, positions };

@@ -1,5 +1,6 @@
 import { Link, useRouter } from 'expo-router';
 import { CarIcon, PlusIcon } from 'phosphor-react-native';
+import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge, type BadgeTone } from '../../../../components/badge';
@@ -55,8 +56,21 @@ function PolicyListItem({ policy, onPress }: { policy: InsurancePolicyRow; onPre
 
 export default function InsuranceListScreen(): React.JSX.Element {
   const router = useRouter();
-  const { data, isPending, isError, error, refetch, isRefetching } = useInsuranceList();
+  const { data, isPending, isError, error, refetch } = useInsuranceList();
   const reorderPolicy = useReorderPolicy();
+  // Deliberately local, not tied to isRefetching — same fix as dashboard.tsx:
+  // a pull only ever sets this itself, never a background refetch elsewhere.
+  const [pulling, setPulling] = useState(false);
+
+  async function handlePullRefresh(): Promise<void> {
+    haptics.tapLight();
+    setPulling(true);
+    try {
+      await refetch();
+    } finally {
+      setPulling(false);
+    }
+  }
 
   if (isPending) {
     return (
@@ -87,7 +101,7 @@ export default function InsuranceListScreen(): React.JSX.Element {
     <ScrollView
       className="flex-1 bg-canvas"
       refreshControl={
-        <RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />
+        <RefreshControl refreshing={pulling} onRefresh={() => void handlePullRefresh()} tintColor={colors.accent} />
       }
     >
       {data.policies.length > 0 ? (

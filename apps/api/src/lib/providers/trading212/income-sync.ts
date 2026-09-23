@@ -15,11 +15,26 @@ import { toDecimalString } from './schemas';
  * settlement, which is the point.
  */
 
+export interface InsertedIncomeTransaction {
+  id: string;
+  kind: 'DIVIDEND' | 'INTEREST';
+  amount: Prisma.Decimal;
+  currency: string;
+  merchant: string | null;
+}
+
 export interface IncomeSyncResult {
   dividendsFound: number;
   interestFound: number;
   bankTransfersFound: number;
   inserted: number;
+  /**
+   * Dividend/interest rows genuinely new this run (bank transfers excluded —
+   * the `dividend-received` notification only cares about income). Prisma's
+   * `createMany` doesn't return ids, so this is derived by checking which
+   * idempotency keys already existed *before* the insert.
+   */
+  insertedIncomeTransactions: InsertedIncomeTransaction[];
 }
 
 export class Trading212IncomeSyncError extends Error {
@@ -203,13 +218,36 @@ export async function syncTrading212Income(options: IncomeSyncOptions): Promise<
     }),
   ];
 
+  // Captured before the insert: any of these keys was already in the ledger,
+  // so it can't be "new this run" no matter what createMany's skipDuplicates
+  // does with it.
+  const incomeRows = [...rows.slice(0, dividends.length + interest.length)];
+  const incomeKeys = incomeRows.map((row) => row.idempotencyKey);
+  const existingIncome = incomeKeys.length > 0 ? await prisma.transaction.findMany({ where: { idempotencyKey: { in: incomeKeys } }, select: { idempotencyKey: true } }) : [];
+  const existingIncomeKeys = new Set(existingIncome.map((row) => row.idempotencyKey));
+  const dividendKeys = new Set(incomeRows.slice(0, dividends.length).map((row) => row.idempotencyKey));
+
   const created =
     rows.length > 0 ? await prisma.transaction.createMany({ skipDuplicates: true, data: rows }) : { count: 0 };
+
+  const newIncomeKeys = incomeKeys.filter((key) => !existingIncomeKeys.has(key));
+  const insertedIncomeRows =
+    newIncomeKeys.length > 0
+      ? await prisma.transaction.findMany({ where: { idempotencyKey: { in: newIncomeKeys } }, select: { id: true, idempotencyKey: true, amount: true, currency: true, merchant: true } })
+      : [];
+  const insertedIncomeTransactions: InsertedIncomeTransaction[] = insertedIncomeRows.map((row) => ({
+    id: row.id,
+    kind: dividendKeys.has(row.idempotencyKey) ? 'DIVIDEND' : 'INTEREST',
+    amount: row.amount,
+    currency: row.currency,
+    merchant: row.merchant,
+  }));
 
   return {
     dividendsFound: dividends.length,
     interestFound: interest.length,
     bankTransfersFound: bankTransfers.length,
     inserted: created.count,
+    insertedIncomeTransactions,
   };
 }

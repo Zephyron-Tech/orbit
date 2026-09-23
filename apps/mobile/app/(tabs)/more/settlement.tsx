@@ -83,10 +83,23 @@ export default function SettlementScreen(): React.JSX.Element {
   const [notes, setNotes] = useState('');
   const [jumpMenuOpen, setJumpMenuOpen] = useState(false);
 
-  const { data, isPending, isError, error, refetch, isRefetching } = useSettlement(period.year, period.month);
+  const { data, isPending, isError, error, refetch } = useSettlement(period.year, period.month);
   const closeSettlement = useCloseSettlement();
   const reopenSettlement = useReopenSettlement();
   const markSettled = useMarkSettled();
+  // Deliberately local, not tied to isRefetching — same fix as dashboard.tsx:
+  // a pull only ever sets this itself, never a background refetch elsewhere.
+  const [pulling, setPulling] = useState(false);
+
+  async function handlePullRefresh(): Promise<void> {
+    haptics.tapLight();
+    setPulling(true);
+    try {
+      await refetch();
+    } finally {
+      setPulling(false);
+    }
+  }
 
   function jumpToPeriod(monthKey: string): void {
     const [yearPart, monthPart] = monthKey.split('-').map(Number);
@@ -161,7 +174,7 @@ export default function SettlementScreen(): React.JSX.Element {
         </View>
       ) : (
         <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerClassName="gap-4 p-4" refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}>
+        <ScrollView contentContainerClassName="gap-4 p-4" refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void handlePullRefresh()} tintColor={colors.accent} />}>
           <View className="flex-row flex-wrap gap-2">
             {data.summary.direction === 'EVEN' ? <Badge tone="success">Vyrovnáno</Badge> : null}
             {!data.isClosed ? <Badge tone="info">Otevřené</Badge> : data.settledAt ? <Badge tone="success">Uzavřené · zaplaceno</Badge> : <Badge tone="warning">Uzavřené · nezaplaceno</Badge>}
