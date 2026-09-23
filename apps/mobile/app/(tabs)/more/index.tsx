@@ -2,6 +2,7 @@ import { Link } from 'expo-router';
 import {
   BankIcon,
   CarIcon,
+  CaretRightIcon,
   DownloadSimpleIcon,
   GasPumpIcon,
   GearSixIcon,
@@ -12,13 +13,16 @@ import {
   UsersThreeIcon,
   type Icon,
 } from 'phosphor-react-native';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 
+import { Pressable } from '../../../components/pressable';
 import { useAuth } from '../../../lib/auth-context';
+import { colors } from '../../../lib/colors';
 
 interface MoreItem {
   href: string;
   label: string;
+  description: string;
   icon: Icon;
 }
 
@@ -27,15 +31,37 @@ interface MoreItem {
 // Import — mobile's bottom bar only has 4 real tabs + this menu, unlike
 // web's 5-wide mobile bar).
 const MORE_ITEMS: MoreItem[] = [
-  { href: '/(tabs)/more/portfolio', label: 'Portfolio', icon: TrendUpIcon },
-  { href: '/(tabs)/more/import', label: 'Import', icon: DownloadSimpleIcon },
-  { href: '/(tabs)/more/fuel', label: 'Palivo', icon: GasPumpIcon },
-  { href: '/(tabs)/more/insurance', label: 'Pojistky', icon: CarIcon },
-  { href: '/(tabs)/more/planning', label: 'Plánování', icon: TargetIcon },
-  { href: '/(tabs)/more/accounts', label: 'Účty', icon: BankIcon },
-  { href: '/(tabs)/more/users', label: 'Domácnost', icon: UsersThreeIcon },
-  { href: '/(tabs)/more/settings', label: 'Nastavení', icon: GearSixIcon },
+  { href: '/(tabs)/more/portfolio', label: 'Portfolio', description: 'Investiční pozice a vývoj hodnoty', icon: TrendUpIcon },
+  { href: '/(tabs)/more/import', label: 'Import', description: 'Nahrání výpisů a transakcí', icon: DownloadSimpleIcon },
+  { href: '/(tabs)/more/fuel', label: 'Palivo', description: 'Spotřeba a tankování vozidel', icon: GasPumpIcon },
+  { href: '/(tabs)/more/insurance', label: 'Pojistky', description: 'Přehled aktivních pojistek', icon: CarIcon },
+  { href: '/(tabs)/more/planning', label: 'Plánování', description: 'Cíle a finanční plán', icon: TargetIcon },
+  { href: '/(tabs)/more/accounts', label: 'Účty', description: 'Bankovní a investiční účty', icon: BankIcon },
+  { href: '/(tabs)/more/users', label: 'Domácnost', description: 'Členové a sdílený rozpočet', icon: UsersThreeIcon },
+  { href: '/(tabs)/more/settings', label: 'Nastavení', description: 'Účet, zabezpečení, preference', icon: GearSixIcon },
 ];
+
+function MoreListItem({ item }: { item: MoreItem }): React.JSX.Element {
+  return (
+    <Link href={item.href} asChild>
+      <Pressable
+        accessibilityLabel={item.label}
+        className="flex-row items-center gap-3 rounded-xl border border-line bg-surface p-4 active:bg-surface-subtle"
+      >
+        <View className="size-12 items-center justify-center rounded-xl bg-accent-soft">
+          <item.icon color={colors.accent} size={22} weight="regular" />
+        </View>
+        <View className="flex-1">
+          <Text className="font-sans-semibold text-base text-ink">{item.label}</Text>
+          <Text className="mt-0.5 text-sm text-ink-muted" numberOfLines={1}>
+            {item.description}
+          </Text>
+        </View>
+        <CaretRightIcon color={colors.inkFaint} size={18} weight="regular" />
+      </Pressable>
+    </Link>
+  );
+}
 
 export default function MoreMenuScreen(): React.JSX.Element {
   const { user, logout } = useAuth();
@@ -51,34 +77,34 @@ export default function MoreMenuScreen(): React.JSX.Element {
   }
 
   return (
-    <ScrollView className="flex-1 bg-canvas" contentContainerClassName="p-4">
-      <View className="mb-6 flex-row items-center gap-3 px-2">
-        <View className="size-9 items-center justify-center rounded-xl bg-accent">
-          <PlanetIcon color="#f8fcfd" size={21} weight="fill" />
+    <ScrollView className="flex-1 bg-canvas" contentContainerClassName="pb-8">
+      <View className="mx-4 mb-6 mt-4 gap-1">
+        <View className="flex-row items-center gap-3">
+          <View className="size-11 items-center justify-center rounded-xl bg-accent">
+            <PlanetIcon color={colors.accentForeground} size={24} weight="fill" />
+          </View>
+          <Text className="font-sans-semibold text-xl text-ink">Orbit</Text>
         </View>
-        <Text className="font-sans-semibold text-lg text-ink">Orbit</Text>
+        <Text className="text-sm text-ink-muted">Rychlý přístup ke všem sekcím</Text>
       </View>
 
-      <View className="overflow-hidden rounded-lg border border-line bg-surface">
-        {MORE_ITEMS.map((item, index) => (
-          <Link key={item.href} href={item.href} asChild>
-            <Pressable
-              className={`flex-row items-center gap-3 px-3 py-3 active:bg-surface-subtle ${
-                index < MORE_ITEMS.length - 1 ? 'border-b border-line' : ''
-              }`}
-            >
-              <item.icon color="#5d6c68" size={19} weight="regular" />
-              <Text className="font-sans-medium text-sm text-ink-muted">{item.label}</Text>
-            </Pressable>
-          </Link>
+      <View className="mx-4 gap-3">
+        {MORE_ITEMS.map((item) => (
+          <MoreListItem key={item.href} item={item} />
         ))}
       </View>
 
-      <View className="mt-6 border-t border-line pt-4">
-        {user?.email ? <Text className="mb-2 truncate px-3 text-xs text-ink-muted">{user.email}</Text> : null}
-        <Pressable onPress={handleSignOutPress} className="flex-row items-center gap-3 rounded-lg px-3 py-3 active:bg-surface-subtle">
-          <SignOutIcon color="#5d6c68" size={18} weight="regular" />
-          <Text className="font-sans-medium text-sm text-ink-muted">Odhlásit se</Text>
+      <View className="mx-4 mt-6 gap-2 border-t border-line pt-4">
+        {user?.email ? <Text className="truncate px-1 text-xs text-ink-muted">{user.email}</Text> : null}
+        <Pressable
+          accessibilityLabel="Odhlásit se"
+          onPress={handleSignOutPress}
+          className="flex-row items-center gap-3 rounded-xl border border-line bg-surface p-4 active:bg-surface-subtle"
+        >
+          <View className="size-12 items-center justify-center rounded-xl bg-critical-soft">
+            <SignOutIcon color={colors.critical} size={20} weight="regular" />
+          </View>
+          <Text className="font-sans-medium text-base text-ink">Odhlásit se</Text>
         </Pressable>
       </View>
     </ScrollView>
