@@ -1,4 +1,5 @@
 import { prisma } from '@orbit-api/lib/db/prisma';
+import type { Prisma } from '@orbit-api/lib/generated/prisma/client';
 import type { NotificationType } from '@orbit-api/lib/generated/prisma/enums';
 
 /**
@@ -17,6 +18,11 @@ export async function wasAlreadySent(userId: string, type: NotificationType, ded
   return existing !== null;
 }
 
-export async function markSent(userId: string, type: NotificationType, dedupeKey: string): Promise<void> {
-  await prisma.sentNotification.create({ data: { userId, type, dedupeKey } });
+export async function markSent(
+  userId: string,
+  type: NotificationType,
+  dedupeKey: string,
+  content: { title: string; body: string; data?: Prisma.InputJsonValue },
+): Promise<void> {
+  await prisma.sentNotification.create({ data: { userId, type, dedupeKey, title: content.title, body: content.body, data: content.data } });
 }

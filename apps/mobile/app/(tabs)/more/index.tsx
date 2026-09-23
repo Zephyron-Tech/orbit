@@ -1,6 +1,7 @@
 import { Link, useScrollToTop } from 'expo-router';
 import {
   BankIcon,
+  BellIcon,
   CarIcon,
   CaretRightIcon,
   DownloadSimpleIcon,
@@ -15,7 +16,9 @@ import {
 import { useRef } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 
+import { Badge } from '../../../components/badge';
 import { Pressable } from '../../../components/pressable';
+import { useNotifications } from '../../../hooks/use-notifications';
 import { useAuth } from '../../../lib/auth-context';
 import { colors } from '../../../lib/colors';
 
@@ -24,6 +27,7 @@ interface MoreItem {
   label: string;
   description: string;
   icon: Icon;
+  badge?: number;
 }
 
 // Same route→icon mapping as apps/web/lib/ui/nav-items.ts's SETTINGS array,
@@ -31,16 +35,19 @@ interface MoreItem {
 // place as top-level tabs (bottom bar now: Přehled, Portfolio, Čisté jmění,
 // Palivo, Více — the four most-used screens get a tab, everything else
 // lives in this menu).
-const MORE_ITEMS: MoreItem[] = [
-  { href: '/(tabs)/more/transactions', label: 'Transakce', description: 'Seznam a kategorizace transakcí', icon: ReceiptIcon },
+function buildMoreItems(unreadNotifications: number): MoreItem[] {
+  return [
+    { href: '/(tabs)/more/notification-log', label: 'Oznámení', description: 'Historie push notifikací', icon: BellIcon, badge: unreadNotifications },
+    { href: '/(tabs)/more/transactions', label: 'Transakce', description: 'Seznam a kategorizace transakcí', icon: ReceiptIcon },
   { href: '/(tabs)/more/settlement', label: 'Vyrovnání', description: 'Měsíční vyrovnání s partnerem', icon: HandshakeIcon },
   { href: '/(tabs)/more/import', label: 'Import', description: 'Nahrání výpisů a transakcí', icon: DownloadSimpleIcon },
   { href: '/(tabs)/more/insurance', label: 'Pojistky', description: 'Přehled aktivních pojistek', icon: CarIcon },
   { href: '/(tabs)/more/planning', label: 'Plánování', description: 'Cíle a finanční plán', icon: TargetIcon },
   { href: '/(tabs)/more/accounts', label: 'Účty', description: 'Bankovní a investiční účty', icon: BankIcon },
   { href: '/(tabs)/more/users', label: 'Domácnost', description: 'Členové a sdílený rozpočet', icon: UsersThreeIcon },
-  { href: '/(tabs)/more/settings', label: 'Nastavení', description: 'Účet, zabezpečení, preference', icon: GearSixIcon },
-];
+    { href: '/(tabs)/more/settings', label: 'Nastavení', description: 'Účet, zabezpečení, preference', icon: GearSixIcon },
+  ];
+}
 
 function MoreListItem({ item }: { item: MoreItem }): React.JSX.Element {
   return (
@@ -58,6 +65,7 @@ function MoreListItem({ item }: { item: MoreItem }): React.JSX.Element {
             {item.description}
           </Text>
         </View>
+        {item.badge ? <Badge tone="danger">{item.badge}</Badge> : null}
         <CaretRightIcon color={colors.inkFaint} size={18} weight="regular" />
       </Pressable>
     </Link>
@@ -66,8 +74,10 @@ function MoreListItem({ item }: { item: MoreItem }): React.JSX.Element {
 
 export default function MoreMenuScreen(): React.JSX.Element {
   const { user, logout } = useAuth();
+  const { data: notifications } = useNotifications();
   const scrollRef = useRef<ScrollView>(null);
   useScrollToTop(scrollRef);
+  const moreItems = buildMoreItems(notifications?.unreadCount ?? 0);
 
   function handleSignOutPress(): void {
     // Matches web's ConfirmDialog gate on sign-out (app-shell.tsx) — same
@@ -82,7 +92,7 @@ export default function MoreMenuScreen(): React.JSX.Element {
   return (
     <ScrollView ref={scrollRef} className="flex-1 bg-canvas" contentContainerClassName="pb-8">
       <View className="mx-4 mt-4 gap-3">
-        {MORE_ITEMS.map((item) => (
+        {moreItems.map((item) => (
           <MoreListItem key={item.href} item={item} />
         ))}
       </View>
