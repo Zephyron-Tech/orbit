@@ -425,6 +425,24 @@ export interface SettingsResponse {
   availableMonths: string[];
 }
 
+/** Keys mirror apps/api's NotificationPreferencesSchema exactly — the single source of truth for the 14 toggle names. */
+export interface NotificationPreferences {
+  insuranceRenewal: boolean;
+  portfolioDigest: boolean;
+  dcaOverdue: boolean;
+  recurringExpenseOverdue: boolean;
+  unmatchedTransferStuck: boolean;
+  statementCoverageGap: boolean;
+  failedImportRow: boolean;
+  settlementNotClosed: boolean;
+  dividendReceived: boolean;
+  uncategorizedPileup: boolean;
+  bigPortfolioMove: boolean;
+  cashBufferLow: boolean;
+  creditUtilizationHigh: boolean;
+  fuelReceiptMissing: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Users / invites
 // ---------------------------------------------------------------------------
