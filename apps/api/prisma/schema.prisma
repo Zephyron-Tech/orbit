@@ -777,6 +777,14 @@ model User {
   role         UserRole @default(MEMBER)
   isActive     Boolean  @default(true)
 
+  /// Expo push token for this user's device, registered on sign-in
+  /// (apps/mobile/lib/push-notifications.ts). Null until the mobile app
+  /// has successfully requested notification permission and resolved a
+  /// token — never assume it's set. A device re-registers on every sign-in,
+  /// so this always reflects the most recently signed-in device, not a
+  /// history of every device the user has ever used.
+  expoPushToken String?
+
   invitesSent   Invite[]       @relation("InviteCreatedBy")
   refreshTokens RefreshToken[]
 

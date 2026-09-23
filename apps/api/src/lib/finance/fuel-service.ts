@@ -28,19 +28,23 @@ export interface FuelOverview {
  * report on driving from before August 2026.
  */
 export async function loadFuelOverview(): Promise<FuelOverview> {
-  const [purchases, topUps, receipts] = await Promise.all([
+  const [purchases, topUps, receipts, matchedReceipts] = await Promise.all([
     prisma.fuelPurchase.findMany({
-      select: { purchasedAt: true, amountCzk: true, quantityLiters: true },
+      select: { id: true, purchasedAt: true, amountCzk: true, quantityLiters: true, stationName: true },
       orderBy: { purchasedAt: 'asc' },
     }),
     prisma.fuelTopUp.findMany({ select: { amountCzk: true } }),
     prisma.fuelReceipt.findMany({ select: { discountAmount: true } }),
+    prisma.fuelReceipt.findMany({ select: { purchaseId: true }, where: { purchaseId: { not: null } } }),
   ]);
 
   const topUpAmountsCzk = topUps.map((topUp) => topUp.amountCzk);
   const purchaseAmountsCzk = purchases.map((purchase) => purchase.amountCzk);
   const totalDiscount = receipts.reduce((sum, receipt) => sum.plus(receipt.discountAmount), new Prisma.Decimal(0));
-  const purchasesInReportingWindow = purchases.filter((purchase) => purchase.purchasedAt >= FUEL_DATA_CUTOFF);
+  const purchaseIdsWithReceipt = new Set(matchedReceipts.map((receipt) => receipt.purchaseId as string));
+  const purchasesInReportingWindow = purchases
+    .filter((purchase) => purchase.purchasedAt >= FUEL_DATA_CUTOFF)
+    .map((purchase) => ({ ...purchase, hasReceipt: purchaseIdsWithReceipt.has(purchase.id) }));
 
   return {
     monthly: monthlyFuelSpend(purchasesInReportingWindow),

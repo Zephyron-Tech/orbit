@@ -1,16 +1,42 @@
+import { HandshakeIcon, ListIcon, ReceiptIcon, SquaresFourIcon, WalletIcon, type Icon } from 'phosphor-react-native';
 import { Redirect, Tabs } from 'expo-router';
+import { Pressable, type ColorValue, type GestureResponderEvent } from 'react-native';
 
 import { useAuth } from '../../lib/auth-context';
+import { colors } from '../../lib/colors';
+import { haptics } from '../../lib/haptics';
+
+function tabIcon(IconComponent: Icon) {
+  return ({ focused, color, size }: { focused: boolean; color: ColorValue; size: number }) => (
+    <IconComponent color={color as string} size={size} weight={focused ? 'fill' : 'regular'} />
+  );
+}
 
 /**
- * Bottom tab bar — 5 tabs chosen by realistic usage frequency for this
- * couple's finance hub (see the plan file's navigation-split reasoning),
- * not a 1:1 mirror of web's flat 12-item sidebar. The remaining 8 resource
- * areas live behind the "Více" (More) tab.
- *
- * No icon library is wired up yet (no @expo/vector-icons/phosphor-icons
- * dependency exists in this app yet) — text-only labels for now.
+ * expo-router's Tabs doesn't expose a lower-effort hook for tab-press
+ * feedback than overriding tabBarButton — this stays a plain Pressable
+ * (not the underlying PlatformPressable RN Navigation uses internally,
+ * which isn't exported) passing every prop through unchanged except
+ * onPress, so layout/icon/label composition (owned by `children`) is
+ * untouched and only the press ripple/opacity style differs slightly.
  */
+function tabBarButton({
+  onPress,
+  ...rest
+}: {
+  onPress?: (e: GestureResponderEvent) => void;
+} & Omit<React.ComponentProps<typeof Pressable>, 'onPress' | 'ref'>): React.JSX.Element {
+  return (
+    <Pressable
+      {...rest}
+      onPress={(event) => {
+        haptics.tapLight();
+        onPress?.(event);
+      }}
+    />
+  );
+}
+
 export default function TabsLayout(): React.JSX.Element {
   const { isAuthenticated } = useAuth();
 
@@ -19,12 +45,21 @@ export default function TabsLayout(): React.JSX.Element {
   }
 
   return (
-    <Tabs screenOptions={{ headerShown: true }}>
-      <Tabs.Screen name="dashboard" options={{ title: 'Přehled' }} />
-      <Tabs.Screen name="transactions" options={{ title: 'Transakce', headerShown: false }} />
-      <Tabs.Screen name="net-worth" options={{ title: 'Čisté jmění' }} />
-      <Tabs.Screen name="settlement" options={{ title: 'Vyrovnání' }} />
-      <Tabs.Screen name="more" options={{ title: 'Více', headerShown: false }} />
+    <Tabs
+      screenOptions={{
+        headerShown: true,
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.inkMuted,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line },
+        tabBarLabelStyle: { fontFamily: 'Geist_500Medium', fontSize: 10 },
+        tabBarButton,
+      }}
+    >
+      <Tabs.Screen name="dashboard" options={{ title: 'Přehled', tabBarIcon: tabIcon(SquaresFourIcon) }} />
+      <Tabs.Screen name="transactions" options={{ title: 'Transakce', headerShown: false, tabBarIcon: tabIcon(ReceiptIcon) }} />
+      <Tabs.Screen name="net-worth" options={{ title: 'Čisté jmění', tabBarIcon: tabIcon(WalletIcon) }} />
+      <Tabs.Screen name="settlement" options={{ title: 'Vyrovnání', tabBarIcon: tabIcon(HandshakeIcon) }} />
+      <Tabs.Screen name="more" options={{ title: 'Více', headerShown: false, tabBarIcon: tabIcon(ListIcon) }} />
     </Tabs>
   );
 }

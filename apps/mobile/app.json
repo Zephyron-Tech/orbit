@@ -11,13 +11,14 @@
       "supportsTablet": true,
       "bundleIdentifier": "tech.zephyron.orbit",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "Orbit používá Face ID k rychlému a bezpečnému odemčení appky místo opětovného zadávání hesla."
       }
     },
     "android": {
       "package": "tech.zephyron.orbit",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#17647c",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -30,7 +31,20 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-router"
+      "expo-router",
+      "expo-sharing",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "imageWidth": 120,
+          "resizeMode": "contain",
+          "backgroundColor": "#f3f6f5"
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-notifications"
     ],
     "extra": {
       "router": {},

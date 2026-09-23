@@ -1,55 +1,91 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { PlusIcon, XIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 
-import { useMergeSplit, useSplitTransaction, useTransaction, useTransactionsList, useUpdateTransaction } from '../../../hooks/use-transactions';
+import { Button } from '../../../components/button';
+import { Pressable } from '../../../components/pressable';
+import { FormSkeleton } from '../../../components/skeleton';
+import { Switch } from '../../../components/switch';
+import { TextField } from '../../../components/text-field';
+import {
+  SPLIT_MAX_LINES,
+  SPLIT_MIN_LINES,
+  useMergeSplit,
+  useSplitTransaction,
+  useTransaction,
+  useTransactionsList,
+  useUpdateTransaction,
+} from '../../../hooks/use-transactions';
 import type { SplitLineInput } from '../../../hooks/use-transactions';
+import { formatDate } from '../../../lib/format-date';
+import { formatMoney } from '../../../lib/format-money';
+import { haptics } from '../../../lib/haptics';
 
-/** Two-line split only in this pass — the API supports up to 20, but a fixed
- * two-way split covers the common case and keeps this screen simple; a
- * full dynamic-line editor is a later enhancement, not this template. */
+/** Dynamic add/remove-line split editor, 2–20 lines (SPLIT_MIN_LINES/SPLIT_MAX_LINES mirror the API's own bound). */
 function SplitPanel({ transactionId, totalAmount, onDone }: { transactionId: string; totalAmount: string; onDone: () => void }): React.JSX.Element {
   const splitTransaction = useSplitTransaction();
-  const [firstAmount, setFirstAmount] = useState('');
-  const [secondAmount, setSecondAmount] = useState('');
+  const [amounts, setAmounts] = useState<string[]>(['', '']);
   const [error, setError] = useState<string | null>(null);
+
+  function addLine(): void {
+    setAmounts((current) => (current.length >= SPLIT_MAX_LINES ? current : [...current, '']));
+  }
+
+  function removeLine(index: number): void {
+    setAmounts((current) => (current.length <= SPLIT_MIN_LINES ? current : current.filter((_, i) => i !== index)));
+  }
+
+  function updateAmount(index: number, value: string): void {
+    setAmounts((current) => current.map((amount, i) => (i === index ? value : amount)));
+  }
 
   function handleSplit(): void {
     setError(null);
-    const lines: SplitLineInput[] = [
-      { amount: firstAmount, categoryId: null, isShared: false, myShareRatio: null, notes: null },
-      { amount: secondAmount, categoryId: null, isShared: false, myShareRatio: null, notes: null },
-    ];
+    const lines: SplitLineInput[] = amounts.map((amount) => ({ amount, categoryId: null, isShared: false, myShareRatio: null, notes: null }));
     splitTransaction.mutate(
       { parentId: transactionId, lines },
       {
-        onSuccess: onDone,
+        onSuccess: () => { haptics.notifySuccess(); onDone(); },
         onError: (mutationError) => setError(mutationError instanceof Error ? mutationError.message : 'Rozdělení se nezdařilo'),
       },
     );
   }
 
   return (
-    <View className="mt-4 gap-3 rounded-xl border border-neutral-200 p-4">
-      <Text className="text-sm font-medium text-neutral-500">Rozdělit na dvě části (celkem musí sedět na {totalAmount})</Text>
-      <TextInput
-        className="rounded-lg border border-neutral-300 px-3 py-2"
-        placeholder="Částka 1"
-        keyboardType="numbers-and-punctuation"
-        value={firstAmount}
-        onChangeText={setFirstAmount}
-      />
-      <TextInput
-        className="rounded-lg border border-neutral-300 px-3 py-2"
-        placeholder="Částka 2"
-        keyboardType="numbers-and-punctuation"
-        value={secondAmount}
-        onChangeText={setSecondAmount}
-      />
-      {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
-      <Pressable onPress={handleSplit} disabled={splitTransaction.isPending} className="items-center rounded-lg bg-neutral-900 py-2.5">
-        <Text className="font-medium text-white">{splitTransaction.isPending ? 'Ukládám…' : 'Rozdělit'}</Text>
-      </Pressable>
+    <View className="mt-4 gap-3 rounded-lg border border-line bg-surface p-4">
+      <Text className="font-sans-medium text-sm text-ink-muted">Rozdělit na {amounts.length} částí (celkem musí sedět na {totalAmount})</Text>
+      {amounts.map((amount, index) => (
+        <View key={index} className="flex-row items-center gap-2">
+          <TextField
+            variant="money"
+            className="flex-1"
+            placeholder={`Částka ${index + 1}`}
+            value={amount}
+            onChangeText={(value) => updateAmount(index, value)}
+            returnKeyType="done"
+          />
+          {amounts.length > SPLIT_MIN_LINES ? (
+            <Pressable
+              onPress={() => removeLine(index)}
+              accessibilityLabel="Odebrat řádek"
+              hitSlop={8}
+              className="rounded-lg border border-line px-3 py-2 active:bg-surface-subtle"
+            >
+              <XIcon color="#5d6c68" size={16} weight="regular" />
+            </Pressable>
+          ) : null}
+        </View>
+      ))}
+      {amounts.length < SPLIT_MAX_LINES ? (
+        <Button variant="ghost" icon={PlusIcon} onPress={addLine} className="border border-dashed border-line-strong">
+          Přidat řádek
+        </Button>
+      ) : null}
+      {error ? <Text className="text-sm text-critical">{error}</Text> : null}
+      <Button variant="primary" loading={splitTransaction.isPending} onPress={handleSplit}>
+        Rozdělit
+      </Button>
     </View>
   );
 }
@@ -83,19 +119,21 @@ export default function TransactionDetailScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 bg-canvas">
+        <FormSkeleton fields={4} />
       </View>
     );
   }
 
   if (isError || !transaction) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">Transakci se nepodařilo načíst</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">Transakci se nepodařilo načíst</Text>
       </View>
     );
   }
+
+  const isExpense = transaction.amount.startsWith('-');
 
   function handleSave(): void {
     if (!transaction) return;
@@ -121,88 +159,91 @@ export default function TransactionDetailScreen(): React.JSX.Element {
   }
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerClassName="p-4">
-      <Text className="text-xl font-semibold text-neutral-900">{transaction.merchant}</Text>
-      <Text className="mt-1 text-sm text-neutral-500">
-        {transaction.date} · {transaction.accountName}
+    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView className="flex-1 bg-canvas" contentContainerClassName="p-4">
+      <Text className="font-sans-semibold text-xl text-ink">{transaction.merchant}</Text>
+      <Text className="mt-1 text-sm text-ink-muted">
+        {formatDate(transaction.date)} · {transaction.accountName}
       </Text>
-      <Text className="mt-2 text-2xl font-semibold text-neutral-900">
-        {transaction.amount} {transaction.currency}
+      <Text className={`font-sans-semibold mt-2 text-2xl ${isExpense ? 'text-ink' : 'text-positive'}`}>
+        {formatMoney(transaction.amount, transaction.currency)}
       </Text>
 
       {transaction.isSettled ? (
-        <Text className="mt-3 text-sm text-amber-700">Tato transakce je součástí uzavřeného vyrovnání a nelze ji upravit.</Text>
+        <Text className="mt-3 text-sm text-warning">Tato transakce je součástí uzavřeného vyrovnání a nelze ji upravit.</Text>
       ) : (
         <View className="mt-4 gap-4">
           <View>
-            <Text className="mb-2 text-sm font-medium text-neutral-500">Kategorie</Text>
+            <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Kategorie</Text>
             <View className="flex-row flex-wrap gap-2">
               {(listData?.categories ?? []).map((category) => (
                 <Pressable
                   key={category.id}
                   onPress={() => setCategoryId(category.id)}
-                  className={`rounded-full border px-3 py-1.5 ${categoryId === category.id ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'}`}
+                  accessibilityLabel={category.name}
+                  accessibilityState={{ selected: categoryId === category.id }}
+                  className={`rounded-full border px-3 py-1.5 active:bg-surface-subtle ${categoryId === category.id ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
                 >
-                  <Text className={categoryId === category.id ? 'text-white' : 'text-neutral-700'}>{category.name}</Text>
+                  <Text className={categoryId === category.id ? 'font-sans-medium text-accent' : 'text-ink-muted'}>{category.name}</Text>
                 </Pressable>
               ))}
             </View>
           </View>
 
           <View className="flex-row items-center justify-between">
-            <Text className="text-sm font-medium text-neutral-500">Sdílená platba</Text>
+            <Text className="font-sans-medium text-sm text-ink-muted">Sdílená platba</Text>
             <Switch value={isShared} onValueChange={setIsShared} />
           </View>
 
           <View>
-            <Text className="mb-2 text-sm font-medium text-neutral-500">Zaplatil(a)</Text>
+            <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Zaplatil(a)</Text>
             <View className="flex-row gap-2">
               {(['ME', 'PARTNER'] as const).map((option) => (
                 <Pressable
                   key={option}
                   onPress={() => setPaidBy(option)}
-                  className={`rounded-full border px-3 py-1.5 ${paidBy === option ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'}`}
+                  accessibilityLabel={option === 'ME' ? 'Já' : 'Partner'}
+                  accessibilityState={{ selected: paidBy === option }}
+                  className={`rounded-full border px-3 py-1.5 active:bg-surface-subtle ${paidBy === option ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
                 >
-                  <Text className={paidBy === option ? 'text-white' : 'text-neutral-700'}>{option === 'ME' ? 'Já' : 'Partner'}</Text>
+                  <Text className={paidBy === option ? 'font-sans-medium text-accent' : 'text-ink-muted'}>{option === 'ME' ? 'Já' : 'Partner'}</Text>
                 </Pressable>
               ))}
             </View>
           </View>
 
           <View>
-            <Text className="mb-2 text-sm font-medium text-neutral-500">Poznámka</Text>
-            <TextInput
-              className="rounded-lg border border-neutral-300 px-3 py-2"
+            <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Poznámka</Text>
+            <TextField
               multiline
               value={notes}
               onChangeText={setNotes}
+              returnKeyType="done"
+              blurOnSubmit
             />
           </View>
 
-          {saveError ? <Text className="text-sm text-red-600">{saveError}</Text> : null}
-          {saved ? <Text className="text-sm text-emerald-600">Uloženo.</Text> : null}
+          {saveError ? <Text className="text-sm text-critical">{saveError}</Text> : null}
+          {saved ? <Text className="text-sm text-positive">Uloženo.</Text> : null}
 
-          <Pressable onPress={handleSave} disabled={updateTransaction.isPending} className="items-center rounded-lg bg-neutral-900 py-3">
-            <Text className="font-medium text-white">{updateTransaction.isPending ? 'Ukládám…' : 'Uložit'}</Text>
-          </Pressable>
+          <Button variant="primary" loading={updateTransaction.isPending} onPress={handleSave}>
+            Uložit
+          </Button>
 
           {transaction.kind === 'SPLIT_PARENT' ? (
-            <Pressable
-              onPress={() => mergeSplit.mutate(transaction.id, { onSuccess: () => router.back() })}
-              disabled={mergeSplit.isPending}
-              className="items-center rounded-lg border border-neutral-300 py-3"
-            >
-              <Text className="font-medium text-neutral-900">{mergeSplit.isPending ? 'Slučuji…' : 'Zrušit rozdělení'}</Text>
-            </Pressable>
+            <Button variant="secondary" loading={mergeSplit.isPending} onPress={() => mergeSplit.mutate(transaction.id, { onSuccess: () => router.back() })}>
+              Zrušit rozdělení
+            </Button>
           ) : (
-            <Pressable onPress={() => setShowSplit((current) => !current)} className="items-center rounded-lg border border-neutral-300 py-3">
-              <Text className="font-medium text-neutral-900">{showSplit ? 'Skrýt rozdělení' : 'Rozdělit transakci'}</Text>
-            </Pressable>
+            <Button variant="secondary" onPress={() => setShowSplit((current) => !current)}>
+              {showSplit ? 'Skrýt rozdělení' : 'Rozdělit transakci'}
+            </Button>
           )}
 
           {showSplit ? <SplitPanel transactionId={transaction.id} totalAmount={transaction.amount} onDone={() => router.back()} /> : null}
         </View>
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

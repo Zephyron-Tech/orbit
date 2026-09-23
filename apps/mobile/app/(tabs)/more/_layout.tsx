@@ -1,9 +1,11 @@
 import { Stack } from 'expo-router';
 
+import { headerOptions } from '../../../lib/navigation-theme';
+
 /** Stack navigator for everything behind the "Více" tab. */
 export default function MoreLayout(): React.JSX.Element {
   return (
-    <Stack>
+    <Stack screenOptions={headerOptions}>
       <Stack.Screen name="index" options={{ title: 'Více' }} />
       <Stack.Screen name="portfolio" options={{ title: 'Portfolio' }} />
       <Stack.Screen name="import" options={{ title: 'Import' }} />

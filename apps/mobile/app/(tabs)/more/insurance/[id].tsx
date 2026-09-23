@@ -1,11 +1,25 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { CloudArrowUpIcon, DownloadSimpleIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { useCreatePolicy, useDeletePolicy, useInsuranceList, useUpdatePolicy, useUploadPolicyDocument } from '../../../../hooks/use-insurance';
-import type { InsuranceDocumentKind } from '../../../../hooks/use-insurance';
-import type { InsurancePolicyInput, PaymentFrequency, PolicyStatus, VehicleCategory } from '../../../../lib/response-types';
+import { Button } from '../../../../components/button';
+import { DateField } from '../../../../components/date-field';
+import { FormSkeleton } from '../../../../components/skeleton';
+import { TextField } from '../../../../components/text-field';
+import {
+  useCreatePolicy,
+  useDeletePolicy,
+  useDownloadPolicyDocument,
+  useInsuranceList,
+  useParsePolicyDocument,
+  useUpdatePolicy,
+  useUploadPolicyDocument,
+} from '../../../../hooks/use-insurance';
+import type { ContractParsed, GreenCardParsed, InsuranceDocumentKind } from '../../../../hooks/use-insurance';
+import { formatMoney } from '../../../../lib/format-money';
+import type { InsuranceDocumentInfo, InsurancePolicyInput, PaymentFrequency, PolicyStatus, VehicleCategory } from '../../../../lib/response-types';
 
 const VEHICLE_TYPE_OPTIONS: { value: VehicleCategory; label: string }[] = [
   { value: 'CAR', label: 'Osobní auto' },
@@ -37,9 +51,9 @@ function ChoiceRow<T extends string>({ options, value, onChange }: { options: { 
         <Pressable
           key={option.value}
           onPress={() => onChange(option.value)}
-          className={`rounded-full border px-3 py-1.5 ${value === option.value ? 'border-neutral-900 bg-neutral-900' : 'border-neutral-300'}`}
+          className={`rounded-full border px-3 py-1.5 active:bg-surface-subtle ${value === option.value ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
         >
-          <Text className={value === option.value ? 'text-white' : 'text-neutral-700'}>{option.label}</Text>
+          <Text className={value === option.value ? 'font-sans-medium text-accent' : 'text-ink-muted'}>{option.label}</Text>
         </Pressable>
       ))}
     </View>
@@ -78,22 +92,82 @@ async function pickAndUpload(
   );
 }
 
+/**
+ * Pick a PDF and extract fields from it, without storing anything — works
+ * even before the policy exists (`policyId` is not required for parsing).
+ */
+async function pickAndParse(
+  kind: InsuranceDocumentKind,
+  parse: ReturnType<typeof useParsePolicyDocument>,
+  onParsed: (fields: GreenCardParsed | ContractParsed) => void,
+): Promise<void> {
+  const picked = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
+  if (picked.canceled || !picked.assets[0]) return;
+
+  const asset = picked.assets[0];
+  parse.mutate(
+    { kind, file: { uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? 'application/pdf' } },
+    {
+      onSuccess: (fields) => onParsed(fields),
+      onError: (error) => Alert.alert('Načtení se nezdařilo', error instanceof Error ? error.message : 'Zkuste to znovu.'),
+    },
+  );
+}
+
+/**
+ * Green card never sets `startDate` — it can be reissued mid-term with a
+ * different valid-from date than the actual contract start (real case:
+ * reissue after a vehicle change), which would silently shift sinking-fund
+ * due-date math. Only the contract parser's own "účinná od" line may set
+ * it — mirrors apps/web/components/insurance/insurance-manager.tsx exactly.
+ */
+function applyGreenCard(current: InsurancePolicyInput, fields: GreenCardParsed): InsurancePolicyInput {
+  return {
+    ...current,
+    policyNumber: fields.policyNumber || current.policyNumber,
+    licensePlate: fields.plateOrVin || current.licensePlate,
+    vehicleType: fields.vehicleType ?? current.vehicleType,
+  };
+}
+
+function applyContract(current: InsurancePolicyInput, fields: ContractParsed): InsurancePolicyInput {
+  return {
+    ...current,
+    policyNumber: fields.policyNumber ?? current.policyNumber,
+    licensePlate: fields.licensePlate ?? current.licensePlate,
+    vehicleName: fields.vehicleName ?? current.vehicleName,
+    vehicleType: fields.vehicleType ?? current.vehicleType,
+    annualCost: fields.annualCost ?? current.annualCost,
+    startDate: fields.startDate ?? current.startDate,
+  };
+}
+
 export default function PolicyDetailScreen(): React.JSX.Element {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const isNew = id === 'new';
 
-  const { data: listData } = useInsuranceList();
+  const { data: listData, isError: isListError, error: listError } = useInsuranceList();
   const policy = listData?.policies.find((row) => row.id === id) ?? null;
 
   const createPolicy = useCreatePolicy();
   const updatePolicy = useUpdatePolicy();
   const deletePolicy = useDeletePolicy();
   const uploadDocument = useUploadPolicyDocument();
+  const parseDocument = useParsePolicyDocument();
+  const downloadDocument = useDownloadPolicyDocument();
 
   const [form, setForm] = useState<InsurancePolicyInput>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+
+  function handleDownload(document: InsuranceDocumentInfo): void {
+    if (!policy) return;
+    downloadDocument.mutate(
+      { policyId: policy.id, documentId: document.id, filename: document.filename },
+      { onError: (mutationError) => Alert.alert('Nepodařilo se otevřít', mutationError instanceof Error ? mutationError.message : 'Zkuste to znovu.') },
+    );
+  }
 
   useEffect(() => {
     if (policy) {
@@ -111,18 +185,26 @@ export default function PolicyDetailScreen(): React.JSX.Element {
     }
   }, [policy]);
 
+  if (isListError) {
+    return (
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">{listError instanceof Error ? listError.message : 'Pojistku se nepodařilo načíst'}</Text>
+      </View>
+    );
+  }
+
   if (!isNew && !policy && listData) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">Pojistka nenalezena</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">Pojistka nenalezena</Text>
       </View>
     );
   }
 
   if (!isNew && !policy) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 bg-canvas">
+        <FormSkeleton fields={6} />
       </View>
     );
   }
@@ -153,123 +235,168 @@ export default function PolicyDetailScreen(): React.JSX.Element {
   const saving = createPolicy.isPending || updatePolicy.isPending;
 
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerClassName="gap-4 p-4">
+    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView className="flex-1 bg-canvas" contentContainerClassName="gap-4 p-4">
+      <View className="gap-2 rounded-lg border border-line bg-surface p-4">
+        <Text className="font-sans-medium text-sm text-ink-muted">Rozpoznat z PDF</Text>
+        <Text className="text-xs text-ink-muted">Vybere se PDF, vyplní se odpovídající pole níže — nic se tím nenahraje.</Text>
+        <View className="flex-row gap-2">
+          <Button
+            variant="secondary"
+            className="flex-1"
+            disabled={parseDocument.isPending}
+            onPress={() => void pickAndParse('CONTRACT', parseDocument, (fields) => setForm((current) => applyContract(current, fields as ContractParsed)))}
+          >
+            Ze smlouvy
+          </Button>
+          <Button
+            variant="secondary"
+            className="flex-1"
+            disabled={parseDocument.isPending}
+            onPress={() => void pickAndParse('GREEN_CARD', parseDocument, (fields) => setForm((current) => applyGreenCard(current, fields as GreenCardParsed)))}
+          >
+            Ze zelené karty
+          </Button>
+        </View>
+        {parseDocument.isPending ? <Text className="text-xs text-ink-muted">Čtu PDF…</Text> : null}
+      </View>
+
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Vozidlo</Text>
-        <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Vozidlo</Text>
+        <TextField
           placeholder="Název vozidla"
           value={form.vehicleName}
           onChangeText={(value) => setForm((current) => ({ ...current, vehicleName: value }))}
+          returnKeyType="next"
         />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">SPZ</Text>
-        <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">SPZ</Text>
+        <TextField
           value={form.licensePlate}
           onChangeText={(value) => setForm((current) => ({ ...current, licensePlate: value }))}
           autoCapitalize="characters"
+          returnKeyType="next"
         />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Typ vozidla</Text>
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Typ vozidla</Text>
         <ChoiceRow options={VEHICLE_TYPE_OPTIONS} value={form.vehicleType} onChange={(value) => setForm((current) => ({ ...current, vehicleType: value }))} />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Číslo pojistky</Text>
-        <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Číslo pojistky</Text>
+        <TextField
           value={form.policyNumber}
           onChangeText={(value) => setForm((current) => ({ ...current, policyNumber: value }))}
+          returnKeyType="next"
         />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Pojistník</Text>
-        <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Pojistník</Text>
+        <TextField
           value={form.policyHolder}
           onChangeText={(value) => setForm((current) => ({ ...current, policyHolder: value }))}
+          returnKeyType="next"
         />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Roční pojistné (Kč)</Text>
-        <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
-          keyboardType="numbers-and-punctuation"
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Roční pojistné (Kč)</Text>
+        <TextField
+          variant="money"
           value={form.annualCost}
           onChangeText={(value) => setForm((current) => ({ ...current, annualCost: value }))}
+          returnKeyType="next"
         />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Frekvence plateb</Text>
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Frekvence plateb</Text>
         <ChoiceRow options={FREQUENCY_OPTIONS} value={form.paymentFrequency} onChange={(value) => setForm((current) => ({ ...current, paymentFrequency: value }))} />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Datum začátku (RRRR-MM-DD)</Text>
-        <TextInput
-          className="rounded-lg border border-neutral-300 px-3 py-2"
-          value={form.startDate}
-          onChangeText={(value) => setForm((current) => ({ ...current, startDate: value }))}
-        />
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Datum začátku</Text>
+        <DateField value={form.startDate} onChange={(value) => setForm((current) => ({ ...current, startDate: value }))} />
       </View>
 
       <View>
-        <Text className="mb-2 text-sm font-medium text-neutral-500">Stav</Text>
+        <Text className="font-sans-medium mb-2 text-sm text-ink-muted">Stav</Text>
         <ChoiceRow options={STATUS_OPTIONS} value={form.status} onChange={(value) => setForm((current) => ({ ...current, status: value }))} />
       </View>
 
-      {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
+      {error ? <Text className="text-sm text-critical">{error}</Text> : null}
 
-      <Pressable onPress={handleSave} disabled={saving} className="items-center rounded-lg bg-neutral-900 py-3">
-        <Text className="font-medium text-white">{saving ? 'Ukládám…' : 'Uložit'}</Text>
-      </Pressable>
+      <Button variant="primary" loading={saving} onPress={handleSave}>
+        Uložit
+      </Button>
 
       {!isNew && policy ? (
         <>
-          <View className="mt-2 gap-3 rounded-xl border border-neutral-200 p-4">
-            <Text className="text-sm font-medium text-neutral-500">Dokumenty</Text>
+          <View className="mt-2 gap-3 rounded-lg border border-line bg-surface p-4">
+            <Text className="font-sans-medium text-sm text-ink-muted">Dokumenty</Text>
 
             <View className="flex-row items-center justify-between">
-              <Text className="text-neutral-900">Smlouva {policy.documents.contract ? '✓' : ''}</Text>
-              <Pressable
-                onPress={() => void pickAndUpload(policy.id, 'CONTRACT', uploadDocument, setUploadMessage)}
-                disabled={uploadDocument.isPending}
-                className="rounded-md bg-neutral-100 px-3 py-1.5"
-              >
-                <Text className="text-sm text-neutral-700">Nahrát</Text>
-              </Pressable>
+              <Text className="text-ink">Smlouva {policy.documents.contract ? '✓' : ''}</Text>
+              <View className="flex-row gap-2">
+                {policy.documents.contract ? (
+                  <Pressable
+                    onPress={() => handleDownload(policy.documents.contract as InsuranceDocumentInfo)}
+                    disabled={downloadDocument.isPending}
+                    className="flex-row items-center gap-1 rounded-md bg-surface-subtle px-3 py-1.5 active:bg-line"
+                  >
+                    <DownloadSimpleIcon color="#17211f" size={14} weight="regular" />
+                    <Text className="text-sm text-ink">Otevřít</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  onPress={() => void pickAndUpload(policy.id, 'CONTRACT', uploadDocument, setUploadMessage)}
+                  disabled={uploadDocument.isPending}
+                  className="flex-row items-center gap-1 rounded-md bg-surface-subtle px-3 py-1.5 active:bg-line"
+                >
+                  <CloudArrowUpIcon color="#17211f" size={14} weight="regular" />
+                  <Text className="text-sm text-ink">Nahrát</Text>
+                </Pressable>
+              </View>
             </View>
 
             <View className="flex-row items-center justify-between">
-              <Text className="text-neutral-900">Zelená karta {policy.documents.greenCard ? '✓' : ''}</Text>
-              <Pressable
-                onPress={() => void pickAndUpload(policy.id, 'GREEN_CARD', uploadDocument, setUploadMessage)}
-                disabled={uploadDocument.isPending}
-                className="rounded-md bg-neutral-100 px-3 py-1.5"
-              >
-                <Text className="text-sm text-neutral-700">Nahrát</Text>
-              </Pressable>
+              <Text className="text-ink">Zelená karta {policy.documents.greenCard ? '✓' : ''}</Text>
+              <View className="flex-row gap-2">
+                {policy.documents.greenCard ? (
+                  <Pressable
+                    onPress={() => handleDownload(policy.documents.greenCard as InsuranceDocumentInfo)}
+                    disabled={downloadDocument.isPending}
+                    className="flex-row items-center gap-1 rounded-md bg-surface-subtle px-3 py-1.5 active:bg-line"
+                  >
+                    <DownloadSimpleIcon color="#17211f" size={14} weight="regular" />
+                    <Text className="text-sm text-ink">Otevřít</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  onPress={() => void pickAndUpload(policy.id, 'GREEN_CARD', uploadDocument, setUploadMessage)}
+                  disabled={uploadDocument.isPending}
+                  className="flex-row items-center gap-1 rounded-md bg-surface-subtle px-3 py-1.5 active:bg-line"
+                >
+                  <CloudArrowUpIcon color="#17211f" size={14} weight="regular" />
+                  <Text className="text-sm text-ink">Nahrát</Text>
+                </Pressable>
+              </View>
             </View>
 
-            {uploadMessage ? <Text className="text-sm text-emerald-600">{uploadMessage}</Text> : null}
-            <Text className="text-xs text-neutral-400">
-              Stažení dokumentu zatím není na mobilu k dispozici — otevřete pojistku ve webové appce.
-            </Text>
+            {uploadMessage ? <Text className="text-sm text-positive">{uploadMessage}</Text> : null}
           </View>
 
-          <Pressable onPress={handleDelete} className="items-center rounded-lg border border-red-200 py-3">
-            <Text className="font-medium text-red-600">Smazat pojistku</Text>
-          </Pressable>
+          <Button variant="destructive" onPress={handleDelete}>
+            Smazat pojistku
+          </Button>
         </>
       ) : null}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

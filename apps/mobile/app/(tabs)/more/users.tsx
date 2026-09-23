@@ -1,32 +1,36 @@
+import { EnvelopeSimpleIcon, LinkSimpleIcon, TrashIcon, UserCircleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 
+import { Badge } from '../../../components/badge';
+import { Button } from '../../../components/button';
+import { ListSkeleton } from '../../../components/skeleton';
+import { Switch } from '../../../components/switch';
+import { SwipeableRow } from '../../../components/swipeable-row';
+import { TextField } from '../../../components/text-field';
 import { useCreateInvite, useInvitesList, useRevokeInvite, useUpdateHouseholdUser, useUsers } from '../../../hooks/use-users';
 import type { HouseholdUserRow } from '../../../lib/response-types';
 
 function UserRow({ user, isOwner, onSave, saving }: { user: HouseholdUserRow; isOwner: boolean; onSave: (input: HouseholdUserRow) => void; saving: boolean }): React.JSX.Element {
   return (
-    <View className="border-b border-neutral-100 px-4 py-3">
-      <View className="flex-row items-center justify-between">
-        <View className="flex-1 pr-3">
-          <Text className="font-medium text-neutral-900" numberOfLines={1}>
+    <View className="flex-row items-start gap-3 border-b border-line bg-surface px-4 py-3">
+      <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
+        <UserCircleIcon color="#17647c" size={20} weight="fill" />
+      </View>
+      <View className="flex-1 pr-3">
+        <View className="flex-row flex-wrap items-center gap-2">
+          <Text className="font-sans-semibold text-ink" numberOfLines={1}>
             {user.name ?? user.email}
           </Text>
-          <Text className="text-xs text-neutral-500">
-            {user.email} · {user.role === 'OWNER' ? 'Vlastník' : 'Člen'}
-            {user.isCurrentUser ? ' · vy' : ''}
-          </Text>
+          {user.isCurrentUser ? <Badge tone="info">Vy</Badge> : null}
+          <Badge>{user.role === 'OWNER' ? 'Vlastník' : 'Člen'}</Badge>
+          {!user.isActive ? <Badge tone="danger">Deaktivovaný</Badge> : null}
         </View>
-        {isOwner && !user.isCurrentUser ? (
-          <Switch
-            value={user.isActive}
-            disabled={saving}
-            onValueChange={(value) => onSave({ ...user, isActive: value })}
-          />
-        ) : (
-          <Text className="text-xs text-neutral-500">{user.isActive ? 'Aktivní' : 'Neaktivní'}</Text>
-        )}
+        <Text className="mt-1 text-xs text-ink-muted">{user.email}</Text>
       </View>
+      {isOwner && !user.isCurrentUser ? (
+        <Switch value={user.isActive} disabled={saving} onValueChange={(value) => onSave({ ...user, isActive: value })} />
+      ) : null}
     </View>
   );
 }
@@ -50,6 +54,13 @@ export default function UsersScreen(): React.JSX.Element {
     );
   }
 
+  function handleRevoke(invite: { id: string; email: string }): void {
+    Alert.alert('Zrušit pozvánku?', invite.email, [
+      { text: 'Zrušit', style: 'cancel' },
+      { text: 'Zrušit pozvánku', style: 'destructive', onPress: () => revokeInvite.mutate(invite.id) },
+    ]);
+  }
+
   function handleCreateInvite(): void {
     setInviteMessage(null);
     createInvite.mutate(
@@ -66,64 +77,68 @@ export default function UsersScreen(): React.JSX.Element {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <ActivityIndicator />
+      <View className="flex-1 bg-canvas">
+        <ListSkeleton rows={3} />
       </View>
     );
   }
 
   if (isError) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-center text-red-600">{error instanceof Error ? error.message : 'Domácnost se nepodařilo načíst'}</Text>
+      <View className="flex-1 items-center justify-center bg-canvas px-6">
+        <Text className="text-center text-critical">{error instanceof Error ? error.message : 'Domácnost se nepodařilo načíst'}</Text>
       </View>
     );
   }
 
+  const openInvites = invitesList.data?.invites.filter((invite) => !invite.acceptedAt) ?? [];
+
   return (
-    <ScrollView className="flex-1 bg-white">
-      <Text className="px-4 pb-2 pt-4 text-sm font-medium text-neutral-500">Členové</Text>
+    <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView className="flex-1 bg-canvas">
+      <Text className="px-4 pb-2 pt-4 font-sans-semibold text-base text-ink">Členové</Text>
       {data.users.map((user) => (
         <UserRow key={user.id} user={user} isOwner={isOwner} onSave={handleUpdate} saving={updateUser.isPending} />
       ))}
 
       {isOwner ? (
         <>
-          <Text className="px-4 pb-2 pt-6 text-sm font-medium text-neutral-500">Pozvat člena</Text>
+          <Text className="px-4 pb-2 pt-6 font-sans-semibold text-base text-ink">Pozvat člena</Text>
           <View className="gap-2 px-4">
-            <TextInput
-              className="rounded-lg border border-neutral-300 px-3 py-2"
+            <TextField
+              variant="email"
               placeholder="E-mail"
-              autoCapitalize="none"
-              keyboardType="email-address"
               value={inviteEmail}
               onChangeText={setInviteEmail}
+              returnKeyType="send"
+              onSubmitEditing={handleCreateInvite}
             />
-            {inviteMessage ? <Text className={createInvite.isError ? 'text-sm text-red-600' : 'text-sm text-emerald-600'}>{inviteMessage}</Text> : null}
-            <Pressable onPress={handleCreateInvite} disabled={createInvite.isPending || !inviteEmail.trim()} className="items-center rounded-lg bg-neutral-900 py-2.5">
-              <Text className="font-medium text-white">{createInvite.isPending ? 'Odesílám…' : 'Vytvořit pozvánku'}</Text>
-            </Pressable>
+            {inviteMessage ? <Text className={createInvite.isError ? 'text-sm text-critical' : 'text-sm text-positive'}>{inviteMessage}</Text> : null}
+            <Button variant="primary" icon={LinkSimpleIcon} loading={createInvite.isPending} disabled={!inviteEmail.trim()} onPress={handleCreateInvite}>
+              Vytvořit pozvánku
+            </Button>
           </View>
 
-          <Text className="px-4 pb-2 pt-6 text-sm font-medium text-neutral-500">Otevřené pozvánky</Text>
-          {invitesList.data?.invites.filter((invite) => !invite.acceptedAt).length ? (
-            invitesList.data.invites
-              .filter((invite) => !invite.acceptedAt)
-              .map((invite) => (
-                <View key={invite.id} className="flex-row items-center justify-between border-b border-neutral-100 px-4 py-3">
-                  <Text className="flex-1 pr-3 text-neutral-900" numberOfLines={1}>
+          <Text className="px-4 pb-2 pt-6 font-sans-semibold text-base text-ink">Otevřené pozvánky</Text>
+          {openInvites.length ? (
+            openInvites.map((invite) => (
+              <SwipeableRow key={invite.id} actionLabel="Zrušit" actionIcon={TrashIcon} actionTone="critical" onAction={() => handleRevoke(invite)}>
+                <View className="flex-row items-center gap-3 border-b border-line bg-surface px-4 py-3">
+                  <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
+                    <EnvelopeSimpleIcon color="#17647c" size={18} weight="regular" />
+                  </View>
+                  <Text className="flex-1 pr-3 text-ink" numberOfLines={1}>
                     {invite.email}
                   </Text>
-                  <Pressable onPress={() => revokeInvite.mutate(invite.id)} disabled={revokeInvite.isPending} className="rounded-md bg-neutral-100 px-2 py-1">
-                    <Text className="text-xs text-red-600">Zrušit</Text>
-                  </Pressable>
                 </View>
-              ))
+              </SwipeableRow>
+            ))
           ) : (
-            <Text className="px-4 pb-4 text-neutral-500">Žádné otevřené pozvánky.</Text>
+            <Text className="px-4 pb-4 text-ink-muted">Žádné otevřené pozvánky.</Text>
           )}
         </>
       ) : null}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

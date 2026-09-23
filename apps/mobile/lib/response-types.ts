@@ -45,15 +45,36 @@ export interface DashboardResponse {
   fixedIncome: string;
   credit: { utilization: string | null; used: string; limit: string; accountsCount: number };
   dca: { plansCount: number; unmatchedCount: number; overdueCount: number; pendingCount: number };
+  insurance: {
+    monthlyAccrualCost: string;
+    annualCostTotal: string;
+    upcomingRenewals: { policyId: string; vehicleName: string; licensePlate: string; nextDueDate: string }[];
+    sinkingFundCovered: boolean;
+    sinkingFundShortfall: string;
+  };
   actions: DashboardAction[];
   burnRate: { total: string; target: string | null; targetDifference: SignedMoney | null; spendingTargetProgress: number | null };
   recurringExpenses: DashboardRecurringExpense[];
 }
 
+export interface AccountAnalytics {
+  averageIncome: string;
+  medianIncome: string;
+  averageExpense: string;
+  medianExpense: string;
+  monthToDateIncome: string;
+  monthToDateExpense: string;
+  refunds: string;
+  interestEarned: string;
+  months: number;
+  fromMonth: string | null;
+  toMonth: string | null;
+}
+
 export interface NetWorthCardAccount {
   id: string;
   name: string;
-  type: string;
+  type: 'CHECKING' | 'SAVINGS' | 'INVESTMENT' | 'CREDIT';
   provider: string;
   balance: string;
   source: string;
@@ -63,6 +84,8 @@ export interface NetWorthCardAccount {
   annualInterestRate: string | null;
   interestTaxRate: string | null;
   emergencyReserveMonths: number | null;
+  portfolio: { cashBalance: string | null; investedValue: string | null; unrealizedPnl: string | null; updatedAt: string; currency: string } | null;
+  analytics: AccountAnalytics;
 }
 
 export interface NetWorthUnmatchedTransfer {
@@ -84,6 +107,7 @@ export type NetWorthResponse =
       investmentValue: number;
       liabilityValue: number;
       cardAccounts: NetWorthCardAccount[];
+      fixedBaseline: string;
       confidenceIssueCount: number;
       coverageGapCount: number;
       historicalBrokerTransfers: number;
@@ -121,6 +145,24 @@ export interface TransactionCategory {
   transactionCount: number;
 }
 
+export interface TransactionAccountOption {
+  id: string;
+  name: string;
+}
+
+export interface MerchantCategoryRecommendation {
+  accountId: string;
+  provider: string;
+  merchantKey: string;
+  merchantLabel: string;
+  categoryId: string;
+  categoryName: string;
+  supportingMonths: number;
+  evidenceMonths: number;
+  confidence: number;
+  targetIds: string[];
+}
+
 export interface TransactionsListResponse {
   period: { value: string; from: string | null; to: string | null };
   page: number;
@@ -132,6 +174,11 @@ export interface TransactionsListResponse {
   expenses: string;
   transactions: TransactionRow[];
   categories: TransactionCategory[];
+  accounts: TransactionAccountOption[];
+  recommendations: MerchantCategoryRecommendation[];
+  unmatchedTransfersOnly: boolean;
+  sort: 'date' | 'amount';
+  direction: 'asc' | 'desc';
 }
 
 export type VehicleCategory = 'CAR' | 'MOTORCYCLE' | 'TRUCK_OR_TRACTOR' | 'MOPED' | 'BUS' | 'TRAILER' | 'OTHER';
@@ -158,11 +205,16 @@ export interface InsurancePolicyRow {
   documents: { contract: InsuranceDocumentInfo | null; greenCard: InsuranceDocumentInfo | null };
 }
 
+export interface InsuranceOverview {
+  /** Sum of `annualCost` across accruing (ACTIVE/PENDING_RENEWAL) policies. */
+  annualCostTotal: string;
+}
+
 export interface InsuranceListResponse {
   policies: InsurancePolicyRow[];
-  // The dashboard-style renewal overview — not rendered in this pass, kept
-  // as `unknown` rather than fully typed since nothing here reads it yet.
-  overview: unknown;
+  // Only annualCostTotal is read on mobile so far — the rest of the API's
+  // dashboard-style renewal overview isn't rendered in this pass.
+  overview: InsuranceOverview & Record<string, unknown>;
 }
 
 export interface InsurancePolicyInput {
@@ -219,6 +271,17 @@ export interface AccountInput {
   emergencyReserveMonths: number | null;
   annualInterestRate: string | null;
   interestTaxRate: string | null;
+}
+
+export interface CreditRepaymentCandidate {
+  creditTransactionId: string | null;
+  sourceTransactionId: string;
+  amount: string;
+  date: string;
+  sourceAccountName: string;
+  matchedBy: 'AMOUNT_DATE' | 'VARIABLE_SYMBOL';
+  creditAccountId?: string;
+  creditAccountName?: string;
 }
 
 export interface PlanningSettingsInfo {
@@ -338,6 +401,8 @@ export interface SettlementResponse {
 export interface PortfolioSnapshot {
   accountName: string;
   currency: string;
+  /** Raw Trading 212 provider payload (positions + summary) — parse with lib/portfolio-parse.ts, never trust its shape directly. */
+  rawData: unknown;
   balance: string;
   balanceCzk: string | null;
   investedValue: string | null;
@@ -421,22 +486,45 @@ export interface ImportBatchesResponse {
   batches: ImportBatchRow[];
 }
 
+export interface ImportRowPreview {
+  externalId: string | null;
+  date: string;
+  amount: string;
+  currency: string;
+  merchant: string | null;
+  sourceCategory: string | null;
+  mappedCategory: string | null;
+  internalTransfer: boolean;
+  duplicate: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Fuel
 // ---------------------------------------------------------------------------
+
+export interface FuelMonthlyPurchase {
+  id: string;
+  purchasedAt: string;
+  amountCzk: string;
+  quantityLiters: string;
+  stationName: string;
+  missingReceipt: boolean;
+}
 
 export interface FuelMonthlyRow {
   month: string;
   totalCzk: string;
   liters: string;
+  purchases: FuelMonthlyPurchase[];
 }
 
 export interface FuelReceiptRow {
   id: string;
   purchasedAt: string;
-  liters: string | number;
-  totalCzk: string | number;
   stationName: string | null;
+  totalAfterDiscount: string;
+  discountAmount: string;
+  matched: boolean;
 }
 
 export interface FuelResponse {
