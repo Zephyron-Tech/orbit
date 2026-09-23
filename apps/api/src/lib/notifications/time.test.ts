@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isPragueHour, isPragueWeekday, pragueDateKey, pragueDayOfMonth, pragueIsoWeekKey, pragueMonthKey } from './time';
+import { isPragueHourOrLater, isPragueWeekday, pragueDateKey, pragueDayOfMonth, pragueIsoWeekKey, pragueMonthKey } from './time';
 
 describe('isPragueWeekday', () => {
   it('is true for a weekday', () => {
@@ -14,32 +14,44 @@ describe('isPragueWeekday', () => {
   });
 });
 
-describe('isPragueHour — CEST (summer, UTC+2)', () => {
+describe('isPragueHourOrLater — CEST (summer, UTC+2)', () => {
   it('19:00 Prague is 17:00 UTC in late September (still CEST)', () => {
-    expect(isPragueHour(new Date('2026-09-23T17:00:00Z'), 19)).toBe(true);
-    expect(isPragueHour(new Date('2026-09-23T16:59:00Z'), 19)).toBe(false);
-    expect(isPragueHour(new Date('2026-09-23T18:00:00Z'), 19)).toBe(false);
+    expect(isPragueHourOrLater(new Date('2026-09-23T17:00:00Z'), 19)).toBe(true);
+    expect(isPragueHourOrLater(new Date('2026-09-23T16:59:00Z'), 19)).toBe(false);
+    expect(isPragueHourOrLater(new Date('2026-09-23T18:00:00Z'), 19)).toBe(true);
+  });
+
+  it('stays true for every later hour the same day, not just the target hour', () => {
+    // The real-world bug this guards against: a drifting hourly cron tick
+    // that lands at 20:00 or 21:00 Prague, having skipped 19:00 entirely,
+    // must still count as "at or after 19:00" so the daily digest still fires.
+    expect(isPragueHourOrLater(new Date('2026-09-23T18:00:00Z'), 19)).toBe(true); // 20:00 Prague
+    expect(isPragueHourOrLater(new Date('2026-09-23T19:00:00Z'), 19)).toBe(true); // 21:00 Prague
+  });
+
+  it('is false before the target hour', () => {
+    expect(isPragueHourOrLater(new Date('2026-09-23T10:00:00Z'), 19)).toBe(false); // 12:00 Prague
   });
 });
 
-describe('isPragueHour — CET (winter, UTC+1)', () => {
+describe('isPragueHourOrLater — CET (winter, UTC+1)', () => {
   it('19:00 Prague is 18:00 UTC in December (CET)', () => {
-    expect(isPragueHour(new Date('2026-12-23T18:00:00Z'), 19)).toBe(true);
-    expect(isPragueHour(new Date('2026-12-23T17:00:00Z'), 19)).toBe(false);
+    expect(isPragueHourOrLater(new Date('2026-12-23T18:00:00Z'), 19)).toBe(true);
+    expect(isPragueHourOrLater(new Date('2026-12-23T17:00:00Z'), 19)).toBe(false);
   });
 });
 
-describe('isPragueHour — DST boundary', () => {
+describe('isPragueHourOrLater — DST boundary', () => {
   it('correctly reads the hour just after the late-October fallback (CEST -> CET)', () => {
     // EU DST ends last Sunday of October, 2026-10-25 01:00 UTC (03:00->02:00 Prague).
     // At 2026-10-25T18:00:00Z Prague is already back on CET (UTC+1) = 19:00 local.
-    expect(isPragueHour(new Date('2026-10-25T18:00:00Z'), 19)).toBe(true);
+    expect(isPragueHourOrLater(new Date('2026-10-25T18:00:00Z'), 19)).toBe(true);
   });
 
   it('correctly reads the hour just before the late-March spring-forward (CET -> CEST)', () => {
     // EU DST starts last Sunday of March, 2026-03-29 01:00 UTC. At
     // 2026-03-28T18:00:00Z Prague is still on CET (UTC+1) = 19:00 local.
-    expect(isPragueHour(new Date('2026-03-28T18:00:00Z'), 19)).toBe(true);
+    expect(isPragueHourOrLater(new Date('2026-03-28T18:00:00Z'), 19)).toBe(true);
   });
 });
 

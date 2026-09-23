@@ -39,3 +39,53 @@ export async function notifyEligibleUsers(type: NotificationType, dedupeKey: str
 
   return sent;
 }
+
+export interface NotifiableEntity {
+  dedupeKey: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+}
+
+/**
+ * Same gating as notifyEligibleUsers, but for a check whose condition can
+ * match an unbounded number of rows (fuel-receipt-missing fired 340
+ * individual pushes in one run on real data — every one of these once-ever
+ * checks has the same unbounded shape). Every entity still gets its own
+ * SentNotification row with its own title/body — the in-app notification
+ * center shows each one individually, with its own "open"/"delete" — but
+ * the user is only interrupted with **one** push per run: their own real
+ * content if there's exactly one new entity, otherwise `summarize`'s count.
+ */
+export async function notifyEligibleUsersBatch(type: NotificationType, entities: readonly NotifiableEntity[], summarize: (entities: readonly NotifiableEntity[]) => PushNotification): Promise<number> {
+  if (entities.length === 0) return 0;
+
+  const users = await prisma.user.findMany({
+    where: { isActive: true },
+    select: { id: true, notificationPreferences: true },
+  });
+
+  const preferenceKey = PREFERENCE_KEY_BY_TYPE[type];
+  let batchesSent = 0;
+
+  for (const user of users) {
+    const preferences = parseNotificationPreferences(user.notificationPreferences);
+    if (!preferences[preferenceKey]) continue;
+
+    const newEntities: NotifiableEntity[] = [];
+    for (const entity of entities) {
+      if (!(await wasAlreadySent(user.id, type, entity.dedupeKey))) newEntities.push(entity);
+    }
+    if (newEntities.length === 0) continue;
+
+    const notification = newEntities.length === 1 ? { title: newEntities[0]!.title, body: newEntities[0]!.body, data: newEntities[0]!.data } : summarize(newEntities);
+    await sendPushToUser(user.id, notification);
+
+    for (const entity of newEntities) {
+      await markSent(user.id, type, entity.dedupeKey, { title: entity.title, body: entity.body, data: entity.data as Prisma.InputJsonValue | undefined });
+    }
+    batchesSent += 1;
+  }
+
+  return batchesSent;
+}

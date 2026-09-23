@@ -1,24 +1,25 @@
 import { prisma } from '@orbit-api/lib/db/prisma';
 import { NotificationType } from '@orbit-api/lib/generated/prisma/enums';
 
-import { notifyEligibleUsers } from '../notify';
-import { getReportingFloor } from '../reporting-floor';
+import { notifyEligibleUsersBatch, type NotifiableEntity } from '../notify';
+import { pluralizeCs } from '../pluralize';
 
 export async function checkFailedImportRow(): Promise<number> {
-  const floor = await getReportingFloor();
   const rows = await prisma.ingestionEvent.findMany({
-    where: { status: 'FAILED', ...(floor ? { receivedAt: { gte: floor } } : {}) },
+    where: { status: 'FAILED' },
     select: { id: true, provider: true, errorMessage: true },
   });
 
-  let sent = 0;
-  for (const row of rows) {
-    const dedupeKey = row.id;
-    sent += await notifyEligibleUsers(NotificationType.FAILED_IMPORT_ROW, dedupeKey, {
-      title: 'Řádek importu selhal',
-      body: `${row.provider} — ${row.errorMessage ?? 'nepodařilo se zpracovat řádek'}. Zkontrolujte import.`,
-      data: { type: 'failed-import', ingestionEventId: row.id },
-    });
-  }
-  return sent;
+  const entities: NotifiableEntity[] = rows.map((row) => ({
+    dedupeKey: row.id,
+    title: 'Řádek importu selhal',
+    body: `${row.provider} — ${row.errorMessage ?? 'nepodařilo se zpracovat řádek'}. Zkontrolujte import.`,
+    data: { type: 'failed-import', ingestionEventId: row.id },
+  }));
+
+  return notifyEligibleUsersBatch(NotificationType.FAILED_IMPORT_ROW, entities, (newEntities) => ({
+    title: 'Chyby importu',
+    body: `${newEntities.length} ${pluralizeCs(newEntities.length, 'řádek importu selhal', 'řádky importu selhaly', 'řádků importu selhalo')}. Zkontrolujte import.`,
+    data: { type: 'failed-import-batch', count: newEntities.length },
+  }));
 }

@@ -2,7 +2,8 @@ import { prisma } from '@orbit-api/lib/db/prisma';
 import { NotificationType } from '@orbit-api/lib/generated/prisma/enums';
 import { findCoverageGaps } from '@orbit-api/lib/import/coverage';
 
-import { notifyEligibleUsers } from '../notify';
+import { notifyEligibleUsersBatch, type NotifiableEntity } from '../notify';
+import { pluralizeCs } from '../pluralize';
 import { getReportingFloor } from '../reporting-floor';
 
 export async function checkStatementCoverageGap(): Promise<number> {
@@ -18,7 +19,7 @@ export async function checkStatementCoverageGap(): Promise<number> {
     byAccount.set(batch.accountId, entry);
   }
 
-  let sent = 0;
+  const entities: NotifiableEntity[] = [];
   for (const [accountId, { name, batches: accountBatches }] of byAccount) {
     const gaps = findCoverageGaps(accountBatches);
 
@@ -29,13 +30,18 @@ export async function checkStatementCoverageGap(): Promise<number> {
       // the whole gap predates what the user actually wants to be alerted about.
       if (floor && new Date(gap.to).getTime() < floor.getTime()) continue;
 
-      const dedupeKey = `${accountId}:${gap.from}:${gap.to}`;
-      sent += await notifyEligibleUsers(NotificationType.STATEMENT_COVERAGE_GAP, dedupeKey, {
+      entities.push({
+        dedupeKey: `${accountId}:${gap.from}:${gap.to}`,
         title: 'Mezera ve výpisech',
         body: `${name} — chybí výpis za období ${gap.from} až ${gap.to}.`,
         data: { type: 'coverage-gap', accountId },
       });
     }
   }
-  return sent;
+
+  return notifyEligibleUsersBatch(NotificationType.STATEMENT_COVERAGE_GAP, entities, (newEntities) => ({
+    title: 'Mezery ve výpisech',
+    body: `${newEntities.length} ${pluralizeCs(newEntities.length, 'chybějící výpis', 'chybějící výpisy', 'chybějících výpisů')}.`,
+    data: { type: 'coverage-gap-batch', count: newEntities.length },
+  }));
 }

@@ -12,7 +12,7 @@ export const notifications = new Hono<AuthEnv>()
   .get('/', async (c) => {
     const claims = c.get('user');
     const rows = await prisma.sentNotification.findMany({
-      where: { userId: claims.sub },
+      where: { userId: claims.sub, clearedAt: null },
       orderBy: { sentAt: 'desc' },
       take: LIST_LIMIT,
       select: { id: true, type: true, title: true, body: true, data: true, sentAt: true, readAt: true },
@@ -36,6 +36,13 @@ export const notifications = new Hono<AuthEnv>()
     const result = await prisma.sentNotification.updateMany({ where: { userId: claims.sub, readAt: null }, data: { readAt: new Date() } });
     return c.json({ ok: true, count: result.count });
   })
+  .delete('/', async (c) => {
+    const claims = c.get('user');
+    // Soft delete (clearedAt), not a row delete — see the schema comment on
+    // SentNotification.clearedAt for why the row has to survive.
+    const result = await prisma.sentNotification.updateMany({ where: { userId: claims.sub, clearedAt: null }, data: { clearedAt: new Date() } });
+    return c.json({ ok: true, count: result.count });
+  })
   .patch('/:id/read', async (c) => {
     const claims = c.get('user');
     const id = c.req.param('id');
@@ -50,5 +57,16 @@ export const notifications = new Hono<AuthEnv>()
     if (!owned) return c.json({ error: 'Oznámení nenalezeno' }, 404);
 
     await prisma.sentNotification.updateMany({ where: { id, userId: claims.sub, readAt: null }, data: { readAt: new Date() } });
+    return c.json({ ok: true });
+  })
+  .delete('/:id', async (c) => {
+    const claims = c.get('user');
+    const id = c.req.param('id');
+
+    const owned = await prisma.sentNotification.findFirst({ where: { id, userId: claims.sub }, select: { id: true } });
+    if (!owned) return c.json({ error: 'Oznámení nenalezeno' }, 404);
+
+    // Soft delete, same reasoning as DELETE / — the dedupeKey has to survive.
+    await prisma.sentNotification.updateMany({ where: { id, userId: claims.sub, clearedAt: null }, data: { clearedAt: new Date() } });
     return c.json({ ok: true });
   });

@@ -44,3 +44,21 @@ export function useMarkAllNotificationsRead() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
   });
 }
+
+export function useDeleteAllNotifications() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiClient.notifications.$delete().then((response) => unwrap<{ ok: true; count: number }>(response, 'Nepodařilo se smazat oznámení')),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
+  });
+}
+
+export function useDeleteNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => apiClient.notifications[':id'].$delete({ param: { id } }).then((response) => unwrap<{ ok: true }>(response, 'Nepodařilo se smazat oznámení')),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
+  });
+}

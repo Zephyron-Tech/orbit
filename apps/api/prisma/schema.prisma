@@ -839,6 +839,13 @@ model SentNotification {
   /// Set when the user opens this notification in the in-app center. Never
   /// set by the OS push tap itself — that only navigates there.
   readAt    DateTime?
+  /// Set by "Smazat vše" in the notification center. This is a soft delete,
+  /// not a row delete: the row (and its dedupeKey) must survive, or clearing
+  /// the center would also erase the dedupe record and let a still-true
+  /// once-ever condition (e.g. an old fuel receipt still missing) re-fire on
+  /// the next cron run — exactly the spam this table exists to prevent.
+  /// GET /notifications filters clearedAt: null; nothing else reads it.
+  clearedAt DateTime?
 
   @@unique([userId, type, dedupeKey])
   @@index([userId, sentAt])
