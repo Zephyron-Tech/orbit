@@ -4,12 +4,11 @@ import {
   CarIcon,
   CaretRightIcon,
   DownloadSimpleIcon,
-  GasPumpIcon,
   GearSixIcon,
-  PlanetIcon,
+  HandshakeIcon,
+  ReceiptIcon,
   SignOutIcon,
   TargetIcon,
-  TrendUpIcon,
   UsersThreeIcon,
   type Icon,
 } from 'phosphor-react-native';
@@ -27,13 +26,14 @@ interface MoreItem {
 }
 
 // Same route→icon mapping as apps/web/lib/ui/nav-items.ts's SETTINGS array,
-// plus the two PRIMARY items mobile also parks under "Více" (Portfolio,
-// Import — mobile's bottom bar only has 4 real tabs + this menu, unlike
-// web's 5-wide mobile bar).
+// plus Transakce/Vyrovnání — demoted here once Portfolio/Palivo took their
+// place as top-level tabs (bottom bar now: Přehled, Portfolio, Čisté jmění,
+// Palivo, Více — the four most-used screens get a tab, everything else
+// lives in this menu).
 const MORE_ITEMS: MoreItem[] = [
-  { href: '/(tabs)/more/portfolio', label: 'Portfolio', description: 'Investiční pozice a vývoj hodnoty', icon: TrendUpIcon },
+  { href: '/(tabs)/more/transactions', label: 'Transakce', description: 'Seznam a kategorizace transakcí', icon: ReceiptIcon },
+  { href: '/(tabs)/more/settlement', label: 'Vyrovnání', description: 'Měsíční vyrovnání s partnerem', icon: HandshakeIcon },
   { href: '/(tabs)/more/import', label: 'Import', description: 'Nahrání výpisů a transakcí', icon: DownloadSimpleIcon },
-  { href: '/(tabs)/more/fuel', label: 'Palivo', description: 'Spotřeba a tankování vozidel', icon: GasPumpIcon },
   { href: '/(tabs)/more/insurance', label: 'Pojistky', description: 'Přehled aktivních pojistek', icon: CarIcon },
   { href: '/(tabs)/more/planning', label: 'Plánování', description: 'Cíle a finanční plán', icon: TargetIcon },
   { href: '/(tabs)/more/accounts', label: 'Účty', description: 'Bankovní a investiční účty', icon: BankIcon },
@@ -78,17 +78,7 @@ export default function MoreMenuScreen(): React.JSX.Element {
 
   return (
     <ScrollView className="flex-1 bg-canvas" contentContainerClassName="pb-8">
-      <View className="mx-4 mb-6 mt-4 gap-1">
-        <View className="flex-row items-center gap-3">
-          <View className="size-11 items-center justify-center rounded-xl bg-accent">
-            <PlanetIcon color={colors.accentForeground} size={24} weight="fill" />
-          </View>
-          <Text className="font-sans-semibold text-xl text-ink">Orbit</Text>
-        </View>
-        <Text className="text-sm text-ink-muted">Rychlý přístup ke všem sekcím</Text>
-      </View>
-
-      <View className="mx-4 gap-3">
+      <View className="mx-4 mt-4 gap-3">
         {MORE_ITEMS.map((item) => (
           <MoreListItem key={item.href} item={item} />
         ))}

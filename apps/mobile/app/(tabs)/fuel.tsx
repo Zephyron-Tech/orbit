@@ -3,16 +3,16 @@ import { useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { Badge } from '../../../components/badge';
-import { Pressable } from '../../../components/pressable';
-import { ListSkeleton, SkeletonCard } from '../../../components/skeleton';
-import { useFuel } from '../../../hooks/use-fuel';
-import { colors } from '../../../lib/colors';
-import { haptics } from '../../../lib/haptics';
-import { formatDate } from '../../../lib/format-date';
-import { formatMoney } from '../../../lib/format-money';
-import { formatPeriod } from '../../../lib/period';
-import type { FuelMonthlyRow } from '../../../lib/response-types';
+import { Badge } from '../../components/badge';
+import { Pressable } from '../../components/pressable';
+import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
+import { useFuel } from '../../hooks/use-fuel';
+import { colors } from '../../lib/colors';
+import { haptics } from '../../lib/haptics';
+import { formatDate } from '../../lib/format-date';
+import { formatMoney } from '../../lib/format-money';
+import { formatPeriod } from '../../lib/period';
+import type { FuelMonthlyRow } from '../../lib/response-types';
 
 /** "1 účtenka" / "2 účtenky" / "5 účtenek" — same rule apps/web's fuel page follows. */
 function pluralizeReceipt(count: number): string {

@@ -1,10 +1,10 @@
-import { HandshakeIcon, ListIcon, ReceiptIcon, SquaresFourIcon, WalletIcon, type Icon } from 'phosphor-react-native';
+import { GasPumpIcon, ListIcon, SquaresFourIcon, TrendUpIcon, WalletIcon, type Icon } from 'phosphor-react-native';
 import { Redirect, Tabs } from 'expo-router';
 import { Pressable, type ColorValue, type GestureResponderEvent } from 'react-native';
 
 import { useAuth } from '../../lib/auth-context';
-import { colors } from '../../lib/colors';
 import { haptics } from '../../lib/haptics';
+import { themeColors, useTheme } from '../../lib/theme';
 
 function tabIcon(IconComponent: Icon) {
   return ({ focused, color, size }: { focused: boolean; color: ColorValue; size: number }) => (
@@ -39,6 +39,8 @@ function tabBarButton({
 
 export default function TabsLayout(): React.JSX.Element {
   const { isAuthenticated } = useAuth();
+  const { scheme } = useTheme();
+  const colors = themeColors(scheme);
 
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/login" />;
@@ -48,17 +50,21 @@ export default function TabsLayout(): React.JSX.Element {
     <Tabs
       screenOptions={{
         headerShown: true,
+        headerTintColor: colors.accent,
+        headerTitleStyle: { fontFamily: 'Geist_600SemiBold' },
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: colors.surface },
         tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.inkMuted,
+        tabBarInactiveTintColor: colors['ink-muted'],
         tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line },
         tabBarLabelStyle: { fontFamily: 'Geist_500Medium', fontSize: 10 },
         tabBarButton,
       }}
     >
       <Tabs.Screen name="dashboard" options={{ title: 'Přehled', tabBarIcon: tabIcon(SquaresFourIcon) }} />
-      <Tabs.Screen name="transactions" options={{ title: 'Transakce', headerShown: false, tabBarIcon: tabIcon(ReceiptIcon) }} />
+      <Tabs.Screen name="portfolio" options={{ title: 'Portfolio', tabBarIcon: tabIcon(TrendUpIcon) }} />
       <Tabs.Screen name="net-worth" options={{ title: 'Čisté jmění', tabBarIcon: tabIcon(WalletIcon) }} />
-      <Tabs.Screen name="settlement" options={{ title: 'Vyrovnání', tabBarIcon: tabIcon(HandshakeIcon) }} />
+      <Tabs.Screen name="fuel" options={{ title: 'Palivo', tabBarIcon: tabIcon(GasPumpIcon) }} />
       <Tabs.Screen name="more" options={{ title: 'Více', headerShown: false, tabBarIcon: tabIcon(ListIcon) }} />
     </Tabs>
   );

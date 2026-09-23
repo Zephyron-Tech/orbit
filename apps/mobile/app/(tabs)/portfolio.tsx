@@ -3,15 +3,15 @@ import { useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
-import { LineChart } from '../../../components/line-chart';
-import { Pressable } from '../../../components/pressable';
-import { ListSkeleton, SkeletonCard } from '../../../components/skeleton';
-import { TextField } from '../../../components/text-field';
-import { usePortfolio, useRefreshPortfolio } from '../../../hooks/use-portfolio';
-import { colors } from '../../../lib/colors';
-import { haptics } from '../../../lib/haptics';
-import { formatMoney } from '../../../lib/format-money';
-import { parseSnapshotRawData, type PortfolioPosition } from '../../../lib/portfolio-parse';
+import { LineChart } from '../../components/line-chart';
+import { Pressable } from '../../components/pressable';
+import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
+import { TextField } from '../../components/text-field';
+import { usePortfolio, useRefreshPortfolio } from '../../hooks/use-portfolio';
+import { colors } from '../../lib/colors';
+import { haptics } from '../../lib/haptics';
+import { formatMoney } from '../../lib/format-money';
+import { parseSnapshotRawData, type PortfolioPosition } from '../../lib/portfolio-parse';
 
 const QUANTITY_FORMAT = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 4 });
 

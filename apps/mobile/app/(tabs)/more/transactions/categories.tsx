@@ -2,13 +2,13 @@ import { CheckCircleIcon, XCircleIcon } from 'phosphor-react-native';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { Button } from '../../../components/button';
-import { ListSkeleton } from '../../../components/skeleton';
-import { Switch } from '../../../components/switch';
-import { SwipeableRow } from '../../../components/swipeable-row';
-import { TextField } from '../../../components/text-field';
-import { useCreateCategory, useTransactionsList, useUpdateCategory } from '../../../hooks/use-transactions';
-import type { TransactionCategory } from '../../../lib/response-types';
+import { Button } from '../../../../components/button';
+import { ListSkeleton } from '../../../../components/skeleton';
+import { Switch } from '../../../../components/switch';
+import { SwipeableRow } from '../../../../components/swipeable-row';
+import { TextField } from '../../../../components/text-field';
+import { useCreateCategory, useTransactionsList, useUpdateCategory } from '../../../../hooks/use-transactions';
+import type { TransactionCategory } from '../../../../lib/response-types';
 
 function CategoryRow({ category }: { category: TransactionCategory }): React.JSX.Element {
   const updateCategory = useUpdateCategory();
