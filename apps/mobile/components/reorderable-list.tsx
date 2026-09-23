@@ -1,7 +1,7 @@
 import { DotsSixVerticalIcon } from 'phosphor-react-native';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, type SharedValue, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, type SharedValue, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { haptics } from '../lib/haptics';
 
@@ -66,20 +66,36 @@ function DraggableRow<T>({
       const from = index;
       const to = positions.value[index] ?? index;
       dragging.value = false;
-      translateY.value = withSpring(0, { damping: 20, stiffness: 300 });
+      translateY.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.cubic) });
       if (from !== to) runOnJS(onDragEnd)(from, to);
     });
 
   const style = useAnimatedStyle(() => {
+    if (dragging.value) {
+      // Follow the finger 1:1 from wherever the drag started — reading
+      // positions.value[index] here instead would double-count the row's
+      // own slot updates (set in onUpdate as it crosses each boundary) on
+      // top of translateY, making the dragged row itself jump in
+      // row-height increments while it's also being dragged continuously.
+      const restingAtStart = (startSlot.value - index) * rowHeight;
+      return {
+        transform: [{ translateY: restingAtStart + translateY.value }],
+        zIndex: 10,
+        opacity: 0.97,
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 3 },
+      };
+    }
     const slot = positions.value[index] ?? index;
     const resting = (slot - index) * rowHeight;
     return {
-      transform: [{ translateY: dragging.value ? resting + translateY.value : withSpring(resting, { damping: 20, stiffness: 300 }) }],
-      zIndex: dragging.value ? 10 : 0,
-      opacity: dragging.value ? 0.96 : 1,
-      shadowOpacity: dragging.value ? 0.18 : 0,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
+      transform: [{ translateY: withTiming(resting, { duration: 200, easing: Easing.out(Easing.cubic) }) }],
+      zIndex: 0,
+      opacity: 1,
+      shadowOpacity: 0,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
     };
   });
 

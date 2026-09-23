@@ -2,18 +2,18 @@ import { ArrowCounterClockwiseIcon, CheckCircleIcon, HandshakeIcon, LockKeyIcon,
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
-import { Badge } from '../../components/badge';
-import { Button } from '../../components/button';
-import { FadeInView } from '../../components/fade-in';
-import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
-import { TextField } from '../../components/text-field';
-import { useCloseSettlement, useMarkSettled, useReopenSettlement, useSettlement } from '../../hooks/use-settlement';
-import { colors } from '../../lib/colors';
-import { haptics } from '../../lib/haptics';
-import { formatDate } from '../../lib/format-date';
-import { formatMoney } from '../../lib/format-money';
-import { formatPeriod } from '../../lib/period';
-import type { SettlementLine } from '../../lib/response-types';
+import { Badge } from '../../../components/badge';
+import { Button } from '../../../components/button';
+import { FadeInView } from '../../../components/fade-in';
+import { ListSkeleton, SkeletonCard } from '../../../components/skeleton';
+import { TextField } from '../../../components/text-field';
+import { useCloseSettlement, useMarkSettled, useReopenSettlement, useSettlement } from '../../../hooks/use-settlement';
+import { colors } from '../../../lib/colors';
+import { haptics } from '../../../lib/haptics';
+import { formatDate } from '../../../lib/format-date';
+import { formatMoney } from '../../../lib/format-money';
+import { formatPeriod } from '../../../lib/period';
+import type { SettlementLine } from '../../../lib/response-types';
 
 const MONTH_LABELS = ['leden', 'únor', 'březen', 'duben', 'květen', 'červen', 'červenec', 'srpen', 'září', 'říjen', 'listopad', 'prosinec'];
 

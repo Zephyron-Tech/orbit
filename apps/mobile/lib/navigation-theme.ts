@@ -1,4 +1,4 @@
-import { colors } from './colors';
+import { themeColors, type ThemeScheme } from './theme';
 
 /**
  * Base screenOptions for a nested Stack navigator's headers. Every stack
@@ -9,11 +9,18 @@ import { colors } from './colors';
  * (no stable public export for it) — structurally matches what
  * Stack's screenOptions prop expects, verified against
  * node_modules/expo-router/build/react-navigation/native-stack/types.d.ts.
+ *
+ * A function, not a static object, so headers follow the current theme —
+ * headerTintColor/headerStyle are native props RN Navigation reads directly,
+ * they can't resolve a NativeWind CSS variable the way a className can.
  */
-export const headerOptions = {
-  headerTintColor: colors.accent,
-  headerTitleStyle: { fontFamily: 'Geist_600SemiBold' },
-  headerShadowVisible: false,
-  headerStyle: { backgroundColor: colors.surface },
-  animation: 'default',
-} as const;
+export function headerOptions(scheme: ThemeScheme) {
+  const colors = themeColors(scheme);
+  return {
+    headerTintColor: colors.accent,
+    headerTitleStyle: { fontFamily: 'Geist_600SemiBold' },
+    headerShadowVisible: false,
+    headerStyle: { backgroundColor: colors.surface },
+    animation: 'default',
+  } as const;
+}

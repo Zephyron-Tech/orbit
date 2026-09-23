@@ -1,6 +1,7 @@
 import { CaretDownIcon, ChartLineUpIcon, CreditCardIcon, PiggyBankIcon, WalletIcon, type Icon } from 'phosphor-react-native';
 import { useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Badge } from '../../components/badge';
 import { Button } from '../../components/button';
@@ -27,6 +28,19 @@ const TYPE_ICON: Record<NetWorthCardAccount['type'], Icon> = {
   INVESTMENT: ChartLineUpIcon,
   CREDIT: CreditCardIcon,
 };
+
+/** Rotation lives on a plain Animated.View wrapper, not the SVG icon's own style prop — see fuel.tsx's ExpandChevronIcon for why that pattern makes the icon vanish after the first rotation. */
+function ExpandChevronIcon({ open }: { open: boolean }): React.JSX.Element {
+  const rotation = useSharedValue(0);
+  rotation.value = withTiming(open ? 180 : 0, { duration: 200 });
+  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
+
+  return (
+    <Animated.View style={style}>
+      <CaretDownIcon color="#5d6c68" size={16} weight="regular" />
+    </Animated.View>
+  );
+}
 
 function money(value: number): string {
   return `${CZK.format(value)} Kč`;
@@ -165,9 +179,11 @@ export default function NetWorthScreen(): React.JSX.Element {
           const isOpen = expandedId === account.id;
           const TypeIcon = TYPE_ICON[account.type];
           return (
-            <View key={account.id} className="overflow-hidden rounded-lg border border-line bg-surface">
+            <Animated.View key={account.id} layout={LinearTransition.duration(200)} className="overflow-hidden rounded-lg border border-line bg-surface">
               <Pressable
                 onPress={() => { haptics.tapLight(); setExpandedId(isOpen ? null : account.id); }}
+                accessibilityLabel={account.name}
+                accessibilityState={{ expanded: isOpen }}
                 className="flex-row items-center gap-3 p-3 active:bg-surface-subtle"
               >
                 <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
@@ -186,10 +202,14 @@ export default function NetWorthScreen(): React.JSX.Element {
                 <Text className={`font-sans-semibold ${account.type === 'CREDIT' && debt > 0 ? 'text-critical' : 'text-ink'}`}>
                   {account.type === 'CREDIT' && debt > 0 ? '−' : ''}{money(account.type === 'CREDIT' ? debt : balance)}
                 </Text>
-                <CaretDownIcon color="#5d6c68" size={16} weight="regular" style={isOpen ? { transform: [{ rotate: '180deg' }] } : undefined} />
+                <ExpandChevronIcon open={isOpen} />
               </Pressable>
-              {isOpen ? <AccountDetail account={account} fixedBaseline={data.fixedBaseline} /> : null}
-            </View>
+              {isOpen ? (
+                <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(150)}>
+                  <AccountDetail account={account} fixedBaseline={data.fixedBaseline} />
+                </Animated.View>
+              ) : null}
+            </Animated.View>
           );
         })}
       </View>

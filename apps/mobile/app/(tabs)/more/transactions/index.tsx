@@ -4,24 +4,24 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
-import { Badge } from '../../../components/badge';
-import { Button } from '../../../components/button';
-import { Pressable } from '../../../components/pressable';
-import { ListSkeleton } from '../../../components/skeleton';
-import { TextField } from '../../../components/text-field';
+import { Badge } from '../../../../components/badge';
+import { Button } from '../../../../components/button';
+import { Pressable } from '../../../../components/pressable';
+import { ListSkeleton } from '../../../../components/skeleton';
+import { TextField } from '../../../../components/text-field';
 import {
   useApplyMerchantCategory,
   useBulkCategorize,
   useInfiniteTransactionsList,
   useMatchTransfers,
   type TransactionsListParams,
-} from '../../../hooks/use-transactions';
-import { useDismissUnmatchedTransfer } from '../../../hooks/use-net-worth';
-import { colors } from '../../../lib/colors';
-import { formatDate } from '../../../lib/format-date';
-import { haptics } from '../../../lib/haptics';
-import { formatMoney } from '../../../lib/format-money';
-import type { MerchantCategoryRecommendation, TransactionRow } from '../../../lib/response-types';
+} from '../../../../hooks/use-transactions';
+import { useDismissUnmatchedTransfer } from '../../../../hooks/use-net-worth';
+import { colors } from '../../../../lib/colors';
+import { formatDate } from '../../../../lib/format-date';
+import { haptics } from '../../../../lib/haptics';
+import { formatMoney } from '../../../../lib/format-money';
+import type { MerchantCategoryRecommendation, TransactionRow } from '../../../../lib/response-types';
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }): React.JSX.Element {
   return (
@@ -270,7 +270,7 @@ export default function TransactionsListScreen(): React.JSX.Element {
               <Chip label={sort === 'date' ? 'Řadit: datum' : 'Řadit: částka'} active={false} onPress={() => setSort((s) => (s === 'date' ? 'amount' : 'date'))} />
               <Chip label={direction === 'desc' ? '↓' : '↑'} active={false} onPress={() => setDirection((d) => (d === 'desc' ? 'asc' : 'desc'))} />
               <Pressable
-                onPress={() => router.push('/(tabs)/transactions/categories')}
+                onPress={() => router.push('/(tabs)/more/transactions/categories')}
                 accessibilityLabel="Kategorie"
                 className="ml-auto flex-row items-center gap-1 rounded-full border border-line bg-surface px-3 py-1.5 active:bg-surface-subtle"
               >
@@ -342,7 +342,7 @@ export default function TransactionsListScreen(): React.JSX.Element {
         renderItem={({ item }) => (
           <TransactionListItem
             transaction={item}
-            onPress={() => router.push(`/(tabs)/transactions/${item.id}`)}
+            onPress={() => router.push(`/(tabs)/more/transactions/${item.id}`)}
             selectMode={selectMode}
             selected={selectedIds.has(item.id)}
             onToggleSelect={() => toggleSelect(item.id)}

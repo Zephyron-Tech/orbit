@@ -10,6 +10,7 @@ import { useInsuranceList, useReorderPolicy } from '../../../../hooks/use-insura
 import { colors } from '../../../../lib/colors';
 import { formatMoney } from '../../../../lib/format-money';
 import { haptics } from '../../../../lib/haptics';
+import { formatLicensePlate } from '../../../../lib/license-plate';
 import type { InsurancePolicyRow } from '../../../../lib/response-types';
 
 const STATUS_LABELS: Record<InsurancePolicyRow['status'], string> = {
@@ -30,7 +31,7 @@ const ROW_HEIGHT = 70;
 
 function PolicyListItem({ policy, onPress }: { policy: InsurancePolicyRow; onPress: () => void }): React.JSX.Element {
   return (
-    <Pressable onPress={onPress} className="flex-row items-center gap-3 border-b border-line bg-surface px-2 py-3 active:opacity-70" style={{ height: ROW_HEIGHT }}>
+    <Pressable onPress={onPress} className="flex-row items-center gap-3 border-b border-line bg-surface px-4 py-3 active:opacity-70" style={{ height: ROW_HEIGHT }}>
       <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
         <CarIcon color={colors.accent} size={18} weight="regular" />
       </View>
@@ -43,7 +44,7 @@ function PolicyListItem({ policy, onPress }: { policy: InsurancePolicyRow; onPre
         </View>
         <View className="mt-1 flex-row items-center justify-between gap-2">
           <Text className="flex-1 text-xs text-ink-muted" numberOfLines={1}>
-            {policy.licensePlate} · {policy.policyNumber}
+            {formatLicensePlate(policy.licensePlate, policy.vehicleType)} · {policy.policyNumber}
           </Text>
           <Badge tone={STATUS_TONE[policy.status]}>{STATUS_LABELS[policy.status]}</Badge>
         </View>
@@ -101,13 +102,15 @@ export default function InsuranceListScreen(): React.JSX.Element {
           <Text className="text-ink-muted">Zatím žádné pojistky.</Text>
         </View>
       ) : (
-        <ReorderableList
-          data={data.policies}
-          keyExtractor={(policy) => policy.id}
-          rowHeight={ROW_HEIGHT}
-          onReorder={(id, toIndex) => void handleReorder(id, toIndex)}
-          renderItem={(policy) => <PolicyListItem policy={policy} onPress={() => router.push(`/(tabs)/more/insurance/${policy.id}`)} />}
-        />
+        <View className="mx-4">
+          <ReorderableList
+            data={data.policies}
+            keyExtractor={(policy) => policy.id}
+            rowHeight={ROW_HEIGHT}
+            onReorder={(id, toIndex) => void handleReorder(id, toIndex)}
+            renderItem={(policy) => <PolicyListItem policy={policy} onPress={() => router.push(`/(tabs)/more/insurance/${policy.id}`)} />}
+          />
+        </View>
       )}
 
       <Link href="/(tabs)/more/insurance/new" asChild>

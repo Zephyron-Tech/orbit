@@ -3,11 +3,11 @@ import { PlusIcon, XIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 
-import { Button } from '../../../components/button';
-import { Pressable } from '../../../components/pressable';
-import { FormSkeleton } from '../../../components/skeleton';
-import { Switch } from '../../../components/switch';
-import { TextField } from '../../../components/text-field';
+import { Button } from '../../../../components/button';
+import { Pressable } from '../../../../components/pressable';
+import { FormSkeleton } from '../../../../components/skeleton';
+import { Switch } from '../../../../components/switch';
+import { TextField } from '../../../../components/text-field';
 import {
   SPLIT_MAX_LINES,
   SPLIT_MIN_LINES,
@@ -16,11 +16,11 @@ import {
   useTransaction,
   useTransactionsList,
   useUpdateTransaction,
-} from '../../../hooks/use-transactions';
-import type { SplitLineInput } from '../../../hooks/use-transactions';
-import { formatDate } from '../../../lib/format-date';
-import { formatMoney } from '../../../lib/format-money';
-import { haptics } from '../../../lib/haptics';
+} from '../../../../hooks/use-transactions';
+import type { SplitLineInput } from '../../../../hooks/use-transactions';
+import { formatDate } from '../../../../lib/format-date';
+import { formatMoney } from '../../../../lib/format-money';
+import { haptics } from '../../../../lib/haptics';
 
 /** Dynamic add/remove-line split editor, 2–20 lines (SPLIT_MIN_LINES/SPLIT_MAX_LINES mirror the API's own bound). */
 function SplitPanel({ transactionId, totalAmount, onDone }: { transactionId: string; totalAmount: string; onDone: () => void }): React.JSX.Element {
