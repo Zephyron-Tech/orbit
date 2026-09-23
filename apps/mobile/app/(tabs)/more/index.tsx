@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, useScrollToTop } from 'expo-router';
 import {
   BankIcon,
   CarIcon,
@@ -12,6 +12,7 @@ import {
   UsersThreeIcon,
   type Icon,
 } from 'phosphor-react-native';
+import { useRef } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 
 import { Pressable } from '../../../components/pressable';
@@ -65,6 +66,8 @@ function MoreListItem({ item }: { item: MoreItem }): React.JSX.Element {
 
 export default function MoreMenuScreen(): React.JSX.Element {
   const { user, logout } = useAuth();
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
 
   function handleSignOutPress(): void {
     // Matches web's ConfirmDialog gate on sign-out (app-shell.tsx) — same
@@ -77,7 +80,7 @@ export default function MoreMenuScreen(): React.JSX.Element {
   }
 
   return (
-    <ScrollView className="flex-1 bg-canvas" contentContainerClassName="pb-8">
+    <ScrollView ref={scrollRef} className="flex-1 bg-canvas" contentContainerClassName="pb-8">
       <View className="mx-4 mt-4 gap-3">
         {MORE_ITEMS.map((item) => (
           <MoreListItem key={item.href} item={item} />

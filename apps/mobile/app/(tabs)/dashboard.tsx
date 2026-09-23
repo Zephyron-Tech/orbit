@@ -12,7 +12,8 @@ import {
   WarningCircleIcon,
   type Icon,
 } from 'phosphor-react-native';
-import { useState } from 'react';
+import { useScrollToTop } from 'expo-router';
+import { useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '../../components/badge';
@@ -50,6 +51,8 @@ export default function DashboardScreen(): React.JSX.Element {
   // pull only ever sets this itself, so it can never react to anything
   // else.
   const [pulling, setPulling] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
 
   async function handlePullRefresh(): Promise<void> {
     haptics.tapLight();
@@ -91,6 +94,7 @@ export default function DashboardScreen(): React.JSX.Element {
 
   return (
     <ScrollView
+      ref={scrollRef}
       className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
       refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void handlePullRefresh()} tintColor={colors.accent} />}
