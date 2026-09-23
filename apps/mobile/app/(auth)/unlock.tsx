@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
-import { PlanetIcon } from 'phosphor-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -65,9 +64,7 @@ export default function UnlockScreen(): React.JSX.Element {
     <SafeAreaView className="flex-1 bg-canvas">
     <View className="flex-1 items-center justify-center gap-6 bg-canvas px-6">
       <Animated.View style={brandStyle} className="items-center gap-2">
-        <View className="size-14 items-center justify-center rounded-2xl bg-accent">
-          <PlanetIcon color="#f8fcfd" size={28} weight="fill" />
-        </View>
+        <Image source={require('../../assets/icon.png')} className="size-14 rounded-2xl" />
         <Text className="mt-2 text-2xl font-sans-semibold text-ink">Orbit</Text>
         <Text className="text-base text-ink-muted">Appka je uzamčená</Text>
       </Animated.View>
