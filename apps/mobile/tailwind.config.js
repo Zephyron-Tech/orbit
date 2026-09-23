@@ -17,31 +17,32 @@ module.exports = {
         'sans-semibold': ['Geist_600SemiBold'],
         'sans-bold': ['Geist_700Bold'],
       },
-      // Mirrors apps/web/app/globals.css's CSS custom properties (light
-      // mode values only for now — dark mode exists on web via
-      // data-theme="dark" but has no mobile toggle yet, so these are the
-      // unprefixed defaults; dark: variants get added once a real toggle
-      // is planned, not before).
+      // Each color resolves through a CSS custom property instead of a
+      // static hex value — lib/theme.ts's ThemeProvider sets the actual
+      // hex per token via NativeWind's vars() on the app root, swapping
+      // the whole set when the color scheme changes. Names/values mirror
+      // apps/web/app/globals.css's :root / [data-theme="dark"] blocks
+      // exactly, so light-mode here still matches what it always did.
       colors: {
-        canvas: '#f3f6f5',
-        surface: '#fdfefd',
-        'surface-subtle': '#eaf0ee',
-        'surface-raised': '#ffffff',
-        ink: '#17211f',
-        'ink-muted': '#5d6c68',
-        'ink-faint': '#667570',
-        line: '#d8e0dd',
-        'line-strong': '#bdcac6',
-        accent: '#17647c',
-        'accent-hover': '#0f5268',
-        'accent-foreground': '#f8fcfd',
-        'accent-soft': '#e1f0f4',
-        positive: '#1c6b4c',
-        'positive-soft': '#e2f2e9',
-        warning: '#8a5a13',
-        'warning-soft': '#f7ecd5',
-        critical: '#a43c3c',
-        'critical-soft': '#f7e5e3',
+        canvas: 'var(--color-canvas)',
+        surface: 'var(--color-surface)',
+        'surface-subtle': 'var(--color-surface-subtle)',
+        'surface-raised': 'var(--color-surface-raised)',
+        ink: 'var(--color-ink)',
+        'ink-muted': 'var(--color-ink-muted)',
+        'ink-faint': 'var(--color-ink-faint)',
+        line: 'var(--color-line)',
+        'line-strong': 'var(--color-line-strong)',
+        accent: 'var(--color-accent)',
+        'accent-hover': 'var(--color-accent-hover)',
+        'accent-foreground': 'var(--color-accent-foreground)',
+        'accent-soft': 'var(--color-accent-soft)',
+        positive: 'var(--color-positive)',
+        'positive-soft': 'var(--color-positive-soft)',
+        warning: 'var(--color-warning)',
+        'warning-soft': 'var(--color-warning-soft)',
+        critical: 'var(--color-critical)',
+        'critical-soft': 'var(--color-critical-soft)',
       },
     },
   },

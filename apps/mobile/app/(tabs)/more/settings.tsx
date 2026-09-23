@@ -1,4 +1,4 @@
-import { CalendarBlankIcon, EnvelopeSimpleIcon, FingerprintIcon, LockKeyIcon } from 'phosphor-react-native';
+import { CalendarBlankIcon, EnvelopeSimpleIcon, FingerprintIcon, LockKeyIcon, MoonIcon } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -10,6 +10,7 @@ import { useChangeEmail, useChangePassword, useSettings, useUpdateReportingStart
 import { useAuth } from '../../../lib/auth-context';
 import { isBiometricAuthAvailable, isBiometricLockEnabled, promptBiometricUnlock, setBiometricLockEnabled } from '../../../lib/biometric-auth';
 import { haptics } from '../../../lib/haptics';
+import { useTheme } from '../../../lib/theme';
 
 function SectionHeading({ icon, title }: { icon: React.ReactNode; title: string }): React.JSX.Element {
   return (
@@ -22,6 +23,7 @@ function SectionHeading({ icon, title }: { icon: React.ReactNode; title: string 
 
 export default function SettingsScreen(): React.JSX.Element {
   const { user } = useAuth();
+  const { scheme, setScheme } = useTheme();
   const { data, isPending, isError, error } = useSettings();
   const changeEmail = useChangeEmail();
   const changePassword = useChangePassword();
@@ -150,6 +152,13 @@ export default function SettingsScreen(): React.JSX.Element {
             ))}
           </View>
         )}
+      </View>
+
+      <View className="gap-2 rounded-xl border border-line bg-surface p-4">
+        <View className="flex-row items-center justify-between">
+          <SectionHeading icon={<MoonIcon color="#5d6c68" size={16} weight="regular" />} title="Tmavý režim" />
+          <Switch value={scheme === 'dark'} onValueChange={(next) => setScheme(next ? 'dark' : 'light')} />
+        </View>
       </View>
 
       {biometricAvailable ? (
