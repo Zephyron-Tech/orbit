@@ -1,5 +1,6 @@
+import { useScrollToTop } from 'expo-router';
 import { ArrowsClockwiseIcon, MagnifyingGlassIcon, TrendDownIcon, TrendUpIcon } from 'phosphor-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
@@ -88,6 +89,8 @@ export default function PortfolioScreen(): React.JSX.Element {
   // one tap. A pull only ever sets this itself, so it can never react to
   // anything the button does.
   const [pulling, setPulling] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
 
   async function handlePullRefresh(): Promise<void> {
     haptics.tapLight();
@@ -156,6 +159,7 @@ export default function PortfolioScreen(): React.JSX.Element {
 
   return (
     <ScrollView
+      ref={scrollRef}
       className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
       refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void handlePullRefresh()} tintColor={colors.accent} />}
@@ -176,7 +180,7 @@ export default function PortfolioScreen(): React.JSX.Element {
 
           <View className="rounded-2xl border border-line bg-surface p-6">
             <Text className="text-sm text-ink-muted">{latest.accountName}</Text>
-            <Text className="font-sans-semibold mt-1 text-5xl text-ink">{formatMoney(latest.balance, currency)}</Text>
+            <Text className="font-sans-semibold mt-1 text-4xl text-ink">{formatMoney(latest.balance, currency)}</Text>
 
             {latest.unrealizedPnl ? (
               <View className="mt-3 flex-row items-center gap-1.5">
@@ -197,7 +201,7 @@ export default function PortfolioScreen(): React.JSX.Element {
               </View>
             </View>
             <Text className="mt-3 text-xs text-ink-faint">
-              Aktualizováno {new Date(latest.capturedAt).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              Aktualizováno {new Date(latest.updatedAt).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </Text>
           </View>
 
