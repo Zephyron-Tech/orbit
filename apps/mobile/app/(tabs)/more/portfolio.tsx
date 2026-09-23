@@ -1,38 +1,86 @@
-import { ArrowsClockwiseIcon, TrendDownIcon, TrendUpIcon } from 'phosphor-react-native';
+import { ArrowsClockwiseIcon, MagnifyingGlassIcon, TrendDownIcon, TrendUpIcon } from 'phosphor-react-native';
 import { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
-import { Button } from '../../../components/button';
 import { LineChart } from '../../../components/line-chart';
+import { Pressable } from '../../../components/pressable';
 import { ListSkeleton, SkeletonCard } from '../../../components/skeleton';
+import { TextField } from '../../../components/text-field';
 import { usePortfolio, useRefreshPortfolio } from '../../../hooks/use-portfolio';
 import { colors } from '../../../lib/colors';
 import { haptics } from '../../../lib/haptics';
 import { formatMoney } from '../../../lib/format-money';
-import { parseSnapshotRawData } from '../../../lib/portfolio-parse';
+import { parseSnapshotRawData, type PortfolioPosition } from '../../../lib/portfolio-parse';
 
 const QUANTITY_FORMAT = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 4 });
 
-const CHART_PERIODS: { label: string; days: number | null }[] = [
-  { label: '7D', days: 7 },
-  { label: '1M', days: 30 },
-  { label: '3M', days: 90 },
-  { label: '1R', days: 365 },
-  { label: 'Vše', days: null },
+// Same set Trading 212's own app uses (1D/1W/1M/3M/YTD/1Y/MAX), Czech-labeled.
+const CHART_PERIODS: { label: string; cutoff: () => number | null }[] = [
+  { label: '1D', cutoff: () => Date.now() - 1 * 24 * 60 * 60 * 1000 },
+  { label: '1T', cutoff: () => Date.now() - 7 * 24 * 60 * 60 * 1000 },
+  { label: '1M', cutoff: () => Date.now() - 30 * 24 * 60 * 60 * 1000 },
+  { label: '3M', cutoff: () => Date.now() - 90 * 24 * 60 * 60 * 1000 },
+  { label: 'YTD', cutoff: () => new Date(new Date().getFullYear(), 0, 1).getTime() },
+  { label: '1R', cutoff: () => Date.now() - 365 * 24 * 60 * 60 * 1000 },
+  { label: 'Vše', cutoff: () => null },
 ];
 
-function PeriodChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }): React.JSX.Element {
+type PositionSortKey = 'value' | 'name' | 'pnl';
+
+const SORT_OPTIONS: { key: PositionSortKey; label: string }[] = [
+  { key: 'value', label: 'Hodnota' },
+  { key: 'pnl', label: 'Zisk/ztráta' },
+  { key: 'name', label: 'Název' },
+];
+
+function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }): React.JSX.Element {
   return (
-    <Pressable onPress={onPress} className={`rounded-full border px-3 py-1 active:bg-surface-subtle ${active ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}>
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      className={`rounded-full border px-3 py-1.5 active:bg-surface-subtle ${active ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
+    >
       <Text className={`text-xs font-sans-medium ${active ? 'text-accent' : 'text-ink-muted'}`}>{label}</Text>
     </Pressable>
   );
 }
 
+/** Icon spins while `pending` — the button's own layout (icon + label) never changes shape or collapses into a bare spinner. */
+function RefreshButton({ pending, onPress }: { pending: boolean; onPress: () => void }): React.JSX.Element {
+  const rotation = useSharedValue(0);
+  rotation.value = pending ? withRepeat(withTiming(360, { duration: 800, easing: Easing.linear }), -1) : withTiming(0, { duration: 150 });
+  const iconStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={pending}
+      accessibilityLabel="Obnovit"
+      className={`flex-row items-center justify-center gap-2 rounded-lg bg-accent py-3 ${pending ? 'opacity-70' : 'active:bg-accent-hover'}`}
+    >
+      <Animated.View style={iconStyle}>
+        <ArrowsClockwiseIcon color={colors.accentForeground} size={16} weight="bold" />
+      </Animated.View>
+      <Text className="font-sans-medium text-accent-foreground">Obnovit</Text>
+    </Pressable>
+  );
+}
+
+function positionMatches(position: PortfolioPosition, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return position.name.toLowerCase().includes(q) || position.ticker.toLowerCase().includes(q);
+}
+
 export default function PortfolioScreen(): React.JSX.Element {
   const { data, isPending, isError, error, refetch, isRefetching } = usePortfolio();
   const refresh = useRefreshPortfolio();
-  const [chartDays, setChartDays] = useState<number | null>(null);
+  const [chartPeriod, setChartPeriod] = useState('Vše');
+  const [positionQuery, setPositionQuery] = useState('');
+  const [sortKey, setSortKey] = useState<PositionSortKey>('value');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   if (isPending) {
     return (
@@ -54,14 +102,18 @@ export default function PortfolioScreen(): React.JSX.Element {
   const latest = data.snapshots.at(-1) ?? null;
   const currency = latest?.currency.trim().toUpperCase() ?? '';
   const parsed = latest ? parseSnapshotRawData(latest.rawData) : null;
-  const sortedPositions = parsed ? [...parsed.positions].sort((a, b) => b.value - a.value) : [];
   const unrealized = latest?.unrealizedPnl ? Number(latest.unrealizedPnl) : 0;
+  // Cash is usually 0 for a fully-invested account, which makes "Hodnota
+  // pozic" literally restate the hero total — only show it when it's
+  // actually telling the reader something the big number above doesn't.
+  const investedDiffersFromBalance = latest?.investedValue && Number(latest.investedValue) !== Number(latest.balance);
 
+  const activePeriod = CHART_PERIODS.find((period) => period.label === chartPeriod) ?? CHART_PERIODS[CHART_PERIODS.length - 1];
+  const chartCutoff = activePeriod?.cutoff() ?? null;
   // Only include snapshots in the same currency as the latest one — the
   // same guard apps/web's portfolio page applies before plotting history.
   // Period filtering is client-side only — the API has no date-range
   // param and already returns the full (bounded) history in one call.
-  const chartCutoff = chartDays === null ? null : Date.now() - chartDays * 24 * 60 * 60 * 1000;
   const historyPoints = data.snapshots
     .filter((snapshot) => snapshot.currency.trim().toUpperCase() === currency)
     .filter((snapshot) => chartCutoff === null || new Date(snapshot.capturedAt).getTime() >= chartCutoff)
@@ -71,15 +123,34 @@ export default function PortfolioScreen(): React.JSX.Element {
       label: new Date(snapshot.capturedAt).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric' }),
     }));
 
+  const filteredPositions = parsed ? parsed.positions.filter((position) => positionMatches(position, positionQuery)) : [];
+  const sortedPositions = [...filteredPositions].sort((a, b) => {
+    const factor = sortDir === 'desc' ? -1 : 1;
+    if (sortKey === 'name') return factor * a.name.localeCompare(b.name, 'cs');
+    if (sortKey === 'pnl') return factor * (a.unrealizedProfitLoss - b.unrealizedProfitLoss);
+    return factor * (a.value - b.value);
+  });
+
+  function handleSortPress(key: PositionSortKey): void {
+    haptics.tapLight();
+    if (key === sortKey) {
+      setSortDir((current) => (current === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  }
+
   return (
     <ScrollView
       className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}
+      // Never show the pull-to-refresh spinner while the "Obnovit" button's
+      // own sync is running — otherwise a button tap ends up flipping both
+      // on at once, reading as two separate loads for the same action.
+      refreshControl={<RefreshControl refreshing={isRefetching && !refresh.isPending} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}
     >
-      <Button variant="primary" icon={ArrowsClockwiseIcon} loading={refresh.isPending} onPress={() => refresh.mutate()}>
-        Obnovit
-      </Button>
+      <RefreshButton pending={refresh.isPending} onPress={() => refresh.mutate()} />
 
       {refresh.isError ? <Text className="text-sm text-critical">{refresh.error instanceof Error ? refresh.error.message : 'Synchronizace selhala'}</Text> : null}
 
@@ -93,25 +164,23 @@ export default function PortfolioScreen(): React.JSX.Element {
             </View>
           ) : null}
 
-          <View className="rounded-lg border border-line bg-surface p-5">
+          <View className="rounded-2xl border border-line bg-surface p-6">
             <Text className="text-sm text-ink-muted">{latest.accountName}</Text>
-            <Text className="font-sans-semibold mt-1 text-3xl text-ink">
-              {formatMoney(latest.balance, currency)}
-            </Text>
-            <View className="mt-3 flex-row flex-wrap gap-x-6 gap-y-2">
-              {latest.investedValue ? (
+            <Text className="font-sans-semibold mt-1 text-5xl text-ink">{formatMoney(latest.balance, currency)}</Text>
+
+            {latest.unrealizedPnl ? (
+              <View className="mt-3 flex-row items-center gap-1.5">
+                {unrealized < 0 ? <TrendDownIcon color={colors.critical} size={22} weight="bold" /> : <TrendUpIcon color={colors.positive} size={22} weight="bold" />}
+                <Text className={`font-sans-semibold text-lg ${unrealized < 0 ? 'text-critical' : 'text-positive'}`}>{formatMoney(latest.unrealizedPnl, currency)}</Text>
+                <Text className="text-sm text-ink-muted">nerealizovaný zisk/ztráta</Text>
+              </View>
+            ) : null}
+
+            <View className="mt-4 flex-row flex-wrap gap-x-6 gap-y-2 border-t border-line pt-4">
+              {investedDiffersFromBalance ? (
                 <View>
                   <Text className="text-xs text-ink-muted">Hodnota pozic</Text>
-                  <Text className="font-sans-medium text-ink">{formatMoney(latest.investedValue, currency)}</Text>
-                </View>
-              ) : null}
-              {latest.unrealizedPnl ? (
-                <View>
-                  <Text className="text-xs text-ink-muted">Nerealizovaný zisk/ztráta</Text>
-                  <View className="flex-row items-center gap-1">
-                    {unrealized < 0 ? <TrendDownIcon color="#a43c3c" size={13} weight="regular" /> : <TrendUpIcon color="#1c6b4c" size={13} weight="regular" />}
-                    <Text className={`font-sans-medium ${unrealized < 0 ? 'text-critical' : 'text-positive'}`}>{formatMoney(latest.unrealizedPnl, currency)}</Text>
-                  </View>
+                  <Text className="font-sans-medium text-ink">{formatMoney(latest.investedValue as string, currency)}</Text>
                 </View>
               ) : null}
               <View>
@@ -119,41 +188,68 @@ export default function PortfolioScreen(): React.JSX.Element {
                 <Text className="font-sans-medium text-ink">{formatMoney(latest.cashBalance ?? '0', currency)}</Text>
               </View>
             </View>
-            <Text className="mt-2 text-xs text-ink-faint">Aktualizováno {new Date(latest.capturedAt).toLocaleString('cs-CZ')}</Text>
+            <Text className="mt-3 text-xs text-ink-faint">
+              Aktualizováno {new Date(latest.capturedAt).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </Text>
           </View>
 
           <View className="gap-2">
-            <View className="flex-row items-center justify-between">
-              <Text className="font-sans-semibold text-base text-ink">Vývoj hodnoty</Text>
-              <View className="flex-row gap-1.5">
-                {CHART_PERIODS.map((period) => (
-                  <PeriodChip key={period.label} label={period.label} active={chartDays === period.days} onPress={() => setChartDays(period.days)} />
-                ))}
-              </View>
-            </View>
+            <Text className="font-sans-semibold text-base text-ink">Vývoj hodnoty</Text>
             <LineChart points={historyPoints} currency={currency} />
+            <View className="flex-row flex-wrap gap-1.5">
+              {CHART_PERIODS.map((period) => (
+                <Chip key={period.label} label={period.label} active={chartPeriod === period.label} onPress={() => setChartPeriod(period.label)} />
+              ))}
+            </View>
           </View>
 
-          {sortedPositions.length > 0 ? (
+          {parsed.positions.length > 0 ? (
             <View className="gap-2">
-              <Text className="font-sans-semibold text-base text-ink">Otevřené pozice ({sortedPositions.length})</Text>
-              {sortedPositions.map((position) => (
-                <View key={position.id} className="rounded-lg border border-line bg-surface p-3">
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-1 pr-3">
-                      <Text className="font-sans-semibold text-ink">{position.ticker}</Text>
-                      <Text className="text-xs text-ink-muted" numberOfLines={1}>{position.name}</Text>
+              <Text className="font-sans-semibold text-base text-ink">Otevřené pozice ({parsed.positions.length})</Text>
+
+              <View className="flex-row items-center gap-2 rounded-lg border border-line bg-surface px-3">
+                <MagnifyingGlassIcon color={colors.inkMuted} size={16} weight="regular" />
+                <TextField
+                  className="flex-1 border-0 bg-transparent px-0 py-2"
+                  placeholder="Hledat pozici…"
+                  value={positionQuery}
+                  onChangeText={setPositionQuery}
+                  returnKeyType="search"
+                />
+              </View>
+
+              <View className="flex-row flex-wrap gap-1.5">
+                {SORT_OPTIONS.map((option) => (
+                  <Chip
+                    key={option.key}
+                    label={sortKey === option.key ? `${option.label} ${sortDir === 'desc' ? '↓' : '↑'}` : option.label}
+                    active={sortKey === option.key}
+                    onPress={() => handleSortPress(option.key)}
+                  />
+                ))}
+              </View>
+
+              {sortedPositions.length === 0 ? (
+                <Text className="py-4 text-center text-sm text-ink-muted">Žádná pozice neodpovídá hledání.</Text>
+              ) : (
+                sortedPositions.map((position) => (
+                  <View key={position.id} className="rounded-lg border border-line bg-surface p-3">
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-1 pr-3">
+                        <Text className="font-sans-semibold text-ink" numberOfLines={1}>{position.name}</Text>
+                        <Text className="text-xs text-ink-muted">{position.ticker}</Text>
+                      </View>
+                      <Text className="font-sans-medium text-ink">{formatMoney(String(position.value), currency)}</Text>
                     </View>
-                    <Text className="font-sans-medium text-ink">{formatMoney(String(position.value), currency)}</Text>
+                    <View className="mt-2 flex-row justify-between">
+                      <Text className="text-xs text-ink-muted">Množství: {QUANTITY_FORMAT.format(position.quantity)}</Text>
+                      <Text className={`font-sans-medium text-xs ${position.unrealizedProfitLoss < 0 ? 'text-critical' : 'text-positive'}`}>
+                        {formatMoney(String(position.unrealizedProfitLoss), currency)}
+                      </Text>
+                    </View>
                   </View>
-                  <View className="mt-2 flex-row justify-between">
-                    <Text className="text-xs text-ink-muted">Množství: {QUANTITY_FORMAT.format(position.quantity)}</Text>
-                    <Text className={`font-sans-medium text-xs ${position.unrealizedProfitLoss < 0 ? 'text-critical' : 'text-positive'}`}>
-                      {formatMoney(String(position.unrealizedProfitLoss), currency)}
-                    </Text>
-                  </View>
-                </View>
-              ))}
+                ))
+              )}
             </View>
           ) : null}
         </>
