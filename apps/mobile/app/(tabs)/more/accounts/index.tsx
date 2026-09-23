@@ -1,5 +1,6 @@
 import { Link, useRouter } from 'expo-router';
 import { ArchiveIcon, BankIcon, PlusIcon } from 'phosphor-react-native';
+import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
@@ -44,9 +45,22 @@ function AccountListItem({ account, onPress }: { account: AccountRow; onPress: (
 
 export default function AccountsListScreen(): React.JSX.Element {
   const router = useRouter();
-  const { data, isPending, isError, error, refetch, isRefetching } = useAccountsList();
+  const { data, isPending, isError, error, refetch } = useAccountsList();
   const reorderAccount = useReorderAccount();
   const { data: repaymentCandidates } = useCreditRepaymentCandidates();
+  // Deliberately local, not tied to isRefetching — same fix as dashboard.tsx:
+  // a pull only ever sets this itself, never a background refetch elsewhere.
+  const [pulling, setPulling] = useState(false);
+
+  async function handlePullRefresh(): Promise<void> {
+    haptics.tapLight();
+    setPulling(true);
+    try {
+      await refetch();
+    } finally {
+      setPulling(false);
+    }
+  }
 
   if (isPending) {
     return (
@@ -79,7 +93,7 @@ export default function AccountsListScreen(): React.JSX.Element {
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}
+      refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void handlePullRefresh()} tintColor={colors.accent} />}
     >
       {repaymentCandidates && repaymentCandidates.length > 0 ? (
         <Link href="/(tabs)/more/accounts/credit-repayment" asChild>

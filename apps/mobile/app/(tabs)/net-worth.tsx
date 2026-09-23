@@ -1,5 +1,6 @@
+import { useScrollToTop } from 'expo-router';
 import { CaretDownIcon, ChartLineUpIcon, CreditCardIcon, PiggyBankIcon, WalletIcon, type Icon } from 'phosphor-react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -117,9 +118,28 @@ function AccountDetail({ account, fixedBaseline }: { account: NetWorthCardAccoun
 }
 
 export default function NetWorthScreen(): React.JSX.Element {
-  const { data, isPending, isError, error, refetch, isRefetching } = useNetWorth();
+  const { data, isPending, isError, error, refetch } = useNetWorth();
   const dismissTransfer = useDismissUnmatchedTransfer();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Deliberately local, not tied to isRefetching: portfolio refresh, CSV
+  // import, and account/transaction edits all invalidate the net-worth
+  // query as a side effect, and since tab screens stay mounted, any of
+  // those background refetches would flip isRefetching true here too — the
+  // pull spinner would pop up with no gesture. A pull only ever sets this
+  // itself, so it can never react to anything else (same fix as dashboard.tsx).
+  const [pulling, setPulling] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
+
+  async function handlePullRefresh(): Promise<void> {
+    haptics.tapLight();
+    setPulling(true);
+    try {
+      await refetch();
+    } finally {
+      setPulling(false);
+    }
+  }
 
   if (isPending) {
     return (
@@ -148,9 +168,10 @@ export default function NetWorthScreen(): React.JSX.Element {
 
   return (
     <ScrollView
+      ref={scrollRef}
       className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}
+      refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void handlePullRefresh()} tintColor={colors.accent} />}
     >
       <FadeInView className="rounded-lg border border-line bg-surface p-5">
         <Text className="text-sm text-ink-muted">Celkové čisté jmění</Text>

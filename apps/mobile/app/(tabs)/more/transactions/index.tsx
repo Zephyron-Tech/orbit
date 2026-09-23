@@ -164,8 +164,24 @@ export default function TransactionsListScreen(): React.JSX.Element {
     direction,
     transfer: transferOnly ? 'unmatched' : undefined,
   };
-  const { data: infiniteData, isPending, isError, error, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data: infiniteData, isPending, isError, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteTransactionsList(params);
+  // Deliberately local, not tied to isRefetching: account edits and CSV
+  // import both invalidate the transactions query as a side effect, and
+  // since tab screens stay mounted, that would flip isRefetching true here
+  // too — the pull spinner would pop up with no gesture (same fix as
+  // dashboard.tsx). A pull only ever sets this itself.
+  const [pulling, setPulling] = useState(false);
+
+  async function handlePullRefresh(): Promise<void> {
+    haptics.tapLight();
+    setPulling(true);
+    try {
+      await refetch();
+    } finally {
+      setPulling(false);
+    }
+  }
   // Every page shares the same period-wide aggregates (income/expenses/
   // balance/categories/accounts/recommendations) — only `transactions`
   // itself needs flattening across pages.
@@ -351,7 +367,7 @@ export default function TransactionsListScreen(): React.JSX.Element {
           />
         )}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />
+          <RefreshControl refreshing={pulling} onRefresh={() => void handlePullRefresh()} tintColor={colors.accent} />
         }
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
