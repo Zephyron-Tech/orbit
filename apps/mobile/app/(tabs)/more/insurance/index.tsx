@@ -30,7 +30,7 @@ const ROW_HEIGHT = 70;
 
 function PolicyListItem({ policy, onPress }: { policy: InsurancePolicyRow; onPress: () => void }): React.JSX.Element {
   return (
-    <Pressable onPress={onPress} className="flex-row items-center gap-3 border-b border-line bg-surface px-2 py-3 active:opacity-70" style={{ height: ROW_HEIGHT }}>
+    <Pressable onPress={onPress} className="flex-row items-center gap-3 border-b border-line bg-surface px-4 py-3 active:opacity-70" style={{ height: ROW_HEIGHT }}>
       <View className="size-10 items-center justify-center rounded-xl bg-accent-soft">
         <CarIcon color={colors.accent} size={18} weight="regular" />
       </View>
@@ -101,13 +101,15 @@ export default function InsuranceListScreen(): React.JSX.Element {
           <Text className="text-ink-muted">Zatím žádné pojistky.</Text>
         </View>
       ) : (
-        <ReorderableList
-          data={data.policies}
-          keyExtractor={(policy) => policy.id}
-          rowHeight={ROW_HEIGHT}
-          onReorder={(id, toIndex) => void handleReorder(id, toIndex)}
-          renderItem={(policy) => <PolicyListItem policy={policy} onPress={() => router.push(`/(tabs)/more/insurance/${policy.id}`)} />}
-        />
+        <View className="mx-4">
+          <ReorderableList
+            data={data.policies}
+            keyExtractor={(policy) => policy.id}
+            rowHeight={ROW_HEIGHT}
+            onReorder={(id, toIndex) => void handleReorder(id, toIndex)}
+            renderItem={(policy) => <PolicyListItem policy={policy} onPress={() => router.push(`/(tabs)/more/insurance/${policy.id}`)} />}
+          />
+        </View>
       )}
 
       <Link href="/(tabs)/more/insurance/new" asChild>
