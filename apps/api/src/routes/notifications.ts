@@ -31,6 +31,11 @@ export const notifications = new Hono<AuthEnv>()
       unreadCount: rows.filter((row) => !row.readAt).length,
     });
   })
+  .patch('/read-all', async (c) => {
+    const claims = c.get('user');
+    const result = await prisma.sentNotification.updateMany({ where: { userId: claims.sub, readAt: null }, data: { readAt: new Date() } });
+    return c.json({ ok: true, count: result.count });
+  })
   .patch('/:id/read', async (c) => {
     const claims = c.get('user');
     const id = c.req.param('id');

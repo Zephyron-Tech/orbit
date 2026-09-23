@@ -35,3 +35,12 @@ export function useMarkNotificationRead() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
   });
 }
+
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => apiClient.notifications['read-all'].$patch().then((response) => unwrap<{ ok: true; count: number }>(response, 'Nepodařilo se označit oznámení jako přečtená')),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
+  });
+}
