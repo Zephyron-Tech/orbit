@@ -164,10 +164,6 @@ export default function PortfolioScreen(): React.JSX.Element {
       contentContainerClassName="gap-4 p-4"
       refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void handlePullRefresh()} tintColor={colors.accent} />}
     >
-      <RefreshButton pending={refresh.isPending} onPress={() => refresh.mutate()} />
-
-      {refresh.isError ? <Text className="text-sm text-critical">{refresh.error instanceof Error ? refresh.error.message : 'Synchronizace selhala'}</Text> : null}
-
       {latest && parsed ? (
         <>
           {parsed.integrityIssues.length > 0 ? (
@@ -214,6 +210,10 @@ export default function PortfolioScreen(): React.JSX.Element {
               ))}
             </View>
           </View>
+
+          <RefreshButton pending={refresh.isPending} onPress={() => refresh.mutate()} />
+
+          {refresh.isError ? <Text className="text-sm text-critical">{refresh.error instanceof Error ? refresh.error.message : 'Synchronizace selhala'}</Text> : null}
 
           {parsed.positions.length > 0 ? (
             <View className="gap-2">
@@ -266,7 +266,11 @@ export default function PortfolioScreen(): React.JSX.Element {
           ) : null}
         </>
       ) : (
-        <Text className="text-center text-ink-muted">Zatím žádná data portfolia.</Text>
+        <>
+          <RefreshButton pending={refresh.isPending} onPress={() => refresh.mutate()} />
+          {refresh.isError ? <Text className="text-sm text-critical">{refresh.error instanceof Error ? refresh.error.message : 'Synchronizace selhala'}</Text> : null}
+          <Text className="text-center text-ink-muted">Zatím žádná data portfolia.</Text>
+        </>
       )}
     </ScrollView>
   );
