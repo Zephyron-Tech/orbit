@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 
 import { prisma } from '@orbit-api/lib/db/prisma';
-import { calculateBurnRate, type BurnRateTransaction } from '@orbit-api/lib/finance/burn-rate';
+import { calculateBurnRate, splitOverdueRecurring, type BurnRateTransaction } from '@orbit-api/lib/finance/burn-rate';
 import { countIncompleteOrUnknown, findCheckpointIssues, isActionableTransfer, totalDataConfidenceIssues } from '@orbit-api/lib/finance/data-confidence';
+import { findUnmatchedDcaPlans, splitOverdueDcaPlans } from '@orbit-api/lib/finance/dca';
 import { loadInsuranceOverview } from '@orbit-api/lib/finance/insurance-service';
 import { loadNetWorth } from '@orbit-api/lib/finance/net-worth-service';
 import { monthPeriod } from '@orbit-api/lib/finance/settlement';
@@ -184,8 +185,12 @@ export const dashboard = new Hono<AuthEnv>()
     const targetDifference = target ? burnRate.total.minus(target) : null;
     const periodEndDay = new Date(Date.UTC(period.year, period.month, 0)).getUTCDate();
     const todayDay = isCurrentMonth(period.year, period.month, now) ? now.getUTCDate() : periodEndDay;
-    const overdueRecurring = missingRecurring.filter((expense) => expense.dueDay !== null && todayDay > Math.min(expense.dueDay, periodEndDay) + expense.graceDays);
-    const upcomingRecurring = missingRecurring.filter((expense) => expense.dueDay !== null && todayDay <= Math.min(expense.dueDay, periodEndDay) + expense.graceDays);
+    const { overdue: overdueRecurring, upcoming: upcomingRecurringUnfiltered } = splitOverdueRecurring(missingRecurring, todayDay, periodEndDay);
+    // splitOverdueRecurring's "upcoming" also includes expenses with no
+    // dueDay at all — cashBufferIssues below only makes sense for expenses
+    // that actually have a scheduled due day, same filter the original
+    // inline version applied via `expense.dueDay !== null`.
+    const upcomingRecurring = upcomingRecurringUnfiltered.filter((expense) => expense.dueDay !== null);
     const scheduledByAccount = new Map<string, Prisma.Decimal>();
     for (const expense of upcomingRecurring) {
       if (!expense.paymentAccountId || expense.currency !== 'CZK') continue;
@@ -213,29 +218,8 @@ export const dashboard = new Hono<AuthEnv>()
     const investmentShare = compositionValue.isZero() ? 0 : currentWorth.investmentValue.dividedBy(compositionValue).times(100).toNumber();
     const liabilityShare = compositionValue.isZero() ? 0 : currentWorth.liabilityValue.dividedBy(compositionValue).times(100).toNumber();
     const spendingTargetProgress = target && !target.isZero() ? burnRate.total.dividedBy(target).times(100).toNumber() : null;
-    const matchedTransferIds = new Set<string>();
-    const unmatchedDcaPlans = investmentPlans.filter((plan) => {
-      const candidate = transactions.find((transaction) => {
-        if (!transaction.transferId || !transaction.transfer || matchedTransferIds.has(transaction.transferId)) return false;
-        const legs = transaction.transfer.legs;
-        const brokerLeg = legs.find((leg) => leg.accountId === plan.brokerAccountId && leg.amount.isPositive() && leg.kind === 'INTERNAL_TRANSFER');
-        const hasSourceLeg = plan.sourceAccountId
-          ? legs.some((leg) => leg.accountId === plan.sourceAccountId && leg.amount.isNegative() && leg.kind === 'INTERNAL_TRANSFER')
-          : legs.some((leg) => leg.accountId !== plan.brokerAccountId && leg.amount.isNegative() && leg.kind === 'INTERNAL_TRANSFER');
-        if (!brokerLeg || !hasSourceLeg || brokerLeg.currency !== plan.currency) return false;
-        return brokerLeg.amount.abs().equals(plan.expectedAmount);
-      });
-      if (candidate?.transferId) {
-        matchedTransferIds.add(candidate.transferId);
-        return false;
-      }
-      return true;
-    });
-    const dcaOverduePlans = unmatchedDcaPlans.filter((plan) => {
-      const due = Math.min(plan.dueDay, periodEndDay);
-      return todayDay > due + plan.graceDays;
-    });
-    const dcaPendingPlans = unmatchedDcaPlans.filter((plan) => !dcaOverduePlans.some((overdue) => overdue.id === plan.id));
+    const unmatchedDcaPlans = findUnmatchedDcaPlans(investmentPlans, transactions);
+    const { overdue: dcaOverduePlans, pending: dcaPendingPlans } = splitOverdueDcaPlans(unmatchedDcaPlans, todayDay, periodEndDay);
 
     const coverageGapCount = [...new Map(importBatches.map((batch) => [batch.accountId, batch.account.name])).keys()].reduce(
       (count, accountId) => count + findCoverageGaps(importBatches.filter((batch) => batch.accountId === accountId)).length,

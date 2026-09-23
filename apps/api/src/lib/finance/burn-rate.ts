@@ -117,3 +117,31 @@ export function calculateBurnRate(
 
   return { total, myShare: myShareTotal, lines, missing };
 }
+
+export interface RecurringDueInput {
+  dueDay: number | null;
+  graceDays: number;
+}
+
+/**
+ * Splits a set of "missing this period" recurring expenses into overdue
+ * (past dueDay + graceDays) and upcoming (not yet due, or no dueDay set at
+ * all). Extracted from apps/api/src/routes/dashboard.ts so the dashboard
+ * route and the `overdue-recurring` notification check share one
+ * implementation of the due/grace math.
+ */
+export function splitOverdueRecurring<T extends RecurringDueInput>(missing: readonly T[], todayDay: number, periodEndDay: number): { overdue: T[]; upcoming: T[] } {
+  const overdue: T[] = [];
+  const upcoming: T[] = [];
+
+  for (const expense of missing) {
+    if (expense.dueDay === null) {
+      upcoming.push(expense);
+      continue;
+    }
+    const due = Math.min(expense.dueDay, periodEndDay);
+    (todayDay > due + expense.graceDays ? overdue : upcoming).push(expense);
+  }
+
+  return { overdue, upcoming };
+}

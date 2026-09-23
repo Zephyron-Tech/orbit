@@ -2,11 +2,30 @@ import { Hono } from 'hono';
 
 import { rebuildMonthlyNetWorth } from '@orbit-api/lib/finance/monthly-net-worth-service';
 import { recordNetWorthSnapshot } from '@orbit-api/lib/finance/net-worth-service';
+import { NotificationType } from '@orbit-api/lib/generated/prisma/enums';
 import { matchPendingTransfers } from '@orbit-api/lib/import/transfer-sync';
+import { notifyEligibleUsers } from '@orbit-api/lib/notifications/notify';
+import { NOTIFICATION_REGISTRY } from '@orbit-api/lib/notifications/registry';
 import { syncTrading212Income } from '@orbit-api/lib/providers/trading212/income-sync';
 import { syncTrading212, Trading212SyncError } from '@orbit-api/lib/providers/trading212/sync';
 import { getEnv } from '@orbit-api/lib/validation/env';
 import { cronAuth } from '@orbit-api/middleware/cron-auth';
+
+/**
+ * Not a polled check (see lib/notifications/registry.ts's comment) — only
+ * the sync call site knows which income transactions are genuinely new this
+ * run, via IncomeSyncResult.insertedIncomeTransactions.
+ */
+async function notifyNewIncomeTransactions(transactions: Awaited<ReturnType<typeof syncTrading212Income>>['insertedIncomeTransactions']): Promise<void> {
+  for (const transaction of transactions) {
+    const label = transaction.kind === 'DIVIDEND' ? 'Dividenda' : 'Úrok';
+    await notifyEligibleUsers(NotificationType.DIVIDEND_RECEIVED, transaction.id, {
+      title: `${label} připsán`,
+      body: `${transaction.amount.toFixed(2)} ${transaction.currency}${transaction.merchant ? ` — ${transaction.merchant}` : ''}.`,
+      data: { type: 'dividend-received', transactionId: transaction.id },
+    });
+  }
+}
 
 export const cron = new Hono()
   .use('*', cronAuth)
@@ -36,6 +55,7 @@ export const cron = new Hono()
 
       try {
         income = await syncTrading212Income({ keyId: env.TRADING212_API_KEY_ID, secret: env.TRADING212_API_SECRET, baseUrl: env.TRADING212_API_BASE_URL });
+        await notifyNewIncomeTransactions(income.insertedIncomeTransactions);
         await matchPendingTransfers();
         void rebuildMonthlyNetWorth(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)), new Date()).catch((error: unknown) =>
           console.error('Monthly net-worth rebuild failed after cron sync', error),
@@ -51,4 +71,20 @@ export const cron = new Hono()
       console.error('Trading 212 sync failed', error);
       return c.json({ error: 'Sync failed' }, 500);
     }
+  })
+  .on(['GET', 'POST'], '/notifications', async (c) => {
+    const now = new Date();
+    const results: { type: string; sent: number; error?: string }[] = [];
+
+    for (const entry of NOTIFICATION_REGISTRY) {
+      try {
+        const sent = await entry.run(now);
+        results.push({ type: entry.type, sent });
+      } catch (error: unknown) {
+        console.error(`Notification check ${entry.type} failed`, error);
+        results.push({ type: entry.type, sent: 0, error: error instanceof Error ? error.message : 'Check failed' });
+      }
+    }
+
+    return c.json({ results });
   });

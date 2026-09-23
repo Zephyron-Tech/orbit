@@ -103,6 +103,8 @@ services:
             || echo "trading212 sync failed"
           curl -fsS -X POST -H "Authorization: Bearer $$INGESTION_SECRET" http://api:4000/cron/net-worth-snapshot \
             || echo "net worth snapshot failed"
+          curl -fsS -X POST -H "Authorization: Bearer $$INGESTION_SECRET" http://api:4000/cron/notifications \
+            || echo "notifications check failed"
           sleep 3600
         done
     environment:

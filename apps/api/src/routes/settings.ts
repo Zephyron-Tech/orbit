@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { hashPassword, verifyPassword, WeakPasswordError } from '@orbit-api/lib/auth/password';
 import { prisma } from '@orbit-api/lib/db/prisma';
 import { Prisma } from '@orbit-api/lib/generated/prisma/client';
+import { NotificationPreferencesPatchSchema, NotificationPreferencesSchema, parseNotificationPreferences } from '@orbit-api/lib/notifications/preferences';
 import type { AuthEnv } from '@orbit-api/middleware/auth';
 import { requireAuth } from '@orbit-api/middleware/auth';
 
@@ -92,6 +93,23 @@ export const settings = new Hono<AuthEnv>()
 
     await prisma.user.update({ where: { id: claims.sub }, data: { expoPushToken: parsed.data.token } });
     return c.json({ ok: true });
+  })
+  .get('/notification-preferences', async (c) => {
+    const claims = c.get('user');
+    const row = await prisma.user.findUnique({ where: { id: claims.sub }, select: { notificationPreferences: true } });
+    return c.json(parseNotificationPreferences(row?.notificationPreferences));
+  })
+  .patch('/notification-preferences', async (c) => {
+    const claims = c.get('user');
+    const parsed = NotificationPreferencesPatchSchema.safeParse(await c.req.json());
+    if (!parsed.success) return c.json({ error: 'Neplatné nastavení notifikací' }, 400);
+
+    const row = await prisma.user.findUnique({ where: { id: claims.sub }, select: { notificationPreferences: true } });
+    const current = parseNotificationPreferences(row?.notificationPreferences);
+    const merged = NotificationPreferencesSchema.parse({ ...current, ...parsed.data });
+
+    await prisma.user.update({ where: { id: claims.sub }, data: { notificationPreferences: merged } });
+    return c.json(merged);
   })
   .patch('/reporting-start-month', async (c) => {
     const month = (await c.req.json())?.month as string | null;
