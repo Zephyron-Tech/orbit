@@ -34,13 +34,13 @@ const SORT_OPTIONS: { key: PositionSortKey; label: string }[] = [
   { key: 'name', label: 'Název' },
 ];
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }): React.JSX.Element {
+function Chip({ label, active, onPress, className = '' }: { label: string; active: boolean; onPress: () => void; className?: string }): React.JSX.Element {
   return (
     <Pressable
       onPress={onPress}
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
-      className={`rounded-full border px-3 py-1.5 active:bg-surface-subtle ${active ? 'border-accent bg-accent-soft' : 'border-line bg-surface'}`}
+      className={`items-center rounded-full border px-3 py-1.5 active:bg-surface-subtle ${active ? 'border-accent bg-accent-soft' : 'border-line bg-surface'} ${className}`}
     >
       <Text className={`text-xs font-sans-medium ${active ? 'text-accent' : 'text-ink-muted'}`}>{label}</Text>
     </Pressable>
@@ -120,10 +120,6 @@ export default function PortfolioScreen(): React.JSX.Element {
   const currency = latest?.currency.trim().toUpperCase() ?? '';
   const parsed = latest ? parseSnapshotRawData(latest.rawData) : null;
   const unrealized = latest?.unrealizedPnl ? Number(latest.unrealizedPnl) : 0;
-  // Cash is usually 0 for a fully-invested account, which makes "Hodnota
-  // pozic" literally restate the hero total — only show it when it's
-  // actually telling the reader something the big number above doesn't.
-  const investedDiffersFromBalance = latest?.investedValue && Number(latest.investedValue) !== Number(latest.balance);
 
   const activePeriod = CHART_PERIODS.find((period) => period.label === chartPeriod) ?? CHART_PERIODS[CHART_PERIODS.length - 1];
   const chartCutoff = activePeriod?.cutoff() ?? null;
@@ -190,14 +186,12 @@ export default function PortfolioScreen(): React.JSX.Element {
               </View>
             ) : null}
 
-            <View className="mt-4 flex-row flex-wrap gap-x-6 gap-y-2 border-t border-line pt-4">
-              {investedDiffersFromBalance ? (
-                <View>
-                  <Text className="text-xs text-ink-muted">Hodnota pozic</Text>
-                  <Text className="font-sans-medium text-ink">{formatMoney(latest.investedValue as string, currency)}</Text>
-                </View>
-              ) : null}
-              <View>
+            <View className="mt-4 flex-row gap-x-6 gap-y-2 border-t border-line pt-4">
+              <View className="flex-1">
+                <Text className="text-xs text-ink-muted">Hodnota pozic</Text>
+                <Text className="font-sans-medium text-ink">{formatMoney(latest.investedValue ?? '0', currency)}</Text>
+              </View>
+              <View className="flex-1">
                 <Text className="text-xs text-ink-muted">Hotovost</Text>
                 <Text className="font-sans-medium text-ink">{formatMoney(latest.cashBalance ?? '0', currency)}</Text>
               </View>
@@ -210,9 +204,9 @@ export default function PortfolioScreen(): React.JSX.Element {
           <View className="gap-2">
             <Text className="font-sans-semibold text-base text-ink">Vývoj hodnoty</Text>
             <LineChart points={historyPoints} currency={currency} />
-            <View className="flex-row flex-wrap gap-1.5">
+            <View className="flex-row gap-1.5">
               {CHART_PERIODS.map((period) => (
-                <Chip key={period.label} label={period.label} active={chartPeriod === period.label} onPress={() => setChartPeriod(period.label)} />
+                <Chip key={period.label} label={period.label} active={chartPeriod === period.label} onPress={() => setChartPeriod(period.label)} className="flex-1" />
               ))}
             </View>
           </View>
