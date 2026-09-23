@@ -443,6 +443,21 @@ export interface NotificationPreferences {
   fuelReceiptMissing: boolean;
 }
 
+export interface NotificationRow {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  data: Record<string, unknown> | null;
+  sentAt: string;
+  readAt: string | null;
+}
+
+export interface NotificationsResponse {
+  notifications: NotificationRow[];
+  unreadCount: number;
+}
+
 // ---------------------------------------------------------------------------
 // Users / invites
 // ---------------------------------------------------------------------------

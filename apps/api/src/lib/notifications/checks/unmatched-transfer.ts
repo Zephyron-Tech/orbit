@@ -3,11 +3,13 @@ import { isActionableTransfer } from '@orbit-api/lib/finance/data-confidence';
 import { NotificationType } from '@orbit-api/lib/generated/prisma/enums';
 
 import { notifyEligibleUsers } from '../notify';
+import { getReportingFloor } from '../reporting-floor';
 import { pragueIsoWeekKey } from '../time';
 
 const STUCK_AFTER_DAYS = 5;
 
 export async function checkUnmatchedTransferStuck(now: Date): Promise<number> {
+  const floor = await getReportingFloor();
   const settings = await prisma.planningSettings.findUnique({ where: { id: 'household' }, select: { transferHistoryFrom: true } });
   const firstBankBatch = await prisma.importBatch.findFirst({
     where: { status: 'COMPLETED', account: { provider: { not: 'TRADING212' } }, periodFrom: { not: null } },
@@ -27,6 +29,7 @@ export async function checkUnmatchedTransferStuck(now: Date): Promise<number> {
   let sent = 0;
   for (const row of rows) {
     if (row.date.getTime() > cutoff.getTime()) continue;
+    if (floor && row.date.getTime() < floor.getTime()) continue;
     if (!isActionableTransfer({ date: row.date, provider: row.account.provider }, transferHistoryFrom)) continue;
 
     const dedupeKey = `${row.id}:${weekKey}`;

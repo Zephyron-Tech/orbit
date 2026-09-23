@@ -1,7 +1,8 @@
 import { Geist_400Regular, Geist_500Medium, Geist_600SemiBold, Geist_700Bold, useFonts } from '@expo-google-fonts/geist';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -61,6 +62,33 @@ function SplashGate({ children }: { children: React.ReactNode }): React.JSX.Elem
   return <>{children}</>;
 }
 
+/**
+ * Tapping any push notification (cold start, backgrounded, or foregrounded)
+ * opens the in-app notification center rather than a per-type screen — the
+ * center is where the full title/body/history lives, and from there the
+ * user can act on whichever one they tapped. `getLastNotificationResponseAsync`
+ * covers the cold-start case (app was killed, tap is what launched it);
+ * the listener covers every other case for as long as the app stays mounted.
+ */
+function NotificationTapRouter(): null {
+  const router = useRouter();
+
+  useEffect(() => {
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) router.push('/(tabs)/more/notification-log');
+    });
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(() => {
+      router.push('/(tabs)/more/notification-log');
+    });
+
+    return () => subscription.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return null;
+}
+
 export default function RootLayout(): React.JSX.Element {
   // Matches web's Geist font (apps/web/app/layout.tsx, loaded via
   // next/font/google).
@@ -89,6 +117,7 @@ export default function RootLayout(): React.JSX.Element {
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
               <SplashGate>
+                <NotificationTapRouter />
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="index" />
                   <Stack.Screen name="(auth)" />

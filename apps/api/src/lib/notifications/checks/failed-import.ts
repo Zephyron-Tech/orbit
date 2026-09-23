@@ -2,10 +2,12 @@ import { prisma } from '@orbit-api/lib/db/prisma';
 import { NotificationType } from '@orbit-api/lib/generated/prisma/enums';
 
 import { notifyEligibleUsers } from '../notify';
+import { getReportingFloor } from '../reporting-floor';
 
 export async function checkFailedImportRow(): Promise<number> {
+  const floor = await getReportingFloor();
   const rows = await prisma.ingestionEvent.findMany({
-    where: { status: 'FAILED' },
+    where: { status: 'FAILED', ...(floor ? { receivedAt: { gte: floor } } : {}) },
     select: { id: true, provider: true, errorMessage: true },
   });
 

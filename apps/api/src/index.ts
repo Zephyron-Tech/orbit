@@ -12,6 +12,7 @@ import { ingest } from '@orbit-api/routes/ingest';
 import { insurance } from '@orbit-api/routes/insurance';
 import { invites } from '@orbit-api/routes/invites';
 import { netWorth } from '@orbit-api/routes/net-worth';
+import { notifications } from '@orbit-api/routes/notifications';
 import { planning } from '@orbit-api/routes/planning';
 import { portfolio } from '@orbit-api/routes/portfolio';
 import { settings } from '@orbit-api/routes/settings';
@@ -47,6 +48,7 @@ const app = new Hono()
   .route('/invites', invites)
   .route('/import', importRouter)
   .route('/dashboard', dashboard)
+  .route('/notifications', notifications)
   .route('/fuel', fuel)
   .route('/ingest', ingest)
   .route('/cron', cron);

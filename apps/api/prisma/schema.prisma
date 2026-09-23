@@ -818,20 +818,30 @@ enum NotificationType {
   FUEL_RECEIPT_MISSING
 }
 
-/// One row per push notification actually sent, purely to stop the hourly
-/// notifications cron from re-sending the same still-true condition every
-/// hour. The cadence (once ever, once/day, once/month, ...) lives entirely
-/// in how each check in lib/notifications/checks/*.ts builds `dedupeKey` —
-/// see that directory's dedupeKey table — never in this table's shape.
+/// One row per push notification actually sent — both the dedupe record that
+/// stops the hourly notifications cron from re-sending the same still-true
+/// condition every hour (the cadence lives entirely in how each check in
+/// lib/notifications/checks/*.ts builds `dedupeKey`, never in this table's
+/// shape), and the persisted content the in-app notification center
+/// (GET /notifications) reads back. `title`/`body` default to '' rather than
+/// being nullable — rows written before this column existed have nothing to
+/// backfill, and an empty string is an honest "not captured," not a guess.
 model SentNotification {
   id        String           @id @default(uuid())
   userId    String
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      NotificationType
   dedupeKey String
+  title     String           @default("")
+  body      String           @default("")
+  data      Json?
   sentAt    DateTime         @default(now())
+  /// Set when the user opens this notification in the in-app center. Never
+  /// set by the OS push tap itself — that only navigates there.
+  readAt    DateTime?
 
   @@unique([userId, type, dedupeKey])
+  @@index([userId, sentAt])
   @@index([userId, type, sentAt])
 }
 
