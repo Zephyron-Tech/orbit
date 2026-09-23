@@ -2,6 +2,7 @@ import { prisma } from '@orbit-api/lib/db/prisma';
 import { NotificationType } from '@orbit-api/lib/generated/prisma/enums';
 
 import { notifyEligibleUsers } from '../notify';
+import { getReportingFloor } from '../reporting-floor';
 
 const AGE_THRESHOLD_DAYS = 3;
 
@@ -16,14 +17,15 @@ const AGE_THRESHOLD_DAYS = 3;
  */
 export async function checkFuelReceiptMissing(now: Date): Promise<number> {
   const cutoff = new Date(now.getTime() - AGE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000);
+  const floor = await getReportingFloor();
 
   const [purchasesWithoutReceipt, unmatchedReceipts] = await Promise.all([
     prisma.fuelPurchase.findMany({
-      where: { receipt: null, purchasedAt: { lte: cutoff } },
+      where: { receipt: null, purchasedAt: { lte: cutoff, ...(floor ? { gte: floor } : {}) } },
       select: { id: true, purchasedAt: true, stationName: true, amountCzk: true },
     }),
     prisma.fuelReceipt.findMany({
-      where: { purchaseId: null, purchasedAt: { lte: cutoff } },
+      where: { purchaseId: null, purchasedAt: { lte: cutoff, ...(floor ? { gte: floor } : {}) } },
       select: { id: true, purchasedAt: true, stationName: true, totalAfterDiscount: true },
     }),
   ]);
