@@ -10,6 +10,7 @@ import { useInsuranceList, useReorderPolicy } from '../../../../hooks/use-insura
 import { colors } from '../../../../lib/colors';
 import { formatMoney } from '../../../../lib/format-money';
 import { haptics } from '../../../../lib/haptics';
+import { formatLicensePlate } from '../../../../lib/license-plate';
 import type { InsurancePolicyRow } from '../../../../lib/response-types';
 
 const STATUS_LABELS: Record<InsurancePolicyRow['status'], string> = {
@@ -43,7 +44,7 @@ function PolicyListItem({ policy, onPress }: { policy: InsurancePolicyRow; onPre
         </View>
         <View className="mt-1 flex-row items-center justify-between gap-2">
           <Text className="flex-1 text-xs text-ink-muted" numberOfLines={1}>
-            {policy.licensePlate} · {policy.policyNumber}
+            {formatLicensePlate(policy.licensePlate, policy.vehicleType)} · {policy.policyNumber}
           </Text>
           <Badge tone={STATUS_TONE[policy.status]}>{STATUS_LABELS[policy.status]}</Badge>
         </View>
