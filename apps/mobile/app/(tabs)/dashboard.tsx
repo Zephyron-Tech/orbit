@@ -40,7 +40,26 @@ const ACTION_ICONS: Record<string, Icon> = {
 export default function DashboardScreen(): React.JSX.Element {
   // `undefined` means "let the API resolve its own default (current month)".
   const [period, setPeriod] = useState<string | undefined>(undefined);
-  const { data, isPending, isError, error, refetch, isRefetching } = useDashboard({ period });
+  const { data, isPending, isError, error, refetch } = useDashboard({ period });
+  // Deliberately local, not tied to isRefetching: seven other mutations
+  // across the app (import, settlement, planning, transactions, portfolio,
+  // net-worth, accounts) invalidate the dashboard query as a side effect,
+  // and since tab screens stay mounted, any of those background refetches
+  // flips isRefetching true here too — the pull spinner would pop up with
+  // no gesture and could still be spinning when the app is reopened. A
+  // pull only ever sets this itself, so it can never react to anything
+  // else.
+  const [pulling, setPulling] = useState(false);
+
+  async function handlePullRefresh(): Promise<void> {
+    haptics.tapLight();
+    setPulling(true);
+    try {
+      await refetch();
+    } finally {
+      setPulling(false);
+    }
+  }
 
   if (isPending) {
     return (
@@ -74,7 +93,7 @@ export default function DashboardScreen(): React.JSX.Element {
     <ScrollView
       className="flex-1 bg-canvas"
       contentContainerClassName="gap-4 p-4"
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { haptics.tapLight(); void refetch(); }} tintColor={colors.accent} />}
+      refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => void handlePullRefresh()} tintColor={colors.accent} />}
     >
       {/* Period picker */}
       <View className="flex-row items-center justify-between">
