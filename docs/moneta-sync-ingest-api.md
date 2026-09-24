@@ -16,9 +16,11 @@ a replacement for the real statement import (`docs/bank-statement-ingest-api.md`
 
 | Purpose | Path |
 | --- | --- |
-| Upload one transaction parsed from an Info Servis e-mail | `POST /api/ingest/moneta-sync/transactions` |
+| Upload one transaction parsed from an Info Servis e-mail | `POST /ingest/moneta-sync/transactions` |
 
-Base URL: `https://orbit.zephyron.tech` (production only — there is no dev deployment).
+Base URL: `https://api.orbit.zephyron.tech` (production only — there is no dev deployment).
+**Not** `orbit.zephyron.tech` (that's apps/web, the Next.js frontend) and **no** `/api`
+prefix — apps/api is its own Hono service, mounted at the domain root.
 
 ## Auth
 
@@ -52,7 +54,7 @@ returns `401`.
 | Field | Notes |
 | --- | --- |
 | `transaction_id` | **always `null` on this source** — an Info Servis e-mail carries no bank reference. Send `null`, not an omitted field or an empty string. |
-| `account_id` | uuid, from `GET /api/ingest/accounts` (see `docs/bank-statement-ingest-api.md`). **Do not send a placeholder like `"TODO"`** — see "Account resolution" below, this is rejected with `400` on purpose. |
+| `account_id` | uuid, from `GET /ingest/accounts` (see `docs/bank-statement-ingest-api.md`). **Do not send a placeholder like `"TODO"`** — see "Account resolution" below, this is rejected with `400` on purpose. |
 | `amount` | **decimal string, dot separator, expense negative — not a JSON number.** Orbit's money handling bans JS floats end to end (`CLAUDE.md`); a JSON number here would already have lost precision by the time it reaches the server, and there's no way to recover the original figure afterward. Send `"250.00"`, never `250.0`. |
 | `currency` | ISO 4217, 3 letters |
 | `booked_date` | `YYYY-MM-DD` |
@@ -103,7 +105,7 @@ as-is.
 `account_id` is required and validated as a real uuid — a placeholder value
 is rejected with `400`, on purpose. Once the bot can reliably tell which
 account an Info Servis e-mail belongs to, resolve it the same way the
-`moneta-statements` bot does: `GET /api/ingest/accounts`, matched against
+`moneta-statements` bot does: `GET /ingest/accounts`, matched against
 whatever account-identifying text the e-mail actually contains. There's no
 "unassigned, sort out later" path here — an unresolvable row should not be
 silently invented into the ledger under the wrong account, or the account

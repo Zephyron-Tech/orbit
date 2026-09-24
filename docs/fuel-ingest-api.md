@@ -12,11 +12,17 @@ file is a safe no-op, and a file with new rows only inserts the new ones.
 
 | Purpose | Path |
 | --- | --- |
-| Sales.xls (purchase history) | `POST /api/ingest/fuel` |
-| ChargingPrepaids.xls (top-up history) | `POST /api/ingest/fuel-topups` |
-| Receipt PDFs (batch) | `POST /api/ingest/fuel-receipt` |
+| Sales.xls (purchase history) | `POST /ingest/fuel` |
+| ChargingPrepaids.xls (top-up history) | `POST /ingest/fuel-topups` |
+| Receipt PDFs (batch) | `POST /ingest/fuel-receipt` |
 
-Base URL: `https://orbit.zephyron.tech` (production only — there is no dev deployment).
+Base URL: `https://api.orbit.zephyron.tech` (production only — there is no dev deployment).
+**Not** `orbit.zephyron.tech` (that's apps/web, the Next.js frontend) and **no** `/api` prefix —
+apps/api is its own Hono service, mounted at the domain root (`docker-compose.prod.yml`'s
+Traefik label: `Host(\`api.orbit.zephyron.tech\`)`). A request against the old
+`orbit.zephyron.tech/api/ingest/...` shape lands on the Next.js app instead and 404s
+with a "Server action not found" body — that's the tell this doc is out of date for
+whatever's calling it, not a real outage.
 
 ## Auth
 
@@ -41,7 +47,7 @@ GitHub Actions secret. A missing or wrong token returns `401`.
 curl -H "Authorization: Bearer $FUEL_INGESTION_SECRET" \
      -F "file=@Sales.xls" \
      -F "dryRun=false" \
-     https://orbit.zephyron.tech/api/ingest/fuel
+     https://api.orbit.zephyron.tech/ingest/fuel
 ```
 
 ## `fuel` / `fuel-topups` response
@@ -86,7 +92,7 @@ curl -H "Authorization: Bearer $FUEL_INGESTION_SECRET" \
      -F "file=@receipt1.pdf" \
      -F "file=@receipt2.pdf" \
      -F "dryRun=false" \
-     https://orbit.zephyron.tech/api/ingest/fuel-receipt
+     https://api.orbit.zephyron.tech/ingest/fuel-receipt
 ```
 
 ## `fuel-receipt` response
