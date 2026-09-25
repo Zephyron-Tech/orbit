@@ -123,11 +123,20 @@ For a single email-triggered row (not a batch of many), the collision risk
 is much smaller, but not zero, and it is accepted here as a known trade-off
 of an approximate fallback source, not treated as solved.
 
-**Known gap, not yet built**: when the real statement later imports the
-same transaction with its real bank reference, today it lands as a
-*second*, separate row — nothing currently recognizes "this real row is the
-same one that email-fallback already guessed at" and merges or replaces the
-earlier one. Until that reconciliation exists, expect a transaction that
-arrived via this endpoint to be visible twice in the ledger once its real
-statement is imported, and to need a manual merge/delete on the duplicate
-in the meantime.
+**Reconciliation on statement import**: when the real statement later imports
+the same transaction with its real bank reference, `processCsvImport`
+(`lib/import/process-csv.ts`) checks the incoming row's attribute signature
+against every reference-less row already on the account. Exactly one
+unclaimed match → the existing row is **updated in place** (`externalId` +
+`idempotencyKey` only; category, split, notes are left untouched), not
+duplicated. `ImportBatch.reconciledCount` reports how many rows were merged
+this way on a given import.
+
+This only fires when the two sides agree on the same normalized merchant
+text. An Info Servis e-mail's `counterparty` is sometimes generic (e.g.
+`"Platba kartou"`) where the statement carries the real merchant name — in
+that case the attribute signatures differ and reconciliation does not match,
+so the transaction can still end up duplicated. Ambiguous matches (more than
+one reference-less candidate sharing a signature) are also deliberately left
+unmerged, same "don't guess" rule as `lib/finance/transfer-matching.ts` —
+check for a duplicate manually in that case.
