@@ -12,10 +12,12 @@ is checked against the account you post it to.
 
 | Purpose | Path |
 | --- | --- |
-| List accounts (to find the right `account_id`) | `GET /api/ingest/accounts` |
-| Upload one statement PDF | `POST /api/ingest/bank-statement` |
+| List accounts (to find the right `account_id`) | `GET /ingest/accounts` |
+| Upload one statement PDF | `POST /ingest/bank-statement` |
 
-Base URL: `https://orbit.zephyron.tech` (production only — there is no dev deployment).
+Base URL: `https://api.orbit.zephyron.tech` (production only — there is no dev deployment).
+**Not** `orbit.zephyron.tech` (that's apps/web, the Next.js frontend) and **no** `/api`
+prefix — apps/api is its own Hono service, mounted at the domain root.
 
 ## Auth
 
@@ -32,13 +34,13 @@ need to hold the **same** secret value — generate it once
 (`openssl rand -hex 32`), put it in the GitHub Actions secret so deploys
 write it into the server's `.env`, and give the bot the identical value.
 
-## `GET /api/ingest/accounts`
+## `GET /ingest/accounts`
 
 No request body.
 
 ```bash
 curl -H "Authorization: Bearer $BANK_STATEMENT_INGESTION_SECRET" \
-     https://orbit.zephyron.tech/api/ingest/accounts
+     https://api.orbit.zephyron.tech/ingest/accounts
 ```
 
 `200` with every non-archived account:
@@ -59,14 +61,14 @@ upload below. It's `null` for the credit card (matched by card last-4
 inside the PDF itself, not an account number) and for any non-Moneta
 account.
 
-## `POST /api/ingest/bank-statement`
+## `POST /ingest/bank-statement`
 
 `multipart/form-data`, one file per request:
 
 | Field | Value |
 | --- | --- |
 | `file` | the statement `.pdf` bytes, max 5 MB |
-| `account_id` | the `id` from `GET /api/ingest/accounts` (uuid) |
+| `account_id` | the `id` from `GET /ingest/accounts` (uuid) |
 | `dryRun` | `"false"` to actually commit — **any other value, or omitting the field, defaults to `true`** (preview only, nothing written) |
 
 ```bash
@@ -74,10 +76,10 @@ curl -H "Authorization: Bearer $BANK_STATEMENT_INGESTION_SECRET" \
      -F "file=@statement.pdf" \
      -F "account_id=b3a893d4-a301-486a-8b62-218d1a132371" \
      -F "dryRun=false" \
-     https://orbit.zephyron.tech/api/ingest/bank-statement
+     https://api.orbit.zephyron.tech/ingest/bank-statement
 ```
 
-## `POST /api/ingest/bank-statement` response
+## `POST /ingest/bank-statement` response
 
 `200` with a JSON summary (same shape the `/import` UI page shows):
 
