@@ -96,7 +96,19 @@ export async function processMonetaSyncTransactions(options: ProcessMonetaSyncOp
   const previousBatch = await prisma.importBatch.findUnique({ where: { fileHash } });
 
   if (previousBatch?.status === 'COMPLETED') {
-    throw new MonetaSyncError(`Tento sync už byl zpracován ${previousBatch.createdAt.toISOString()}`, 'ALREADY_IMPORTED');
+    // A completed batch only means "already imported" while its rows still
+    // exist. A row can be deleted later (a wrong-sign resend, a manual
+    // cleanup) without anyone deleting the ImportBatch with it — this batch
+    // record would otherwise block a byte-identical resend forever, with
+    // the caller told to treat it as success while nothing gets written.
+    // Real incident: 11 of 31 resent moneta-sync rows in 2026-09 vanished
+    // silently this way after only the Transaction rows (not their
+    // ImportBatch) were deleted to fix an earlier wrong-sign import.
+    const stillWritten = await prisma.transaction.count({ where: { importBatchId: previousBatch.id } });
+
+    if (stillWritten > 0) {
+      throw new MonetaSyncError(`Tento sync už byl zpracován ${previousBatch.createdAt.toISOString()}`, 'ALREADY_IMPORTED');
+    }
   }
 
   // `ParsedTransaction.raw` is typed `Record<string, string>` because every
