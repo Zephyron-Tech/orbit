@@ -1,5 +1,7 @@
 import { parse } from 'csv-parse/sync';
 
+import { normalizeAccountNumber } from '@orbit-api/lib/import/internal-transfers';
+
 import { normalizeSourceReference } from '../reference';
 
 import { parseCzechDate } from './dates';
@@ -149,7 +151,14 @@ export function parseMonetaCsv(text: string): CsvParseResult {
 
   const transactions: ParsedTransaction[] = [];
   const failures: ParseFailure[] = [];
+  // Keyed by normalizeAccountNumber, not the raw cell: Moneta writes some rows
+  // (Apple Pay / T212 card-top-up settlement rows, seen in a real export) with
+  // the bank code stripped ("204370628" instead of "204370628/0600") even
+  // though every other row in the same file carries it — same account, just a
+  // different rendering, and normalizing avoids a false "mixes several
+  // accounts" refusal.
   const accountIds = new Set<string>();
+  let sourceAccountId: string | null = null;
   const cardLast4 = new Set<string>();
 
   rows.forEach((row, index) => {
@@ -168,15 +177,23 @@ export function parseMonetaCsv(text: string): CsvParseResult {
       const account = cell(row, COLUMNS.account);
 
       if (account) {
-        accountIds.add(account);
+        accountIds.add(normalizeAccountNumber(account));
+        sourceAccountId ??= account;
       }
       if (isCreditExport) {
         const card = cell(row, COLUMNS.card);
-        const last4 = /(?:\D|^)(\d{4})$/.exec(card)?.[1] ?? null;
-        if (!last4) {
-          throw new Error('Missing usable last four digits in "Číslo karty"');
+
+        // Package-benefit rewards ("ODMĚNA BALÍČKU VÝHOD", seen in a real
+        // export) post to the account itself, not to a specific card, and
+        // leave this cell empty — that's not a malformed row, only a row
+        // this file's card binding doesn't apply to.
+        if (card) {
+          const last4 = /(?:\D|^)(\d{4})$/.exec(card)?.[1] ?? null;
+          if (!last4) {
+            throw new Error('Missing usable last four digits in "Číslo karty"');
+          }
+          cardLast4.add(last4);
         }
-        cardLast4.add(last4);
       }
 
       transactions.push({
@@ -211,7 +228,7 @@ export function parseMonetaCsv(text: string): CsvParseResult {
 
   return {
     provider: 'MONETA',
-    sourceAccountId: [...accountIds][0] ?? null,
+    sourceAccountId,
     sourceCardLast4: [...cardLast4][0] ?? null,
     transactions,
     failures,
