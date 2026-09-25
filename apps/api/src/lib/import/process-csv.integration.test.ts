@@ -9,9 +9,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { prisma } from '@orbit-api/lib/db/prisma';
+import { buildIdempotencyKey } from '@orbit-api/lib/finance/idempotency';
 import { ImportError, processCsvImport } from '@orbit-api/lib/import/process-csv';
 
 const FIXTURE = join(process.cwd(), 'docs/samples/moneta/2026-07.csv');
@@ -461,5 +462,108 @@ describe('statement anchor plus an overlapping movement export', () => {
     expect(new Set(references.map((row) => row.externalId)).size).toBe(references.length);
     // The statement's 84 rows plus the two new August ones.
     expect(references).toHaveLength(86);
+  });
+});
+
+describe('cross-format reconciliation with moneta-sync', () => {
+  // Row 3 of the fixture: date 31.07.2026, amount -108,00 CZK, "Popis platby"
+  // "Cez Praha Praha 4 CZ", reference "...:651076V532869827673".
+  const MATCHING_DATE = new Date('2026-07-31T00:00:00.000Z');
+  const MATCHING_MERCHANT = 'Cez Praha Praha 4 CZ';
+
+  beforeEach(async () => {
+    await prisma.transaction.deleteMany({ where: { accountId } });
+    await prisma.accountSnapshot.deleteMany({ where: { accountId } });
+    await prisma.importBatch.deleteMany({ where: { accountId } });
+  });
+
+  it('updates a reference-less moneta-sync row in place instead of inserting a duplicate', async () => {
+    const key = buildIdempotencyKey({
+      provider: 'MONETA',
+      externalId: null,
+      accountId,
+      date: MATCHING_DATE,
+      amount: '-108.00',
+      currency: 'CZK',
+      merchant: MATCHING_MERCHANT,
+    });
+
+    const existing = await prisma.transaction.create({
+      data: {
+        accountId,
+        source: 'API',
+        kind: 'NORMAL',
+        idempotencyKey: key,
+        externalId: null,
+        date: MATCHING_DATE,
+        amount: '-108.00',
+        currency: 'CZK',
+        amountCzk: '-108.00',
+        merchant: MATCHING_MERCHANT,
+        rawData: {},
+      },
+    });
+
+    const summary = await processCsvImport({ bytes, filename: '2026-07.csv', accountId, dryRun: false });
+
+    expect(summary.reconciled).toBe(1);
+    expect(summary.inserted).toBe(83);
+    expect(summary.skipped).toBe(0);
+    await expect(prisma.transaction.count({ where: { accountId } })).resolves.toBe(84);
+
+    const updated = await prisma.transaction.findUniqueOrThrow({ where: { id: existing.id } });
+
+    expect(updated.externalId).toBe('651076V532869827673');
+    expect(updated.idempotencyKey).not.toBe(key);
+    // Nothing else on the row was touched by the reconciliation.
+    expect(updated.merchant).toBe(MATCHING_MERCHANT);
+  });
+
+  it('does not guess when more than one reference-less row shares the same signature', async () => {
+    // Both rows were written by a source that computed the ATTRIBUTES key
+    // itself before this reconciliation logic existed, hand-crafted here with
+    // distinct idempotencyKeys since the column is unique and the real
+    // `buildIdempotencyKey` would otherwise collide the two.
+    await prisma.transaction.createMany({
+      data: [
+        {
+          accountId,
+          source: 'API',
+          kind: 'NORMAL',
+          idempotencyKey: 'fake-ambiguous-candidate-1',
+          externalId: null,
+          date: MATCHING_DATE,
+          amount: '-108.00',
+          currency: 'CZK',
+          amountCzk: '-108.00',
+          merchant: MATCHING_MERCHANT,
+          rawData: {},
+        },
+        {
+          accountId,
+          source: 'API',
+          kind: 'NORMAL',
+          idempotencyKey: 'fake-ambiguous-candidate-2',
+          externalId: null,
+          date: MATCHING_DATE,
+          amount: '-108.00',
+          currency: 'CZK',
+          amountCzk: '-108.00',
+          merchant: MATCHING_MERCHANT,
+          rawData: {},
+        },
+      ],
+    });
+
+    const summary = await processCsvImport({ bytes, filename: '2026-07.csv', accountId, dryRun: false });
+
+    expect(summary.reconciled).toBe(0);
+    expect(summary.inserted).toBe(84);
+    expect(summary.skipped).toBe(0);
+    // The two ambiguous rows are left exactly as they were, plus all 84 fresh rows.
+    await expect(prisma.transaction.count({ where: { accountId } })).resolves.toBe(86);
+    await expect(
+      prisma.transaction.count({ where: { idempotencyKey: { in: ['fake-ambiguous-candidate-1', 'fake-ambiguous-candidate-2'] } } }),
+    ).resolves.toBe(2);
   });
 });

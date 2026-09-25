@@ -718,10 +718,15 @@ model ImportBatch {
   /// statements chain by it, which detects a missing one exactly.
   statementNumber String?
 
-  rowCount      Int @default(0)
-  insertedCount Int @default(0)
-  skippedCount  Int @default(0)
-  failedCount   Int @default(0)
+  rowCount        Int @default(0)
+  insertedCount   Int @default(0)
+  skippedCount    Int @default(0)
+  /// Rows that matched an existing reference-less row (moneta-sync's
+  /// ATTRIBUTES-keyed email-fallback write) by attribute signature and were
+  /// merged into it instead of inserted — see process-csv.ts's
+  /// reconciliation comment above its dedup loop.
+  reconciledCount Int @default(0)
+  failedCount     Int @default(0)
 
   /// Booking dates of the first and last transaction in the file. Display only:
   /// an account with no movements produces a narrow range that says nothing

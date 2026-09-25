@@ -50,6 +50,8 @@ export interface ImportRowPreview {
   internalTransfer: boolean;
   /** True when this row already exists in the database or twice in the file. */
   duplicate: boolean;
+  /** True when this row matched an existing reference-less row (moneta-sync email-fallback) by attribute signature and will update it in place rather than insert a new one. */
+  reconciled: boolean;
 }
 
 export interface StatementInfo {
@@ -99,6 +101,8 @@ export interface ImportSummary {
   inserted: number;
   /** Rows already present in the database, or repeated inside the file. */
   skipped: number;
+  /** Rows that matched an existing reference-less row by attribute signature and were merged into it (externalId + idempotencyKey updated) instead of inserted — see the cross-format reconciliation comment above the dedup loop. */
+  reconciled: number;
   failed: number;
   periodFrom: string | null;
   periodTo: string | null;
@@ -357,8 +361,39 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
       )
     : null;
 
+  // Cross-format safety net, the other direction — reconciliation: a row
+  // that DOES carry a reference (this file is a statement, and the same
+  // transaction was already written earlier with no reference at all — the
+  // moneta-sync email-fallback bot's ATTRIBUTES-keyed rows are the
+  // motivating case) is matched by attribute signature against an existing
+  // `externalId: null` row on this account and UPDATED in place — only
+  // `externalId` + `idempotencyKey`, switching it from the ATTRIBUTES to
+  // the EXTERNAL_ID dedup strategy — instead of inserted as a second row.
+  // Nothing else on the row is touched, so a category/split/note a person
+  // already put on the email-fallback row survives untouched.
+  //
+  // Ambiguous (more than one existing candidate for the same signature) is
+  // left alone and falls through to a normal insert — same "don't guess"
+  // rule this codebase already applies to transfer-matching: a wrong guess
+  // here would silently re-identify the wrong row's whole history.
+  const hasReferencedRow = keyed.some(({ transaction }) => transaction.externalId?.trim());
+  const reconcileCandidatesBySignature = new Map<string, string[]>();
+  if (hasReferencedRow) {
+    const candidates = await prisma.transaction.findMany({
+      where: { accountId: account.id, externalId: null },
+      select: { id: true, date: true, amount: true, currency: true, merchant: true },
+    });
+    for (const row of candidates) {
+      const signature = buildAttributeSignature({ date: row.date, amount: row.amount.toString(), currency: row.currency, merchant: row.merchant });
+      reconcileCandidatesBySignature.set(signature, [...(reconcileCandidatesBySignature.get(signature) ?? []), row.id]);
+    }
+  }
+
   const seenInFile = new Set<string>();
   const fresh: { transaction: ParsedTransaction; key: string }[] = [];
+  const reconciled: { existingId: string; transaction: ParsedTransaction; key: string }[] = [];
+  const reconciledKeys = new Set<string>();
+  const claimedForReconcile = new Set<string>();
   let skipped = 0;
 
   for (const entry of keyed) {
@@ -376,6 +411,25 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     if (existingKeys.has(entry.key) || seenInFile.has(entry.key) || isCrossFormatDuplicate) {
       skipped += 1;
       continue;
+    }
+
+    if (entry.transaction.externalId?.trim()) {
+      const signature = buildAttributeSignature({
+        date: entry.transaction.date,
+        amount: entry.transaction.amount,
+        currency: entry.transaction.currency,
+        merchant: entry.transaction.merchant,
+      });
+      const unclaimedCandidates = (reconcileCandidatesBySignature.get(signature) ?? []).filter((id) => !claimedForReconcile.has(id));
+
+      if (unclaimedCandidates.length === 1) {
+        const existingId = unclaimedCandidates[0]!;
+        claimedForReconcile.add(existingId);
+        seenInFile.add(entry.key);
+        reconciledKeys.add(entry.key);
+        reconciled.push({ existingId, transaction: entry.transaction, key: entry.key });
+        continue;
+      }
     }
 
     seenInFile.add(entry.key);
@@ -436,6 +490,7 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     mappedCategory: resolveTransactionCategory(transaction),
     internalTransfer: isInternalTransfer(transaction.counterAccount, ownAccountIndex),
     duplicate: existingKeys.has(key),
+    reconciled: reconciledKeys.has(key),
   }));
 
   const summary: ImportSummary = {
@@ -449,6 +504,7 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     rowCount: parsed.transactions.length + parsed.failures.length,
     inserted: fresh.length,
     skipped,
+    reconciled: reconciled.length,
     failed: parsed.failures.length,
     periodFrom: periodFrom?.toISOString().slice(0, 10) ?? null,
     periodTo: periodTo?.toISOString().slice(0, 10) ?? null,
@@ -568,6 +624,17 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
       });
     }
 
+    // Reconciliation: an existing reference-less row (moneta-sync's
+    // ATTRIBUTES-keyed email-fallback write) matched this file's row by
+    // attribute signature — update just its identity fields, never touch
+    // category/split/description a person may have already set on it.
+    for (const { existingId, transaction, key } of reconciled) {
+      await tx.transaction.update({
+        where: { id: existingId },
+        data: { externalId: transaction.externalId, idempotencyKey: key },
+      });
+    }
+
     // Only failures are logged row by row. Successful and skipped rows are
     // counted on the batch: a per-row audit of a full statement would bury the
     // rows that actually need looking at.
@@ -607,6 +674,7 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
         rowCount: summary.rowCount,
         insertedCount: fresh.length,
         skippedCount: skipped,
+        reconciledCount: reconciled.length,
         failedCount: parsed.failures.length,
         periodFrom,
         periodTo,
