@@ -153,14 +153,23 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
 
   const fileHash = createHash('sha256').update(options.bytes).digest('hex');
 
-  // A byte-identical re-upload is answered before any parsing happens.
+  // A byte-identical re-upload is answered before any parsing happens — but
+  // only when the batch's rows are still actually in the ledger. A completed
+  // batch whose transactions were later deleted (a manual cleanup, an
+  // incorrect import undone by hand) would otherwise block a legitimate
+  // re-import forever: same class of bug fixed in process-moneta-sync.ts
+  // after a manual Transaction-only cleanup silently ate 11 of 31 resent rows.
   const previousBatch = await prisma.importBatch.findUnique({ where: { fileHash } });
 
   if (previousBatch?.status === 'COMPLETED') {
-    throw new ImportError(
-      `Tento soubor už byl importován ${previousBatch.createdAt.toISOString().slice(0, 10)}`,
-      'ALREADY_IMPORTED',
-    );
+    const stillWritten = await prisma.transaction.count({ where: { importBatchId: previousBatch.id } });
+
+    if (stillWritten > 0) {
+      throw new ImportError(
+        `Tento soubor už byl importován ${previousBatch.createdAt.toISOString().slice(0, 10)}`,
+        'ALREADY_IMPORTED',
+      );
+    }
   }
 
   // A PDF is either a credit card statement or a checking/savings account

@@ -130,6 +130,40 @@ describe('processMonetaSyncTransactions', () => {
     await expect(processMonetaSyncTransactions(payload)).rejects.toMatchObject({ code: 'ALREADY_IMPORTED' });
   });
 
+  it('accepts an identical resend once the earlier batch\'s row was deleted without the batch itself', async () => {
+    // Real incident: cleaning up a wrong-sign import deleted only the
+    // Transaction rows, not the ImportBatch that wrote them. The next
+    // byte-identical resend then hit ALREADY_IMPORTED and was silently
+    // dropped, even though nothing was left in the ledger for it.
+    const payload = {
+      accountId,
+      transactions: [
+        {
+          transactionId: '260913S00000000003',
+          date: '2026-09-13',
+          amount: '-77.00',
+          currency: 'CZK',
+          merchant: 'KAUFLAND',
+          description: null,
+          counterAccount: null,
+          sourceCategory: null,
+        },
+      ],
+    };
+
+    const first = await processMonetaSyncTransactions(payload);
+    expect(first.inserted).toBe(1);
+
+    await prisma.transaction.deleteMany({ where: { accountId, externalId: '260913S00000000003' } });
+
+    const second = await processMonetaSyncTransactions(payload);
+
+    expect(second.inserted).toBe(1);
+    await expect(
+      prisma.transaction.count({ where: { accountId, externalId: '260913S00000000003' } }),
+    ).resolves.toBe(1);
+  });
+
   it('writes a checkpoint when a balance is supplied', async () => {
     const summary = await processMonetaSyncTransactions({
       accountId,

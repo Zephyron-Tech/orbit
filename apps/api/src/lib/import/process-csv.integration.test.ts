@@ -115,6 +115,15 @@ describe('processCsvImport', () => {
     await expect(prisma.transaction.count({ where: { accountId } })).resolves.toBe(84);
   });
 
+  it('accepts a byte-identical re-upload once the earlier batch\'s rows were deleted without the batch itself', async () => {
+    await prisma.transaction.deleteMany({ where: { accountId } });
+
+    const summary = await processCsvImport({ bytes, filename: '2026-07.csv', accountId, dryRun: false });
+
+    expect(summary.inserted).toBe(84);
+    await expect(prisma.transaction.count({ where: { accountId } })).resolves.toBe(84);
+  });
+
   it('deduplicates the same statement re-exported as a different file', async () => {
     // A trailing newline changes the file hash but not a single transaction.
     const reExported = new Uint8Array(Buffer.concat([Buffer.from(bytes), Buffer.from('\r\n')]));
