@@ -125,18 +125,23 @@ of an approximate fallback source, not treated as solved.
 
 **Reconciliation on statement import**: when the real statement later imports
 the same transaction with its real bank reference, `processCsvImport`
-(`lib/import/process-csv.ts`) checks the incoming row's attribute signature
-against every reference-less row already on the account. Exactly one
-unclaimed match → the existing row is **updated in place** (`externalId` +
-`idempotencyKey` only; category, split, notes are left untouched), not
-duplicated. `ImportBatch.reconciledCount` reports how many rows were merged
-this way on a given import.
+(`lib/import/process-csv.ts`) checks the incoming row against every
+reference-less row already on the account — first by the full attribute
+signature, then, if that finds nothing, by date + amount + currency alone
+(the fallback that exists specifically because an Info Servis e-mail's
+`counterparty` is often as generic as `"Platba kartou"`, which the full
+signature would never match against the statement's real merchant name).
+Either way, exactly one unclaimed match is required — more than one
+candidate is left unmerged, same "don't guess" rule as
+`lib/finance/transfer-matching.ts`.
 
-This only fires when the two sides agree on the same normalized merchant
-text. An Info Servis e-mail's `counterparty` is sometimes generic (e.g.
-`"Platba kartou"`) where the statement carries the real merchant name — in
-that case the attribute signatures differ and reconciliation does not match,
-so the transaction can still end up duplicated. Ambiguous matches (more than
-one reference-less candidate sharing a signature) are also deliberately left
-unmerged, same "don't guess" rule as `lib/finance/transfer-matching.ts` —
-check for a duplicate manually in that case.
+The **statement outranks the e-mail guess**: a matched row is updated in
+place with the statement's own `externalId`, `date`, `amount`, `currency`,
+`merchant`, `description` and `rawData` — the email-fallback sync only ever
+existed to give a rough mid-month picture, so its guessed identity fields
+don't survive once the authoritative data arrives. What a person set by hand
+on the ledger row (category, split, share, notes, recurring-expense tag) is
+left untouched, and a row that already has a `settlementId` is skipped
+entirely — reconciliation must never rewrite a figure both people already
+settled on. `ImportBatch.reconciledCount` reports how many rows were merged
+this way on a given import.

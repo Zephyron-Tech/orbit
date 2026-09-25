@@ -5,7 +5,15 @@ import { PDFParse } from 'pdf-parse';
 import { prisma } from '@orbit-api/lib/db/prisma';
 import { Prisma } from '@orbit-api/lib/generated/prisma/client';
 import type { Provider } from '@orbit-api/lib/generated/prisma/enums';
-import { buildAttributeSignature, buildIdempotencyKey, dedupStrategyFor, normalizeMerchant, type DedupStrategy } from '@orbit-api/lib/finance/idempotency';
+import {
+  buildAttributeSignature,
+  buildIdempotencyKey,
+  dedupStrategyFor,
+  normalizeMerchant,
+  toBookingDay,
+  toMinorUnits,
+  type DedupStrategy,
+} from '@orbit-api/lib/finance/idempotency';
 import { createFxRateResolver, FxRateError } from '@orbit-api/lib/providers/fx/rate-lookup';
 import { decodeCsv } from '@orbit-api/lib/parsers/csv/decode';
 import { classifyByMerchant, mapMonetaCategory } from '@orbit-api/lib/parsers/csv/moneta-categories';
@@ -50,7 +58,7 @@ export interface ImportRowPreview {
   internalTransfer: boolean;
   /** True when this row already exists in the database or twice in the file. */
   duplicate: boolean;
-  /** True when this row matched an existing reference-less row (moneta-sync email-fallback) by attribute signature and will update it in place rather than insert a new one. */
+  /** True when this row matched an existing reference-less row (moneta-sync email-fallback) — by full attribute signature or, failing that, date+amount+currency alone — and will update it in place rather than insert a new one. */
   reconciled: boolean;
 }
 
@@ -101,7 +109,7 @@ export interface ImportSummary {
   inserted: number;
   /** Rows already present in the database, or repeated inside the file. */
   skipped: number;
-  /** Rows that matched an existing reference-less row by attribute signature and were merged into it (externalId + idempotencyKey updated) instead of inserted — see the cross-format reconciliation comment above the dedup loop. */
+  /** Rows that matched an existing reference-less row and were merged into it (its identity fields overwritten with this row's, since a statement outranks the moneta-sync e-mail guess) instead of inserted — see the cross-format reconciliation comment above the dedup loop. */
   reconciled: number;
   failed: number;
   periodFrom: string | null;
@@ -365,27 +373,50 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
   // that DOES carry a reference (this file is a statement, and the same
   // transaction was already written earlier with no reference at all — the
   // moneta-sync email-fallback bot's ATTRIBUTES-keyed rows are the
-  // motivating case) is matched by attribute signature against an existing
-  // `externalId: null` row on this account and UPDATED in place — only
-  // `externalId` + `idempotencyKey`, switching it from the ATTRIBUTES to
-  // the EXTERNAL_ID dedup strategy — instead of inserted as a second row.
-  // Nothing else on the row is touched, so a category/split/note a person
-  // already put on the email-fallback row survives untouched.
+  // motivating case) is matched against an existing `externalId: null` row
+  // on this account and UPDATED in place — switching it from the
+  // ATTRIBUTES to the EXTERNAL_ID dedup strategy — instead of inserted as a
+  // second row. The statement is the authoritative monthly source; the
+  // email-fallback bot only exists to give a rough mid-month picture, so a
+  // reconciled row's identity fields (merchant, description, amount,
+  // currency, date, rawData) are overwritten with the statement's own
+  // values, not merely left alone. What a person edited by hand on the
+  // ledger row — category, split, share, notes — is never touched.
   //
-  // Ambiguous (more than one existing candidate for the same signature) is
-  // left alone and falls through to a normal insert — same "don't guess"
-  // rule this codebase already applies to transfer-matching: a wrong guess
-  // here would silently re-identify the wrong row's whole history.
+  // A settled transaction is excluded from candidates entirely: it is
+  // read-only in the ledger, and reconciliation must not silently rewrite a
+  // figure both people already agreed on.
+  //
+  // Matched first by the full attribute signature (date + amount + currency
+  // + normalized merchant). A single Info Servis e-mail often only carries a
+  // generic counterparty ("Platba kartou") where the statement has the real
+  // merchant name, so a second, looser pass matches on date + amount +
+  // currency alone when the full signature found nothing — still gated on
+  // exactly one unclaimed candidate, so it never guesses between two
+  // same-day, same-amount rows.
+  //
+  // Ambiguous (more than one existing candidate) is left alone and falls
+  // through to a normal insert — same "don't guess" rule this codebase
+  // already applies to transfer-matching: a wrong guess here would silently
+  // re-identify the wrong row's whole history.
   const hasReferencedRow = keyed.some(({ transaction }) => transaction.externalId?.trim());
   const reconcileCandidatesBySignature = new Map<string, string[]>();
+  const reconcileCandidatesByLooseKey = new Map<string, string[]>();
+  const buildLooseKey = (date: Date, amount: string, currency: string): string =>
+    [toBookingDay(date), toMinorUnits(amount), currency.trim().toUpperCase()].join('|');
+
   if (hasReferencedRow) {
     const candidates = await prisma.transaction.findMany({
-      where: { accountId: account.id, externalId: null },
+      where: { accountId: account.id, externalId: null, settlementId: null },
       select: { id: true, date: true, amount: true, currency: true, merchant: true },
     });
     for (const row of candidates) {
-      const signature = buildAttributeSignature({ date: row.date, amount: row.amount.toString(), currency: row.currency, merchant: row.merchant });
+      const amount = row.amount.toString();
+      const signature = buildAttributeSignature({ date: row.date, amount, currency: row.currency, merchant: row.merchant });
       reconcileCandidatesBySignature.set(signature, [...(reconcileCandidatesBySignature.get(signature) ?? []), row.id]);
+
+      const looseKey = buildLooseKey(row.date, amount, row.currency);
+      reconcileCandidatesByLooseKey.set(looseKey, [...(reconcileCandidatesByLooseKey.get(looseKey) ?? []), row.id]);
     }
   }
 
@@ -420,10 +451,15 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
         currency: entry.transaction.currency,
         merchant: entry.transaction.merchant,
       });
-      const unclaimedCandidates = (reconcileCandidatesBySignature.get(signature) ?? []).filter((id) => !claimedForReconcile.has(id));
+      const unclaimedBySignature = (reconcileCandidatesBySignature.get(signature) ?? []).filter((id) => !claimedForReconcile.has(id));
 
-      if (unclaimedCandidates.length === 1) {
-        const existingId = unclaimedCandidates[0]!;
+      const looseKey = buildLooseKey(entry.transaction.date, entry.transaction.amount, entry.transaction.currency);
+      const unclaimedByLooseKey = (reconcileCandidatesByLooseKey.get(looseKey) ?? []).filter((id) => !claimedForReconcile.has(id));
+
+      const existingId =
+        unclaimedBySignature.length === 1 ? unclaimedBySignature[0]! : unclaimedByLooseKey.length === 1 ? unclaimedByLooseKey[0]! : null;
+
+      if (existingId) {
         claimedForReconcile.add(existingId);
         seenInFile.add(entry.key);
         reconciledKeys.add(entry.key);
@@ -551,7 +587,7 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
   const fxFailures: { key: string; transaction: ParsedTransaction; reason: string }[] = [];
 
   await Promise.all(
-    fresh
+    [...fresh, ...reconciled]
       .filter(({ transaction }) => transaction.currency !== 'CZK')
       .map(async ({ transaction, key }) => {
         try {
@@ -625,13 +661,26 @@ export async function processCsvImport(options: ProcessCsvOptions): Promise<Impo
     }
 
     // Reconciliation: an existing reference-less row (moneta-sync's
-    // ATTRIBUTES-keyed email-fallback write) matched this file's row by
-    // attribute signature — update just its identity fields, never touch
-    // category/split/description a person may have already set on it.
+    // ATTRIBUTES-keyed email-fallback write) matched this file's row. The
+    // statement outranks the e-mail guess, so the row's own identity fields
+    // are replaced with the statement's values — not just externalId and
+    // idempotencyKey. What a person set by hand (category, split, share,
+    // notes, recurring-expense tag) is deliberately left off this list.
     for (const { existingId, transaction, key } of reconciled) {
       await tx.transaction.update({
         where: { id: existingId },
-        data: { externalId: transaction.externalId, idempotencyKey: key },
+        data: {
+          externalId: transaction.externalId,
+          idempotencyKey: key,
+          date: transaction.date,
+          amount: new Prisma.Decimal(transaction.amount),
+          currency: transaction.currency,
+          amountCzk: transaction.currency === 'CZK' ? new Prisma.Decimal(transaction.amount) : (fxByKey.get(key)?.amountCzk ?? null),
+          fxRate: transaction.currency === 'CZK' ? null : (fxByKey.get(key)?.fxRate ?? null),
+          merchant: transaction.merchant,
+          description: transaction.description,
+          rawData: transaction.raw,
+        },
       });
     }
 

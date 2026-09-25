@@ -566,4 +566,98 @@ describe('cross-format reconciliation with moneta-sync', () => {
       prisma.transaction.count({ where: { idempotencyKey: { in: ['fake-ambiguous-candidate-1', 'fake-ambiguous-candidate-2'] } } }),
     ).resolves.toBe(2);
   });
+
+  it('falls back to date+amount+currency when the e-mail-fallback merchant text is generic', async () => {
+    const key = buildIdempotencyKey({
+      provider: 'MONETA',
+      externalId: null,
+      accountId,
+      date: MATCHING_DATE,
+      amount: '-108.00',
+      currency: 'CZK',
+      // An Info Servis e-mail rarely names the real merchant — this is the
+      // literal example from docs/moneta-sync-ingest-api.md.
+      merchant: 'Platba kartou',
+    });
+
+    const existing = await prisma.transaction.create({
+      data: {
+        accountId,
+        source: 'API',
+        kind: 'NORMAL',
+        idempotencyKey: key,
+        externalId: null,
+        date: MATCHING_DATE,
+        amount: '-108.00',
+        currency: 'CZK',
+        amountCzk: '-108.00',
+        merchant: 'Platba kartou',
+        rawData: {},
+      },
+    });
+
+    const summary = await processCsvImport({ bytes, filename: '2026-07.csv', accountId, dryRun: false });
+
+    expect(summary.reconciled).toBe(1);
+    expect(summary.inserted).toBe(83);
+    await expect(prisma.transaction.count({ where: { accountId } })).resolves.toBe(84);
+
+    const updated = await prisma.transaction.findUniqueOrThrow({ where: { id: existing.id } });
+
+    // The statement outranks the e-mail guess: the real merchant wins.
+    expect(updated.merchant).toBe(MATCHING_MERCHANT);
+    expect(updated.externalId).toBe('651076V532869827673');
+  });
+
+  it('never reconciles into an already-settled transaction', async () => {
+    const settlement = await prisma.settlement.create({
+      data: {
+        periodFrom: new Date('2026-06-01T00:00:00.000Z'),
+        periodTo: new Date('2026-06-30T00:00:00.000Z'),
+        paidByMe: '0',
+        paidByPartner: '0',
+        balance: '0',
+      },
+    });
+
+    const key = buildIdempotencyKey({
+      provider: 'MONETA',
+      externalId: null,
+      accountId,
+      date: MATCHING_DATE,
+      amount: '-108.00',
+      currency: 'CZK',
+      merchant: MATCHING_MERCHANT,
+    });
+
+    const existing = await prisma.transaction.create({
+      data: {
+        accountId,
+        source: 'API',
+        kind: 'NORMAL',
+        idempotencyKey: key,
+        externalId: null,
+        date: MATCHING_DATE,
+        amount: '-108.00',
+        currency: 'CZK',
+        amountCzk: '-108.00',
+        merchant: MATCHING_MERCHANT,
+        rawData: {},
+        settlementId: settlement.id,
+      },
+    });
+
+    const summary = await processCsvImport({ bytes, filename: '2026-07.csv', accountId, dryRun: false });
+
+    expect(summary.reconciled).toBe(0);
+    expect(summary.inserted).toBe(84);
+    await expect(prisma.transaction.count({ where: { accountId } })).resolves.toBe(85);
+
+    const untouched = await prisma.transaction.findUniqueOrThrow({ where: { id: existing.id } });
+    expect(untouched.externalId).toBeNull();
+    expect(untouched.idempotencyKey).toBe(key);
+
+    await prisma.transaction.update({ where: { id: existing.id }, data: { settlementId: null } });
+    await prisma.settlement.delete({ where: { id: settlement.id } });
+  });
 });
