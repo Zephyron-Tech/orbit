@@ -96,6 +96,20 @@ describe('parseMonetaCsv', () => {
     expect(credit.transactions[0]).toMatchObject({ amount: '-2000.00', externalId: 'card-ref-1', sourceCategory: 'Benzín' });
   });
 
+  it('accepts a package-benefit reward row with no card number', () => {
+    // "ODMĚNA BALÍČKU VÝHOD" posts to the credit account itself, not to a
+    // specific card — a real export has this alongside normal card rows.
+    const credit = parseMonetaCsv(
+      '"Číslo karty";"Popis platby";"Odesláno";"Datum uskutečnění";"Částka";"Měna";"Poznámka pro mě";"Název kategorie";"Bankovní reference";"Variabilní Symbol";"Specifický Symbol";"Platební metoda"\n' +
+        '"400000******1234";"Orlen Example CZ";"21.08.2026";"20.08.2026";"-2000,00";"CZK";"";"Benzín";"card-ref-1";"";"";""\n' +
+        '"";"ODMĚNA BALÍČKU VÝHOD";"22.08.2026";"22.08.2026";"3,79";"CZK";"";"";"card-ref-2";"";"";""',
+    );
+
+    expect(credit.failures).toHaveLength(0);
+    expect(credit.transactions).toHaveLength(2);
+    expect(credit.sourceCardLast4).toBe('1234');
+  });
+
   it('stores the whole source row for replay', () => {
     const [first] = result.transactions;
 
@@ -133,6 +147,18 @@ describe('parseMonetaCsv error handling', () => {
     const text = loadFixture().replace('111222333/0600', '999888777/0600');
 
     expect(() => parseMonetaCsv(text)).toThrow(/mixes several accounts/);
+  });
+
+  it('treats an account number missing its bank code as the same account', () => {
+    // A real export had one row (an Apple Pay / T212 settlement row) print
+    // "111222333" while every other row prints "111222333/0600" — same
+    // account, and normalizing it avoids a false "mixes several accounts".
+    const text = loadFixture().replace('"111222333/0600";"CZ6506000000000111222333"', '"111222333";"CZ6506000000000111222333"');
+    const result = parseMonetaCsv(text);
+
+    expect(result.failures).toHaveLength(0);
+    expect(result.transactions).toHaveLength(84);
+    expect(result.sourceAccountId).toBe('111222333');
   });
 
   it('reports a malformed row instead of dropping it', () => {
