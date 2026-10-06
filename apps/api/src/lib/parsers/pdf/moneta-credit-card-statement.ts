@@ -20,8 +20,17 @@ import { CsvStructureError, type ParsedTransaction } from '@orbit-api/lib/parser
  * Pure: no database, no network, no clock.
  */
 
+// Digits plus every thousands-separator whitespace variant Moneta's PDF
+// export can use: plain space, non-breaking space (U+00A0), narrow no-break
+// space (U+202F), thin space (U+2009) — the same set numbers.ts's
+// parseCzechAmount already tolerates when parsing the value. A real October
+// statement used the narrow no-break space where August's used a plain
+// non-breaking space, and these patterns only covered the latter, so the
+// statement failed to parse at all despite being well-formed.
+const AMOUNT_TOKEN = '-?[ \\t]?[\\d    ]+,\\d{2}';
+
 /** Posting date, then valuta date, then description + trailing Kč amount. */
-const ROW_PATTERN = /^(\d{2}\.\d{2}\.\d{4})\n\d{2}\.\d{2}\.\d{4}\n(.+?)[ \t]+(-?[ \t]?[\d  ]+,\d{2})[ \t]*$/gm;
+const ROW_PATTERN = new RegExp(`^(\\d{2}\\.\\d{2}\\.\\d{4})\\n\\d{2}\\.\\d{2}\\.\\d{4}\\n(.+?)[ \\t]+(${AMOUNT_TOKEN})[ \\t]*$`, 'gm');
 
 const PERIOD_BLOCK_PATTERN =
   /Výpis za období:\s*\nVýpis ke dni:\s*\nPředchozí výpis ze dne:\s*\nStrana:\s*\n[\d.-]+\s*\n(\d{2}\.\d{2}\.\d{4})\s*\n(\d{2}\.\d{2}\.\d{4})?\s*\n\d+\/\d+/;
@@ -29,8 +38,8 @@ const CARD_LAST4_PATTERN = /karta číslo\s+(?:x{4}\s+){3}(\d{4})/i;
 const CONTRACT_NUMBER_PATTERN = /Na účet číslo\s*\nVariabilní symbol \(Číslo Vaší smlouvy\)\s*\n[\d/]+\s*\n(\d+)/;
 /** The statement's own document reference, e.g. "BM/V62608310201593163" — this document's equivalent of the XML statement's `@number`. */
 const STATEMENT_NUMBER_PATTERN = /\b(BM\/V\d+)\b/;
-const OPENING_BALANCE_PATTERN = /Počáteční zůstatek\s*\n[\s\S]*?\n(-?[ \t]?[\d  ]+,\d{2})/;
-const CLOSING_BALANCE_PATTERN = /Celkem dlužná částka\s+(-?[ \t]?[\d  ]+,\d{2})/;
+const OPENING_BALANCE_PATTERN = new RegExp(`Počáteční zůstatek\\s*\\n[\\s\\S]*?\\n(${AMOUNT_TOKEN})`);
+const CLOSING_BALANCE_PATTERN = new RegExp(`Celkem dlužná částka\\s+(${AMOUNT_TOKEN})`);
 
 export interface CreditCardStatementPeriod {
   /** Inclusive end, and the date the closing balance is true as of. */
