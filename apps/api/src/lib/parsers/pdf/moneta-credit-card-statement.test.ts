@@ -63,6 +63,18 @@ describe('parseMonetaCreditCardStatement', () => {
   });
 });
 
+describe('parseMonetaCreditCardStatement whitespace variants', () => {
+  it('parses a closing balance whose thousands separator is a narrow no-break space', () => {
+    // A real October statement used U+202F where this fixture (and August's
+    // real statement) use a plain space — the original pattern only covered
+    // a plain space and U+00A0, so this failed with BAD_FORMAT in production.
+    const text = load().replace('Celkem dlužná částka - 12 586,86', 'Celkem dlužná částka - 12 586,86');
+    const result = parseMonetaCreditCardStatement(text);
+
+    expect(result.closingBalance).toBe('-12586.86');
+  });
+});
+
 describe('parseMonetaCreditCardStatement self-check', () => {
   it('notices a closing balance that contradicts the opening balance and transactions', () => {
     const text = load().replace('Celkem dlužná částka - 12 586,86', 'Celkem dlužná částka - 99 999,99');
