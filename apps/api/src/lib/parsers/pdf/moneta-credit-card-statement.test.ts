@@ -75,6 +75,20 @@ describe('parseMonetaCreditCardStatement whitespace variants', () => {
   });
 });
 
+describe('parseMonetaCreditCardStatement overpayment', () => {
+  it('reads the closing balance from "Přeplatek" when the card ended the period in credit, not debt', () => {
+    // A card that's owed nothing — more was paid than spent — omits "Celkem
+    // dlužná částka" entirely and states "Přeplatek" instead, with no minus
+    // sign (positive = a household asset, same convention net-worth.ts
+    // already applies to a positive CREDIT balance). A real October
+    // statement hit exactly this and failed with BAD_FORMAT before this fix.
+    const text = load().replace('Celkem dlužná částka - 12 586,86', 'Přeplatek: 132,83');
+    const result = parseMonetaCreditCardStatement(text);
+
+    expect(result.closingBalance).toBe('132.83');
+  });
+});
+
 describe('parseMonetaCreditCardStatement self-check', () => {
   it('notices a closing balance that contradicts the opening balance and transactions', () => {
     const text = load().replace('Celkem dlužná částka - 12 586,86', 'Celkem dlužná částka - 99 999,99');
@@ -87,6 +101,12 @@ describe('parseMonetaCreditCardStatement self-check', () => {
 describe('parseMonetaCreditCardStatement malformed input', () => {
   it('rejects a document that is not a Moneta credit card statement', () => {
     expect(() => parseMonetaCreditCardStatement('this is not a statement')).toThrow(CsvStructureError);
+  });
+
+  it('throws when neither "Celkem dlužná částka" nor "Přeplatek" is present', () => {
+    const text = load().replace('Celkem dlužná částka - 12 586,86', '');
+
+    expect(() => parseMonetaCreditCardStatement(text)).toThrow(/celkem dlužná částka nebo přeplatek/);
   });
 
   it('rejects a statement with no transaction rows at all', () => {

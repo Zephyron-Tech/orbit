@@ -39,7 +39,14 @@ const CONTRACT_NUMBER_PATTERN = /Na účet číslo\s*\nVariabilní symbol \(Čí
 /** The statement's own document reference, e.g. "BM/V62608310201593163" — this document's equivalent of the XML statement's `@number`. */
 const STATEMENT_NUMBER_PATTERN = /\b(BM\/V\d+)\b/;
 const OPENING_BALANCE_PATTERN = new RegExp(`Počáteční zůstatek\\s*\\n[\\s\\S]*?\\n(${AMOUNT_TOKEN})`);
-const CLOSING_BALANCE_PATTERN = new RegExp(`Celkem dlužná částka\\s+(${AMOUNT_TOKEN})`);
+// A card that ends a period owing money states "Celkem dlužná částka"
+// (negative). A card that ends in credit — more paid in than spent — omits
+// that line entirely and states "Přeplatek" instead (positive, no minus
+// sign in the document; a real October statement hit exactly this case).
+// Both are read the same way: whichever label the document actually has
+// supplies the signed closing balance.
+const CLOSING_BALANCE_DEBT_PATTERN = new RegExp(`Celkem dlužná částka\\s+(${AMOUNT_TOKEN})`);
+const CLOSING_BALANCE_OVERPAYMENT_PATTERN = new RegExp(`Přeplatek:?\\s+(${AMOUNT_TOKEN})`);
 
 export interface CreditCardStatementPeriod {
   /** Inclusive end, and the date the closing balance is true as of. */
@@ -96,7 +103,13 @@ export function parseMonetaCreditCardStatement(text: string): CreditCardStatemen
   const cardLast4 = requireMatch(CARD_LAST4_PATTERN, text, 'poslední čtyři číslice karty')[1] ?? '';
   const sourceAccountId = requireMatch(CONTRACT_NUMBER_PATTERN, text, 'variabilní symbol (číslo smlouvy)')[1] ?? '';
   const openingBalance = parseCzechAmount(requireMatch(OPENING_BALANCE_PATTERN, text, 'počáteční zůstatek')[1] ?? '0');
-  const closingBalance = parseCzechAmount(requireMatch(CLOSING_BALANCE_PATTERN, text, 'celkem dlužná částka')[1] ?? '0');
+  const closingBalanceRaw = CLOSING_BALANCE_DEBT_PATTERN.exec(text)?.[1] ?? CLOSING_BALANCE_OVERPAYMENT_PATTERN.exec(text)?.[1];
+
+  if (!closingBalanceRaw) {
+    throw new CsvStructureError('Ve výpisu ke kreditní kartě se nepodařilo najít: celkem dlužná částka nebo přeplatek');
+  }
+
+  const closingBalance = parseCzechAmount(closingBalanceRaw);
 
   const transactions: ParsedTransaction[] = [];
   const warnings: string[] = [];
