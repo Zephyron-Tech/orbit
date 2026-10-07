@@ -84,6 +84,7 @@ export interface NetWorthCardAccount {
   annualInterestRate: string | null;
   interestTaxRate: string | null;
   emergencyReserveMonths: number | null;
+  savingsGoalAmount: string | null;
   portfolio: { cashBalance: string | null; investedValue: string | null; unrealizedPnl: string | null; updatedAt: string; currency: string } | null;
   analytics: AccountAnalytics;
 }
@@ -253,6 +254,7 @@ export interface AccountRow {
   emergencyReserveMonths: number | null;
   annualInterestRate: string | null;
   interestTaxRate: string | null;
+  savingsGoalAmount: string | null;
   isArchived: boolean;
   transactionCount: number;
   creditDetails: AccountCreditDetails | null;
@@ -277,6 +279,7 @@ export interface AccountInput {
   emergencyReserveMonths: number | null;
   annualInterestRate: string | null;
   interestTaxRate: string | null;
+  savingsGoalAmount: string | null;
 }
 
 export interface CreditRepaymentCandidate {

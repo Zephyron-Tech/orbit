@@ -26,6 +26,12 @@ export const NotificationPreferencesSchema = z
     cashBufferLow: z.boolean(),
     creditUtilizationHigh: z.boolean(),
     fuelReceiptMissing: z.boolean(),
+    // Added after the column's original default — the fallback keeps an
+    // existing user's stored JSON (still missing these keys until the
+    // backfill migration runs) parsing successfully instead of throwing.
+    savingsGrowth: z.boolean().default(true),
+    savingsStagnant: z.boolean().default(true),
+    savingsGoalReached: z.boolean().default(true),
   })
   .strict();
 
@@ -48,6 +54,9 @@ export const PREFERENCE_KEY_BY_TYPE = {
   CASH_BUFFER_LOW: 'cashBufferLow',
   CREDIT_UTILIZATION_HIGH: 'creditUtilizationHigh',
   FUEL_RECEIPT_MISSING: 'fuelReceiptMissing',
+  SAVINGS_GROWTH: 'savingsGrowth',
+  SAVINGS_STAGNANT: 'savingsStagnant',
+  SAVINGS_GOAL_REACHED: 'savingsGoalReached',
 } as const satisfies Record<NotificationType, NotificationPreferenceKey>;
 
 export const NotificationPreferencesPatchSchema = NotificationPreferencesSchema.partial();

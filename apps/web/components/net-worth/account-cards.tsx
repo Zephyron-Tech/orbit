@@ -21,6 +21,7 @@ export interface AccountCardData {
   annualInterestRate: string | null;
   interestTaxRate: string | null;
   emergencyReserveMonths: number | null;
+  savingsGoalAmount: string | null;
   portfolio: { cashBalance: string | null; investedValue: string | null; unrealizedPnl: string | null; updatedAt: string; currency: string } | null;
   analytics: { averageIncome: string; medianIncome: string; averageExpense: string; medianExpense: string; monthToDateIncome: string; monthToDateExpense: string; refunds: string; interestEarned: string; months: number; fromMonth: string | null; toMonth: string | null };
 }
@@ -79,7 +80,7 @@ function AccountCard({ account, fixedBaseline }: { account: AccountCardData; fix
     <div className="border-t border-line bg-surface-subtle/45 p-4 sm:p-5"><p className="mb-3 text-xs text-ink-muted">Měsíční statistiky: {analyticsPeriod}. Aktuální měsíc je uvedený zvlášť.</p><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {account.type === 'CHECKING' ? <><Detail label="Průměr příjmů / měsíc" value={CZK.format(Number(account.analytics.averageIncome))} sensitive /><Detail label="Medián příjmů / měsíc" value={CZK.format(Number(account.analytics.medianIncome))} sensitive /><Detail label="Průměr výdajů / měsíc" value={CZK.format(Number(account.analytics.averageExpense))} sensitive /><Detail label="Medián výdajů / měsíc" value={CZK.format(Number(account.analytics.medianExpense))} sensitive /><Detail label="Příjmy tento měsíc" value={CZK.format(Number(account.analytics.monthToDateIncome))} sensitive /><Detail label="Výdaje tento měsíc" value={CZK.format(Number(account.analytics.monthToDateExpense))} sensitive /></> : null}
       {account.type === 'CREDIT' ? <><Detail label="Aktuální dluh" value={CZK.format(debt)} sensitive /><Detail label="Limit" value={limit ? CZK.format(limit) : 'Nenastaven'} sensitive={limit > 0} /><Detail label="Volná kapacita" value={limit ? CZK.format(Math.max(0, limit - debt)) : '—'} sensitive={limit > 0} /><Detail label="Průměrná útrata / měsíc" value={CZK.format(Number(account.analytics.averageExpense))} sensitive /><Detail label="Medián útraty / měsíc" value={CZK.format(Number(account.analytics.medianExpense))} sensitive /><Detail label="Útrata tento měsíc" value={CZK.format(Number(account.analytics.monthToDateExpense))} sensitive /><Detail label="Refundace v okně" value={CZK.format(Number(account.analytics.refunds))} sensitive /></> : null}
-      {account.type === 'SAVINGS' ? <><Detail label="Skutečné úroky v okně" value={CZK.format(Number(account.analytics.interestEarned))} sensitive /><Detail label="Roční sazba / daň" value={account.annualInterestRate ? `${(Number(account.annualInterestRate) * 100).toFixed(2)} % / ${(Number(account.interestTaxRate ?? '0.15') * 100).toFixed(0)} %` : 'Nastavte sazbu'} /><Detail label="Hrubý odhad úroku / měsíc" value={monthlyGross === null ? '—' : CZK.format(monthlyGross)} sensitive={monthlyGross !== null} /><Detail label="Čistý odhad úroku / měsíc" value={monthlyNet === null ? '—' : CZK.format(monthlyNet)} sensitive={monthlyNet !== null} /><Detail label={`Odhad zůstatku k 31. 12. (${daysToYearEnd} dní)`} value={projectedYearEndBalance === null ? 'Nastavte sazbu' : CZK.format(projectedYearEndBalance)} sensitive={projectedYearEndBalance !== null} /><Detail label="Železná rezerva" value={reserveTarget === null ? 'Nastavte měsíce' : <>{CZK.format(Math.max(0, balance))} / {CZK.format(reserveTarget)}</>} sensitive={reserveTarget !== null} /><Detail label="Krytí fixních výdajů" value={Number(fixedBaseline) > 0 ? `${(Math.max(0, balance) / Number(fixedBaseline)).toFixed(1)} měs.` : '—'} />{monthlyNet !== null && account.analytics.months > 0 ? <InterestReconciliationDetail expectedMonthly={monthlyNet} actualMonthly={Number(account.analytics.interestEarned) / account.analytics.months} /> : null}</> : null}
+      {account.type === 'SAVINGS' ? <><Detail label="Skutečné úroky v okně" value={CZK.format(Number(account.analytics.interestEarned))} sensitive /><Detail label="Roční sazba / daň" value={account.annualInterestRate ? `${(Number(account.annualInterestRate) * 100).toFixed(2)} % / ${(Number(account.interestTaxRate ?? '0.15') * 100).toFixed(0)} %` : 'Nastavte sazbu'} /><Detail label="Hrubý odhad úroku / měsíc" value={monthlyGross === null ? '—' : CZK.format(monthlyGross)} sensitive={monthlyGross !== null} /><Detail label="Čistý odhad úroku / měsíc" value={monthlyNet === null ? '—' : CZK.format(monthlyNet)} sensitive={monthlyNet !== null} /><Detail label={`Odhad zůstatku k 31. 12. (${daysToYearEnd} dní)`} value={projectedYearEndBalance === null ? 'Nastavte sazbu' : CZK.format(projectedYearEndBalance)} sensitive={projectedYearEndBalance !== null} /><Detail label="Železná rezerva" value={reserveTarget === null ? 'Nastavte měsíce' : <>{CZK.format(Math.max(0, balance))} / {CZK.format(reserveTarget)}</>} sensitive={reserveTarget !== null} /><Detail label="Krytí fixních výdajů" value={Number(fixedBaseline) > 0 ? `${(Math.max(0, balance) / Number(fixedBaseline)).toFixed(1)} měs.` : '—'} />{monthlyNet !== null && account.analytics.months > 0 ? <InterestReconciliationDetail expectedMonthly={monthlyNet} actualMonthly={Number(account.analytics.interestEarned) / account.analytics.months} /> : null}{account.savingsGoalAmount ? <SavingsGoalDetail balance={Math.max(0, balance)} goal={Number(account.savingsGoalAmount)} /> : null}</> : null}
       {account.type === 'INVESTMENT' ? <><Detail label="Hodnota pozic" value={account.portfolio?.investedValue ? CZK.format(Number(account.portfolio.investedValue)) : '—'} sensitive={Boolean(account.portfolio?.investedValue)} /><Detail label="Broker hotovost" value={account.portfolio?.cashBalance ? CZK.format(Number(account.portfolio.cashBalance)) : '—'} sensitive={Boolean(account.portfolio?.cashBalance)} /><Detail label="Nerealizovaný P/L" value={account.portfolio?.unrealizedPnl ? CZK.format(Number(account.portfolio.unrealizedPnl)) : '—'} sensitive={Boolean(account.portfolio?.unrealizedPnl)} /><Detail label="Poslední snapshot" value={account.portfolio?.updatedAt ? new Date(account.portfolio.updatedAt).toLocaleString('cs-CZ') : 'Chybí'} /><Detail label="Dividend / úrok v okně" value={CZK.format(Number(account.analytics.averageIncome) * account.analytics.months)} sensitive /><Detail label="Stav" value={account.incomplete ? 'Chybí snímek' : 'Provider snapshot'} /></> : null}
     </div>
     {account.type === 'SAVINGS' ? <div className="mt-4"><AccountBalanceChart data={history ?? []} /></div> : null}
@@ -107,6 +108,21 @@ function InterestReconciliationDetail({ expectedMonthly, actualMonthly }: { expe
         <MoneyValue>{CZK.format(expectedMonthly)}</MoneyValue> / <MoneyValue>{CZK.format(actualMonthly)}</MoneyValue>
       </p>
       {mismatch ? <p className="mt-0.5 text-xs text-critical">Neodpovídá — banka mohla změnit sazbu nebo úrok nepřipsala.</p> : null}
+    </div>
+  );
+}
+
+function SavingsGoalDetail({ balance, goal }: { balance: number; goal: number }): React.JSX.Element {
+  const percent = goal > 0 ? Math.min(100, (balance / goal) * 100) : 0;
+  return (
+    <div>
+      <p className="text-xs text-ink-muted">Spořicí cíl</p>
+      <p className="money-value mt-1 text-sm font-semibold">
+        <MoneyValue>{CZK.format(balance)}</MoneyValue> / <MoneyValue>{CZK.format(goal)}</MoneyValue>
+      </p>
+      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-subtle">
+        <div className="h-2 rounded-full bg-accent" style={{ width: `${percent}%` }} />
+      </div>
     </div>
   );
 }

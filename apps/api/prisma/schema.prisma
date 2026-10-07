@@ -112,6 +112,9 @@ model Account {
   annualInterestRate Decimal? @db.Decimal(8, 6)
   /// User-entered withholding tax rate, e.g. 0.15.
   interestTaxRate Decimal? @default(0.15) @db.Decimal(5, 4)
+  /// SAVINGS only. Optional target balance, shown as a progress bar and
+  /// feeding the once-per-goal SAVINGS_GOAL_REACHED notification.
+  savingsGoalAmount Decimal? @db.Decimal(18, 4)
 
   transactions  Transaction[]
   importBatches ImportBatch[]
@@ -821,6 +824,9 @@ enum NotificationType {
   CASH_BUFFER_LOW
   CREDIT_UTILIZATION_HIGH
   FUEL_RECEIPT_MISSING
+  SAVINGS_GROWTH
+  SAVINGS_STAGNANT
+  SAVINGS_GOAL_REACHED
 }
 
 /// One row per push notification actually sent — both the dedupe record that

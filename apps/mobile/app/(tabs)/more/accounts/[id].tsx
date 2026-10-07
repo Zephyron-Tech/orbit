@@ -101,6 +101,7 @@ const EMPTY_FORM: AccountInput = {
   emergencyReserveMonths: null,
   annualInterestRate: null,
   interestTaxRate: null,
+  savingsGoalAmount: null,
 };
 
 export default function AccountDetailScreen(): React.JSX.Element {
@@ -138,6 +139,7 @@ export default function AccountDetailScreen(): React.JSX.Element {
         emergencyReserveMonths: account.emergencyReserveMonths,
         annualInterestRate: account.annualInterestRate,
         interestTaxRate: account.interestTaxRate,
+        savingsGoalAmount: account.savingsGoalAmount,
       });
     }
   }, [account]);
@@ -213,6 +215,7 @@ export default function AccountDetailScreen(): React.JSX.Element {
               emergencyReserveMonths: value === 'SAVINGS' ? current.emergencyReserveMonths : null,
               annualInterestRate: value === 'SAVINGS' ? current.annualInterestRate : null,
               interestTaxRate: value === 'SAVINGS' ? current.interestTaxRate : null,
+              savingsGoalAmount: value === 'SAVINGS' ? current.savingsGoalAmount : null,
             }))
           }
         />
@@ -273,6 +276,16 @@ export default function AccountDetailScreen(): React.JSX.Element {
               placeholder="15"
             />
             <Text className="mt-1 text-xs text-ink-faint">Například 15 % srážková daň.</Text>
+          </View>
+          <View>
+            <Text className="mb-1 text-xs font-sans-medium text-ink-muted">Spořicí cíl</Text>
+            <TextField
+              variant="money"
+              value={form.savingsGoalAmount ?? ''}
+              onChangeText={(value) => setForm((current) => ({ ...current, savingsGoalAmount: value || null }))}
+              placeholder="100000"
+            />
+            <Text className="mt-1 text-xs text-ink-faint">Volitelné. Cílová částka, zobrazí se jako ukazatel průběhu.</Text>
           </View>
         </View>
       ) : null}

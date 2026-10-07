@@ -110,6 +110,7 @@ function AccountDetail({ account, fixedBaseline }: { account: NetWorthCardAccoun
             <DetailRow label="Hrubý odhad úroku / měsíc" value={monthlyGross === null ? '—' : money(monthlyGross)} />
             <DetailRow label="Čistý odhad úroku / měsíc" value={monthlyNet === null ? '—' : money(monthlyNet)} />
             <DetailRow label="Železná rezerva" value={reserveTarget === null ? 'Nenastaveno' : `${money(Math.max(0, balance))} / ${money(reserveTarget)}`} />
+            {account.savingsGoalAmount ? <DetailRow label="Spořicí cíl" value={`${money(Math.max(0, balance))} / ${money(Number(account.savingsGoalAmount))}`} /> : null}
           </>
         ) : null}
         {account.type === 'INVESTMENT' ? (
@@ -122,6 +123,19 @@ function AccountDetail({ account, fixedBaseline }: { account: NetWorthCardAccoun
           </>
         ) : null}
       </View>
+      {account.type === 'SAVINGS' && account.savingsGoalAmount ? (
+        <View className="mt-2">
+          <View className="h-2 overflow-hidden rounded-full bg-surface-subtle">
+            <View
+              className="h-2 rounded-full bg-accent"
+              style={{ width: `${Math.min(100, Math.max(0, (Math.max(0, balance) / Number(account.savingsGoalAmount)) * 100))}%` }}
+            />
+          </View>
+          <Text className="mt-1 text-xs text-ink-muted">
+            {Math.min(100, (Math.max(0, balance) / Number(account.savingsGoalAmount)) * 100).toFixed(0)} % cíle
+          </Text>
+        </View>
+      ) : null}
       {account.type === 'SAVINGS' && monthlyNet !== null && actualMonthlyInterest !== null ? (
         <Text className={`mt-2 text-xs ${interestMismatch ? 'font-sans-medium text-critical' : 'text-ink-muted'}`}>
           Očekávaný úrok {money(monthlyNet)}/měs. vs. skutečný {money(actualMonthlyInterest)}/měs.

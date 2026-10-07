@@ -63,6 +63,7 @@ const EMPTY: AccountInput = {
   emergencyReserveMonths: null,
   annualInterestRate: null,
   interestTaxRate: '15',
+  savingsGoalAmount: null,
 };
 
 type Confirmation = { id: string; action: 'archive' | 'delete' } | null;
@@ -533,6 +534,7 @@ function AccountForm({
               emergencyReserveMonths: nextType === 'SAVINGS' ? values.emergencyReserveMonths : null,
               annualInterestRate: nextType === 'SAVINGS' ? values.annualInterestRate : null,
               interestTaxRate: nextType === 'SAVINGS' ? values.interestTaxRate : null,
+              savingsGoalAmount: nextType === 'SAVINGS' ? values.savingsGoalAmount : null,
             });
           }}
           label="Typ účtu"
@@ -651,6 +653,18 @@ function AccountForm({
                 className="px-3 py-2"
               />
               <span className="ui-helper">Například 15 % srážková daň.</span>
+            </label>
+            <label className="ui-label min-w-0">
+              <span>Spořicí cíl</span>
+              <input
+                inputMode="decimal"
+                value={values.savingsGoalAmount ?? ''}
+                onChange={(event) => setValues({ ...values, savingsGoalAmount: event.target.value || null })}
+                disabled={disabled}
+                placeholder="100000"
+                className="px-3 py-2"
+              />
+              <span className="ui-helper">Volitelné. Cílová částka, zobrazí se jako ukazatel průběhu.</span>
             </label>
           </>
         ) : null}
