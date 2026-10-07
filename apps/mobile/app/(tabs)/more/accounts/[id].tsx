@@ -201,7 +201,21 @@ export default function AccountDetailScreen(): React.JSX.Element {
 
       <View>
         <Text className="mb-2 text-sm font-sans-medium text-ink-muted">Typ</Text>
-        <ChoiceRow options={TYPE_OPTIONS} value={form.type} onChange={(value) => setForm((current) => ({ ...current, type: value }))} />
+        <ChoiceRow
+          options={TYPE_OPTIONS}
+          value={form.type}
+          onChange={(value) =>
+            setForm((current) => ({
+              ...current,
+              type: value,
+              creditLimit: value === 'CREDIT' ? current.creditLimit : null,
+              cardLast4: value === 'CREDIT' ? current.cardLast4 : null,
+              emergencyReserveMonths: value === 'SAVINGS' ? current.emergencyReserveMonths : null,
+              annualInterestRate: value === 'SAVINGS' ? current.annualInterestRate : null,
+              interestTaxRate: value === 'SAVINGS' ? current.interestTaxRate : null,
+            }))
+          }
+        />
       </View>
 
       <View>
@@ -227,6 +241,41 @@ export default function AccountDetailScreen(): React.JSX.Element {
           onValueChange={(value) => setForm((current) => ({ ...current, includeInNetWorth: value }))}
         />
       </View>
+
+      {form.type === 'SAVINGS' ? (
+        <View className="gap-3 rounded-lg border border-line bg-surface-subtle p-3">
+          <View>
+            <Text className="mb-1 text-xs font-sans-medium text-ink-muted">Rezerva v měsících</Text>
+            <TextField
+              variant="integer"
+              value={form.emergencyReserveMonths?.toString() ?? ''}
+              onChangeText={(value) => setForm((current) => ({ ...current, emergencyReserveMonths: value === '' ? null : Number(value) }))}
+              placeholder="6"
+            />
+            <Text className="mt-1 text-xs text-ink-faint">Volitelné. Počet měsíců fixních výdajů pro rezervu.</Text>
+          </View>
+          <View>
+            <Text className="mb-1 text-xs font-sans-medium text-ink-muted">Roční úrok (%)</Text>
+            <TextField
+              variant="money"
+              value={form.annualInterestRate ?? ''}
+              onChangeText={(value) => setForm((current) => ({ ...current, annualInterestRate: value || null }))}
+              placeholder="2.9"
+            />
+            <Text className="mt-1 text-xs text-ink-faint">Například 2.9 % ročně.</Text>
+          </View>
+          <View>
+            <Text className="mb-1 text-xs font-sans-medium text-ink-muted">Daň z úroku (%)</Text>
+            <TextField
+              variant="money"
+              value={form.interestTaxRate ?? ''}
+              onChangeText={(value) => setForm((current) => ({ ...current, interestTaxRate: value || null }))}
+              placeholder="15"
+            />
+            <Text className="mt-1 text-xs text-ink-faint">Například 15 % srážková daň.</Text>
+          </View>
+        </View>
+      ) : null}
 
       {error ? <Text className="text-sm text-critical">{error}</Text> : null}
 
