@@ -259,6 +259,12 @@ export interface AccountRow {
   creditNeedsOpeningConfirmation: boolean;
 }
 
+export interface AccountBalanceHistoryPoint {
+  date: string;
+  balance: number;
+  cumulativeInterest: number;
+}
+
 export interface AccountInput {
   name: string;
   type: AccountType;

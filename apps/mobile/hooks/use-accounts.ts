@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiClient, UnauthorizedError } from '../lib/api-client';
-import type { AccountInput, AccountRow, CreditRepaymentCandidate } from '../lib/response-types';
+import type { AccountBalanceHistoryPoint, AccountInput, AccountRow, CreditRepaymentCandidate } from '../lib/response-types';
 
 const CREDIT_REPAYMENT_CANDIDATES_KEY = ['accounts', 'credit-repayment-candidates'];
 
@@ -35,6 +35,17 @@ export function useAccountsList() {
   return useQuery({
     queryKey: ACCOUNTS_KEY,
     queryFn: () => apiClient.accounts.$get().then((response) => unwrap<AccountRow[]>(response, 'Nepodařilo se načíst účty')),
+  });
+}
+
+export function useAccountBalanceHistory(accountId: string | null) {
+  return useQuery({
+    queryKey: ['account-balance-history', accountId],
+    enabled: accountId !== null,
+    queryFn: () =>
+      apiClient.accounts[':id']['balance-history']
+        .$get({ param: { id: accountId ?? '' } })
+        .then((response) => unwrap<{ history: AccountBalanceHistoryPoint[] }>(response, 'Nepodařilo se načíst historii účtu')),
   });
 }
 

@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { prisma } from '@orbit-api/lib/db/prisma';
 import { reorderRows } from '@orbit-api/lib/db/reorder';
+import { loadAccountBalanceHistory } from '@orbit-api/lib/finance/account-balance-history-service';
 import { loadNetWorth } from '@orbit-api/lib/finance/net-worth-service';
 import { rebuildMonthlyNetWorth } from '@orbit-api/lib/finance/monthly-net-worth-service';
 import { Prisma } from '@orbit-api/lib/generated/prisma/client';
@@ -420,6 +421,18 @@ export const accounts = new Hono<AuthEnv>()
     const account = await prisma.account.findUnique({ where: { id: parsedId.data } });
     if (!account) return c.json({ error: 'Účet nenalezen' }, 404);
     return c.json(account);
+  })
+  .get('/:id/balance-history', async (c) => {
+    const parsedId = z.uuid().safeParse(c.req.param('id'));
+    if (!parsedId.success) return c.json({ error: 'Neplatný účet' }, 400);
+    const parsedMonths = z.coerce.number().int().min(1).max(60).safeParse(c.req.query('months') ?? 12);
+    const months = parsedMonths.success ? parsedMonths.data : 12;
+
+    const account = await prisma.account.findUnique({ where: { id: parsedId.data }, select: { id: true } });
+    if (!account) return c.json({ error: 'Účet nenalezen' }, 404);
+
+    const history = await loadAccountBalanceHistory(account.id, months);
+    return c.json({ history });
   })
   .post('/credit-payoff-from-checking', async (c) => {
     const parsed = z.object({ sourceTransactionId: z.uuid(), creditAccountId: z.uuid() }).safeParse(await c.req.json());
