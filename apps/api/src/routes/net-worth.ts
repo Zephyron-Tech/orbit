@@ -43,6 +43,7 @@ export const netWorth = new Hono<AuthEnv>()
           annualInterestRate: true,
           interestTaxRate: true,
           emergencyReserveMonths: true,
+          savingsGoalAmount: true,
           snapshots: { orderBy: { capturedAt: 'desc' }, take: 1, select: { cashBalance: true, investedValue: true, unrealizedPnl: true, updatedAt: true, currency: true, balance: true, expectedBalance: true } },
         },
         orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
@@ -77,6 +78,7 @@ export const netWorth = new Hono<AuthEnv>()
           annualInterestRate: account.annualInterestRate?.toFixed(6) ?? null,
           interestTaxRate: account.interestTaxRate?.toFixed(4) ?? null,
           emergencyReserveMonths: account.emergencyReserveMonths,
+          savingsGoalAmount: account.savingsGoalAmount?.toFixed(2) ?? null,
           portfolio: account.snapshots[0]
             ? {
                 cashBalance: account.snapshots[0].cashBalance?.toFixed(2) ?? null,

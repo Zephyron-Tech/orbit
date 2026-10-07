@@ -10,6 +10,8 @@ import { checkInsuranceRenewal } from './checks/insurance-renewal';
 import { checkPortfolioDigest } from './checks/portfolio-digest';
 import { checkPortfolioMove } from './checks/portfolio-move';
 import { checkRecurringExpenseOverdue } from './checks/recurring-expense-overdue';
+import { checkSavingsGoalReached } from './checks/savings-goal-reached';
+import { checkSavingsGrowth, checkSavingsStagnant } from './checks/savings-growth';
 import { checkSettlementNotClosed } from './checks/settlement-not-closed';
 import { checkUncategorizedPileup } from './checks/uncategorized-pileup';
 import { checkUnmatchedTransferStuck } from './checks/unmatched-transfer';
@@ -35,4 +37,7 @@ export const NOTIFICATION_REGISTRY: { type: NotificationType; run: (now: Date) =
   { type: NotificationType.CASH_BUFFER_LOW, run: checkCashBufferLow },
   { type: NotificationType.CREDIT_UTILIZATION_HIGH, run: checkCreditUtilizationHigh },
   { type: NotificationType.FUEL_RECEIPT_MISSING, run: checkFuelReceiptMissing },
+  { type: NotificationType.SAVINGS_GROWTH, run: checkSavingsGrowth },
+  { type: NotificationType.SAVINGS_STAGNANT, run: checkSavingsStagnant },
+  { type: NotificationType.SAVINGS_GOAL_REACHED, run: checkSavingsGoalReached },
 ];

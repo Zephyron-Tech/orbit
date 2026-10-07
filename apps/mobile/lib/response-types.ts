@@ -84,6 +84,7 @@ export interface NetWorthCardAccount {
   annualInterestRate: string | null;
   interestTaxRate: string | null;
   emergencyReserveMonths: number | null;
+  savingsGoalAmount: string | null;
   portfolio: { cashBalance: string | null; investedValue: string | null; unrealizedPnl: string | null; updatedAt: string; currency: string } | null;
   analytics: AccountAnalytics;
 }
@@ -253,10 +254,17 @@ export interface AccountRow {
   emergencyReserveMonths: number | null;
   annualInterestRate: string | null;
   interestTaxRate: string | null;
+  savingsGoalAmount: string | null;
   isArchived: boolean;
   transactionCount: number;
   creditDetails: AccountCreditDetails | null;
   creditNeedsOpeningConfirmation: boolean;
+}
+
+export interface AccountBalanceHistoryPoint {
+  date: string;
+  balance: number;
+  cumulativeInterest: number;
 }
 
 export interface AccountInput {
@@ -271,6 +279,7 @@ export interface AccountInput {
   emergencyReserveMonths: number | null;
   annualInterestRate: string | null;
   interestTaxRate: string | null;
+  savingsGoalAmount: string | null;
 }
 
 export interface CreditRepaymentCandidate {
@@ -560,13 +569,20 @@ export interface FuelReceiptRow {
   matched: boolean;
 }
 
+export interface FuelMonthlyDiscountRow {
+  month: string;
+  discountCzk: string;
+}
+
 export interface FuelOverview {
   monthly: FuelMonthlyRow[];
+  monthlyDiscount: FuelMonthlyDiscountRow[];
   walletBalanceCzk: string;
   topUpCount: number;
   purchaseCount: number;
   totalDiscountCzk: string;
   receiptCount: number;
+  unmatchedReceiptCount: number;
 }
 
 export interface FuelResponse {

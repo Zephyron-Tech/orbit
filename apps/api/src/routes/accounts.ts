@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { prisma } from '@orbit-api/lib/db/prisma';
 import { reorderRows } from '@orbit-api/lib/db/reorder';
+import { loadAccountBalanceHistory } from '@orbit-api/lib/finance/account-balance-history-service';
 import { loadNetWorth } from '@orbit-api/lib/finance/net-worth-service';
 import { rebuildMonthlyNetWorth } from '@orbit-api/lib/finance/monthly-net-worth-service';
 import { Prisma } from '@orbit-api/lib/generated/prisma/client';
@@ -41,6 +42,7 @@ const accountSchema = z
     interestTaxRate: percentageString
       .nullable()
       .refine((value) => value === null || new Prisma.Decimal(value).lessThanOrEqualTo(100), 'Daň musí být nejvýše 100 %'),
+    savingsGoalAmount: decimalString.nullable(),
   })
   .superRefine((value, context) => {
     if (value.type !== 'CREDIT' && (value.creditLimit !== null || value.cardLast4 !== null)) {
@@ -48,9 +50,9 @@ const accountSchema = z
     }
     if (
       value.type !== 'SAVINGS' &&
-      (value.emergencyReserveMonths !== null || value.annualInterestRate !== null || value.interestTaxRate !== null)
+      (value.emergencyReserveMonths !== null || value.annualInterestRate !== null || value.interestTaxRate !== null || value.savingsGoalAmount !== null)
     ) {
-      context.addIssue({ code: 'custom', message: 'Rezervu a úročení lze nastavit jen pro spořicí účet', path: ['emergencyReserveMonths'] });
+      context.addIssue({ code: 'custom', message: 'Rezervu, úročení a cíl lze nastavit jen pro spořicí účet', path: ['emergencyReserveMonths'] });
     }
   });
 
@@ -108,6 +110,7 @@ export const accounts = new Hono<AuthEnv>()
         emergencyReserveMonths: account.type === 'SAVINGS' ? account.emergencyReserveMonths : null,
         annualInterestRate: account.type === 'SAVINGS' ? (account.annualInterestRate?.times(100).toString() ?? null) : null,
         interestTaxRate: account.type === 'SAVINGS' ? (account.interestTaxRate?.times(100).toString() ?? null) : null,
+        savingsGoalAmount: account.type === 'SAVINGS' ? (account.savingsGoalAmount?.toString() ?? null) : null,
         isArchived: account.isArchived,
         transactionCount: account._count.transactions,
         creditDetails,
@@ -420,6 +423,18 @@ export const accounts = new Hono<AuthEnv>()
     const account = await prisma.account.findUnique({ where: { id: parsedId.data } });
     if (!account) return c.json({ error: 'Účet nenalezen' }, 404);
     return c.json(account);
+  })
+  .get('/:id/balance-history', async (c) => {
+    const parsedId = z.uuid().safeParse(c.req.param('id'));
+    if (!parsedId.success) return c.json({ error: 'Neplatný účet' }, 400);
+    const parsedMonths = z.coerce.number().int().min(1).max(60).safeParse(c.req.query('months') ?? 12);
+    const months = parsedMonths.success ? parsedMonths.data : 12;
+
+    const account = await prisma.account.findUnique({ where: { id: parsedId.data }, select: { id: true } });
+    if (!account) return c.json({ error: 'Účet nenalezen' }, 404);
+
+    const history = await loadAccountBalanceHistory(account.id, months);
+    return c.json({ history });
   })
   .post('/credit-payoff-from-checking', async (c) => {
     const parsed = z.object({ sourceTransactionId: z.uuid(), creditAccountId: z.uuid() }).safeParse(await c.req.json());

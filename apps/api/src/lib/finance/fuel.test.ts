@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Prisma } from '@orbit-api/lib/generated/prisma/client';
 
-import { monthlyFuelSpend, walletBalance, type FuelPurchaseAmount } from './fuel';
+import { monthlyFuelDiscount, monthlyFuelSpend, walletBalance, type FuelPurchaseAmount, type FuelReceiptDiscount } from './fuel';
 
 function decimal(value: string): Prisma.Decimal {
   return new Prisma.Decimal(value);
@@ -48,6 +48,33 @@ describe('monthlyFuelSpend', () => {
     ]);
 
     expect(result[0]?.purchases[0]?.missingReceipt).toBe(true);
+  });
+});
+
+describe('monthlyFuelDiscount', () => {
+  function receipt(overrides: Partial<FuelReceiptDiscount> & Pick<FuelReceiptDiscount, 'purchasedAt' | 'discountAmount'>): FuelReceiptDiscount {
+    return { ...overrides };
+  }
+
+  it('groups discount by the receipt\'s own date, oldest first', () => {
+    const result = monthlyFuelDiscount([
+      receipt({ purchasedAt: new Date('2026-08-20T10:00:00Z'), discountAmount: decimal('12.85') }),
+      receipt({ purchasedAt: new Date('2026-07-15T10:00:00Z'), discountAmount: decimal('3.79') }),
+      receipt({ purchasedAt: new Date('2026-08-01T10:00:00Z'), discountAmount: decimal('5.00') }),
+    ]);
+
+    expect(result.map((row) => row.month)).toEqual(['2026-07', '2026-08']);
+    expect(result[1]?.discountCzk.toString()).toBe('17.85');
+  });
+
+  it('counts an unmatched receipt\'s discount too — it was earned regardless', () => {
+    const result = monthlyFuelDiscount([receipt({ purchasedAt: new Date('2026-09-01T00:00:00Z'), discountAmount: decimal('2.50') })]);
+
+    expect(result).toEqual([{ month: '2026-09', discountCzk: decimal('2.50') }]);
+  });
+
+  it('returns an empty array for no receipts', () => {
+    expect(monthlyFuelDiscount([])).toEqual([]);
   });
 });
 

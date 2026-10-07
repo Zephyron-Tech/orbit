@@ -1,16 +1,20 @@
 import { prisma } from '@orbit-api/lib/db/prisma';
 import { Prisma } from '@orbit-api/lib/generated/prisma/client';
 
-import { FUEL_DATA_CUTOFF, monthlyFuelSpend, walletBalance, type MonthlyFuelSpend } from './fuel';
+import { FUEL_DATA_CUTOFF, monthlyFuelDiscount, monthlyFuelSpend, walletBalance, type MonthlyFuelDiscount, type MonthlyFuelSpend } from './fuel';
 
 export interface FuelOverview {
   monthly: MonthlyFuelSpend[];
+  /** Discount earned per month (receipt's own date, FUEL_DATA_CUTOFF onward — same scope as `monthly`). */
+  monthlyDiscount: MonthlyFuelDiscount[];
   walletBalanceCzk: string;
   topUpCount: number;
   purchaseCount: number;
   /** Sum of every uploaded receipt's discount, matched or not — the discount was earned regardless. */
   totalDiscountCzk: string;
   receiptCount: number;
+  /** True all-time count of FuelReceipt rows with no matched purchase — not capped like `loadRecentReceipts`. */
+  unmatchedReceiptCount: number;
 }
 
 /**
@@ -28,14 +32,15 @@ export interface FuelOverview {
  * report on driving from before August 2026.
  */
 export async function loadFuelOverview(): Promise<FuelOverview> {
-  const [purchases, topUps, receipts, matchedReceipts] = await Promise.all([
+  const [purchases, topUps, receipts, matchedReceipts, unmatchedReceiptCount] = await Promise.all([
     prisma.fuelPurchase.findMany({
       select: { id: true, purchasedAt: true, amountCzk: true, quantityLiters: true, stationName: true },
       orderBy: { purchasedAt: 'asc' },
     }),
     prisma.fuelTopUp.findMany({ select: { amountCzk: true } }),
-    prisma.fuelReceipt.findMany({ select: { discountAmount: true } }),
+    prisma.fuelReceipt.findMany({ select: { purchasedAt: true, discountAmount: true } }),
     prisma.fuelReceipt.findMany({ select: { purchaseId: true }, where: { purchaseId: { not: null } } }),
+    prisma.fuelReceipt.count({ where: { purchaseId: null } }),
   ]);
 
   const topUpAmountsCzk = topUps.map((topUp) => topUp.amountCzk);
@@ -45,14 +50,17 @@ export async function loadFuelOverview(): Promise<FuelOverview> {
   const purchasesInReportingWindow = purchases
     .filter((purchase) => purchase.purchasedAt >= FUEL_DATA_CUTOFF)
     .map((purchase) => ({ ...purchase, hasReceipt: purchaseIdsWithReceipt.has(purchase.id) }));
+  const receiptsInReportingWindow = receipts.filter((receipt) => receipt.purchasedAt >= FUEL_DATA_CUTOFF);
 
   return {
     monthly: monthlyFuelSpend(purchasesInReportingWindow),
+    monthlyDiscount: monthlyFuelDiscount(receiptsInReportingWindow),
     walletBalanceCzk: walletBalance(topUpAmountsCzk, purchaseAmountsCzk).toFixed(2),
     topUpCount: topUps.length,
     purchaseCount: purchases.length,
     totalDiscountCzk: totalDiscount.toFixed(2),
     receiptCount: receipts.length,
+    unmatchedReceiptCount,
   };
 }
 

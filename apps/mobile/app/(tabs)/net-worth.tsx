@@ -4,10 +4,12 @@ import { useRef, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { AccountBalanceChart } from '../../components/account-balance-chart';
 import { Badge } from '../../components/badge';
 import { Button } from '../../components/button';
 import { FadeInView } from '../../components/fade-in';
 import { ListSkeleton, SkeletonCard } from '../../components/skeleton';
+import { useAccountBalanceHistory } from '../../hooks/use-accounts';
 import { useDismissUnmatchedTransfer, useNetWorth } from '../../hooks/use-net-worth';
 import { colors } from '../../lib/colors';
 import { haptics } from '../../lib/haptics';
@@ -70,6 +72,13 @@ function AccountDetail({ account, fixedBaseline }: { account: NetWorthCardAccoun
   const reserveTarget = account.emergencyReserveMonths ? Number(fixedBaseline) * account.emergencyReserveMonths : null;
   const monthlyGross = account.annualInterestRate ? (balance * Number(account.annualInterestRate)) / 12 : null;
   const monthlyNet = monthlyGross === null ? null : monthlyGross * (1 - Number(account.interestTaxRate ?? '0.15'));
+  const actualMonthlyInterest = analytics.months > 0 ? Number(analytics.interestEarned) / analytics.months : null;
+  const interestMismatch =
+    account.type === 'SAVINGS' && monthlyNet !== null && monthlyNet > 0 && actualMonthlyInterest !== null
+      ? Math.abs(actualMonthlyInterest - monthlyNet) / monthlyNet > 0.2
+      : false;
+
+  const balanceHistory = useAccountBalanceHistory(account.type === 'SAVINGS' ? account.id : null);
 
   return (
     <View className="border-t border-line bg-surface-subtle p-3">
@@ -101,6 +110,7 @@ function AccountDetail({ account, fixedBaseline }: { account: NetWorthCardAccoun
             <DetailRow label="Hrubý odhad úroku / měsíc" value={monthlyGross === null ? '—' : money(monthlyGross)} />
             <DetailRow label="Čistý odhad úroku / měsíc" value={monthlyNet === null ? '—' : money(monthlyNet)} />
             <DetailRow label="Železná rezerva" value={reserveTarget === null ? 'Nenastaveno' : `${money(Math.max(0, balance))} / ${money(reserveTarget)}`} />
+            {account.savingsGoalAmount ? <DetailRow label="Spořicí cíl" value={`${money(Math.max(0, balance))} / ${money(Number(account.savingsGoalAmount))}`} /> : null}
           </>
         ) : null}
         {account.type === 'INVESTMENT' ? (
@@ -113,6 +123,30 @@ function AccountDetail({ account, fixedBaseline }: { account: NetWorthCardAccoun
           </>
         ) : null}
       </View>
+      {account.type === 'SAVINGS' && account.savingsGoalAmount ? (
+        <View className="mt-2">
+          <View className="h-2 overflow-hidden rounded-full bg-surface-subtle">
+            <View
+              className="h-2 rounded-full bg-accent"
+              style={{ width: `${Math.min(100, Math.max(0, (Math.max(0, balance) / Number(account.savingsGoalAmount)) * 100))}%` }}
+            />
+          </View>
+          <Text className="mt-1 text-xs text-ink-muted">
+            {Math.min(100, (Math.max(0, balance) / Number(account.savingsGoalAmount)) * 100).toFixed(0)} % cíle
+          </Text>
+        </View>
+      ) : null}
+      {account.type === 'SAVINGS' && monthlyNet !== null && actualMonthlyInterest !== null ? (
+        <Text className={`mt-2 text-xs ${interestMismatch ? 'font-sans-medium text-critical' : 'text-ink-muted'}`}>
+          Očekávaný úrok {money(monthlyNet)}/měs. vs. skutečný {money(actualMonthlyInterest)}/měs.
+          {interestMismatch ? ' — neodpovídá, zkontrolujte sazbu.' : ''}
+        </Text>
+      ) : null}
+      {account.type === 'SAVINGS' && !balanceHistory.isPending ? (
+        <View className="mt-3">
+          <AccountBalanceChart history={balanceHistory.data?.history ?? []} />
+        </View>
+      ) : null}
     </View>
   );
 }

@@ -28,16 +28,18 @@ function StatCard({
   value,
   detail,
   tone = 'default',
+  fullWidth = false,
 }: {
   icon: Icon;
   label: string;
   value: string;
   detail: string;
   tone?: 'default' | 'positive' | 'critical';
+  fullWidth?: boolean;
 }): React.JSX.Element {
   const valueColor = tone === 'positive' ? 'text-positive' : tone === 'critical' ? 'text-critical' : 'text-ink';
   return (
-    <View className="gap-1 rounded-lg border border-line bg-surface p-3" style={{ width: '47%' }}>
+    <View className="gap-1 rounded-lg border border-line bg-surface p-3" style={{ width: fullWidth ? '100%' : '47%' }}>
       <View className="flex-row items-center gap-1.5">
         <IconComponent color={colors.inkMuted} size={14} weight="regular" />
         <Text className="text-xs text-ink-muted" numberOfLines={1}>{label}</Text>
@@ -69,6 +71,7 @@ function ExpandChevronIcon({ open }: { open: boolean }): React.JSX.Element {
 export default function FuelScreen(): React.JSX.Element {
   const { data, isPending, isError, error, refetch } = useFuel();
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
+  const [discountExpanded, setDiscountExpanded] = useState(false);
   // Deliberately local, not tied to isRefetching — same fix as dashboard.tsx
   // and net-worth.tsx: a pull only ever sets this itself, so it can never
   // react to a background refetch of this query triggered elsewhere.
@@ -115,7 +118,11 @@ export default function FuelScreen(): React.JSX.Element {
   const recentMonths = data.overview.monthly.slice(-3);
   const averageCzk = recentMonths.length > 0 ? recentMonths.reduce((sum, row) => sum + Number(row.totalCzk), 0) / recentMonths.length : 0;
 
-  const unmatchedCount = data.receipts.filter((receipt) => !receipt.matched).length;
+  const unmatchedCount = data.overview.unmatchedReceiptCount;
+
+  const monthlyDiscount = data.overview.monthlyDiscount;
+  const averageDiscountCzk =
+    monthlyDiscount.length > 0 ? monthlyDiscount.reduce((sum, row) => sum + Number(row.discountCzk), 0) / monthlyDiscount.length : 0;
 
   return (
     <ScrollView
@@ -143,21 +150,51 @@ export default function FuelScreen(): React.JSX.Element {
           value={formatMoney(data.overview.walletBalanceCzk)}
           detail={`${data.overview.topUpCount} dobití · ${data.overview.purchaseCount} nákupů`}
         />
-        <StatCard
-          icon={TagIcon}
-          label="Sleva díky Tankartě"
-          value={formatMoney(data.overview.totalDiscountCzk)}
-          detail={pluralizeReceipt(data.overview.receiptCount)}
-          tone="positive"
-        />
-        <StatCard
-          icon={WarningCircleIcon}
-          label="Nespárované účtenky"
-          value={String(unmatchedCount)}
-          detail={unmatchedCount > 0 ? 'Vyžadují kontrolu' : 'Vše spárováno'}
-          tone={unmatchedCount > 0 ? 'critical' : 'default'}
-        />
+        <Pressable
+          accessibilityLabel="Sleva díky Tankartě — zobrazit rozpad podle měsíce"
+          accessibilityState={{ expanded: discountExpanded }}
+          onPress={() => { setDiscountExpanded((open) => !open); }}
+          style={{ width: '47%' }}
+        >
+          <StatCard
+            icon={TagIcon}
+            label="Sleva díky Tankartě"
+            value={formatMoney(data.overview.totalDiscountCzk)}
+            detail={pluralizeReceipt(data.overview.receiptCount)}
+            tone="positive"
+            fullWidth
+          />
+        </Pressable>
+        {unmatchedCount > 0 ? (
+          <StatCard
+            icon={WarningCircleIcon}
+            label="Nespárované účtenky"
+            value={String(unmatchedCount)}
+            detail="Vyžadují kontrolu"
+            tone="critical"
+            fullWidth
+          />
+        ) : null}
       </View>
+
+      {discountExpanded ? (
+        <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(150)} className="gap-2 rounded-lg border border-line bg-surface p-3">
+          <View className="flex-row items-center justify-between">
+            <Text className="font-sans-semibold text-sm text-ink">Sleva podle měsíce</Text>
+            <Text className="text-xs text-ink-muted">Průměr {formatMoney(String(averageDiscountCzk))}/měsíc</Text>
+          </View>
+          {monthlyDiscount.length === 0 ? (
+            <Text className="text-sm text-ink-muted">Zatím žádná data.</Text>
+          ) : (
+            [...monthlyDiscount].reverse().map((row) => (
+              <View key={row.month} className="flex-row items-center justify-between">
+                <Text className="text-sm capitalize text-ink-muted">{formatPeriod(row.month)}</Text>
+                <Text className="text-sm font-sans-medium text-ink">{formatMoney(row.discountCzk)}</Text>
+              </View>
+            ))
+          )}
+        </Animated.View>
+      ) : null}
 
       <View className="gap-2">
         <Text className="font-sans-semibold text-base text-ink">Přehled podle měsíce</Text>
@@ -193,7 +230,7 @@ export default function FuelScreen(): React.JSX.Element {
                     {row.purchases.length === 0 ? (
                       <Text className="p-3 text-sm text-ink-muted">Žádné nákupy.</Text>
                     ) : (
-                      row.purchases.map((purchase, index) => (
+                      [...row.purchases].reverse().map((purchase, index) => (
                         <View
                           key={purchase.id}
                           className={`flex-row items-center justify-between p-3 ${index < row.purchases.length - 1 ? 'border-b border-line' : ''}`}

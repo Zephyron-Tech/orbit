@@ -68,6 +68,7 @@ export interface AccountInput {
   emergencyReserveMonths: number | null;
   annualInterestRate: string | null;
   interestTaxRate: string | null;
+  savingsGoalAmount: string | null;
 }
 
 export interface CreditRepaymentCandidate {
