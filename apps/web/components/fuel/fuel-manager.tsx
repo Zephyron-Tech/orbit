@@ -15,6 +15,11 @@ interface MonthlyRow {
   liters: string;
 }
 
+interface MonthlyDiscountRow {
+  month: string;
+  discountCzk: string;
+}
+
 interface ReceiptRow {
   id: string;
   purchasedAt: string;
@@ -80,24 +85,37 @@ type ReceiptUploadResult =
 
 interface Props {
   monthly: MonthlyRow[];
+  monthlyDiscount: MonthlyDiscountRow[];
   walletBalanceCzk: string;
   topUpCount: number;
   purchaseCount: number;
   totalDiscountCzk: string;
   receiptCount: number;
+  unmatchedReceiptCount: number;
   receipts: ReceiptRow[];
 }
 
 const MONTH_FORMAT = new Intl.DateTimeFormat('cs-CZ', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const CZK = new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: 'CZK', maximumFractionDigits: 0 });
-const LITERS = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 1 });
+const LITERS = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 2 });
 
 function formatMonth(month: string): string {
   return MONTH_FORMAT.format(new Date(`${month}-01T00:00:00Z`));
 }
 
-export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCount, totalDiscountCzk, receiptCount, receipts }: Props): React.JSX.Element {
-  const unmatchedCount = receipts.filter((receipt) => !receipt.matched).length;
+export function FuelManager({
+  monthly,
+  monthlyDiscount,
+  walletBalanceCzk,
+  topUpCount,
+  purchaseCount,
+  totalDiscountCzk,
+  receiptCount,
+  unmatchedReceiptCount,
+  receipts,
+}: Props): React.JSX.Element {
+  const averageDiscountCzk =
+    monthlyDiscount.length > 0 ? monthlyDiscount.reduce((sum, row) => sum + Number(row.discountCzk), 0) / monthlyDiscount.length : 0;
 
   // "You have a purchase but no receipt for it" signal: compare the xls
   // purchase total for the latest month against however much of that month
@@ -318,9 +336,9 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
         />
         <Metric
           label="Nespárované účtenky"
-          value={String(unmatchedCount)}
-          detail={unmatchedCount > 0 ? 'Vyžadují kontrolu' : 'Vše spárováno'}
-          tone={unmatchedCount > 0 ? 'critical' : 'default'}
+          value={String(unmatchedReceiptCount)}
+          detail={unmatchedReceiptCount > 0 ? 'Vyžadují kontrolu' : 'Vše spárováno'}
+          tone={unmatchedReceiptCount > 0 ? 'critical' : 'default'}
         />
       </section>
 
@@ -360,6 +378,37 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
                     <td className="px-4 py-3">{formatMonth(row.month)}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{LITERS.format(Number(row.liters))} l</td>
                     <td className="money-value px-4 py-3 text-right font-semibold tabular-nums"><MoneyValue>{CZK.format(Number(row.totalCzk))}</MoneyValue></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-semibold">Sleva podle měsíce</h2>
+          {monthlyDiscount.length > 0 ? (
+            <span className="text-xs text-ink-muted">Průměr {CZK.format(averageDiscountCzk)}/měsíc</span>
+          ) : null}
+        </div>
+        {monthlyDiscount.length === 0 ? (
+          <StatusNotice tone="info">Zatím nejsou nahrány žádné účtenky.</StatusNotice>
+        ) : (
+          <div className="surface overflow-x-auto">
+            <table className="w-full min-w-[20rem] text-left text-sm">
+              <thead className="border-b border-line bg-surface-subtle text-xs text-ink-muted">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Měsíc</th>
+                  <th className="px-4 py-3 text-right font-medium">Sleva</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {[...monthlyDiscount].reverse().map((row) => (
+                  <tr key={row.month}>
+                    <td className="px-4 py-3">{formatMonth(row.month)}</td>
+                    <td className="money-value px-4 py-3 text-right font-semibold tabular-nums"><MoneyValue>{CZK.format(Number(row.discountCzk))}</MoneyValue></td>
                   </tr>
                 ))}
               </tbody>
@@ -640,7 +689,7 @@ export function FuelManager({ monthly, walletBalanceCzk, topUpCount, purchaseCou
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-semibold">Nahrané účtenky</h2>
-          {unmatchedCount > 0 ? (
+          {unmatchedReceiptCount > 0 ? (
             <button type="button" onClick={() => void rematchReceipts()} disabled={rematchPending} className="ui-button ui-button-secondary min-h-9 px-3 py-2 text-xs">
               {rematchPending ? 'Páruji…' : 'Znovu spárovat nespárované'}
             </button>

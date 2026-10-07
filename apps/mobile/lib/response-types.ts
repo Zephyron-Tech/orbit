@@ -560,13 +560,20 @@ export interface FuelReceiptRow {
   matched: boolean;
 }
 
+export interface FuelMonthlyDiscountRow {
+  month: string;
+  discountCzk: string;
+}
+
 export interface FuelOverview {
   monthly: FuelMonthlyRow[];
+  monthlyDiscount: FuelMonthlyDiscountRow[];
   walletBalanceCzk: string;
   topUpCount: number;
   purchaseCount: number;
   totalDiscountCzk: string;
   receiptCount: number;
+  unmatchedReceiptCount: number;
 }
 
 export interface FuelResponse {

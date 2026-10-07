@@ -11,11 +11,13 @@ export const dynamic = 'force-dynamic';
 interface FuelResponse {
   overview: {
     monthly: { month: string; totalCzk: string; liters: string }[];
+    monthlyDiscount: { month: string; discountCzk: string }[];
     walletBalanceCzk: string;
     topUpCount: number;
     purchaseCount: number;
     totalDiscountCzk: string;
     receiptCount: number;
+    unmatchedReceiptCount: number;
   };
   receipts: { id: string; stationName: string; totalAfterDiscount: string; discountAmount: string; purchasedAt: string; matched: boolean }[];
 }
@@ -41,11 +43,13 @@ export default async function FuelPage(): Promise<React.JSX.Element> {
       />
       <FuelManager
         monthly={overview.monthly}
+        monthlyDiscount={overview.monthlyDiscount}
         walletBalanceCzk={overview.walletBalanceCzk}
         topUpCount={overview.topUpCount}
         purchaseCount={overview.purchaseCount}
         totalDiscountCzk={overview.totalDiscountCzk}
         receiptCount={overview.receiptCount}
+        unmatchedReceiptCount={overview.unmatchedReceiptCount}
         receipts={receipts}
       />
     </PageShell>

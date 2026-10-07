@@ -57,6 +57,35 @@ export interface MonthlyFuelSpend {
   purchases: MonthlyFuelPurchase[];
 }
 
+export interface FuelReceiptDiscount {
+  purchasedAt: Date;
+  discountAmount: Prisma.Decimal;
+}
+
+export interface MonthlyFuelDiscount {
+  /** UTC calendar month, "YYYY-MM". */
+  month: string;
+  discountCzk: Prisma.Decimal;
+}
+
+/**
+ * Discount earned per month, grouped by the receipt's own `purchasedAt` — not
+ * the matched purchase's date, since a receipt earns its discount regardless
+ * of whether (or when) it ever gets matched to a purchase row.
+ */
+export function monthlyFuelDiscount(receipts: readonly FuelReceiptDiscount[]): MonthlyFuelDiscount[] {
+  const byMonth = new Map<string, Prisma.Decimal>();
+
+  for (const receipt of receipts) {
+    const month = receipt.purchasedAt.toISOString().slice(0, 7);
+    byMonth.set(month, (byMonth.get(month) ?? ZERO).plus(receipt.discountAmount));
+  }
+
+  return [...byMonth.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, discountCzk]) => ({ month, discountCzk }));
+}
+
 export function monthlyFuelSpend(purchases: readonly FuelPurchaseAmount[]): MonthlyFuelSpend[] {
   const byMonth = new Map<string, { totalCzk: Prisma.Decimal; liters: Prisma.Decimal; purchases: MonthlyFuelPurchase[] }>();
 
