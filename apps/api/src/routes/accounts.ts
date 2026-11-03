@@ -68,6 +68,23 @@ function accountData(input: z.infer<typeof accountSchema>) {
   };
 }
 
+const VARIABLE_SYMBOL_KEY = 'Variabilní Symbol';
+
+/**
+ * Variable symbol of a payment row. Statement imports store it under its own
+ * key; rows from the e-mail fallback only carry it inside the merchant text
+ * ("... VS: 1010774842"), so a card repayment would never be recognised.
+ */
+function readVariableSymbol(rawData: Prisma.JsonValue | null): string | null {
+  if (rawData === null || typeof rawData !== 'object' || Array.isArray(rawData)) return null;
+  const record = rawData as Record<string, unknown>;
+  const value = record[VARIABLE_SYMBOL_KEY];
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  const merchant = record.merchant;
+  const match = typeof merchant === 'string' ? /\bVS:\s*(\d+)/.exec(merchant) : null;
+  return match?.[1] ?? null;
+}
+
 export const accounts = new Hono<AuthEnv>()
   .use('*', requireAuth)
   .get('/', async (c) => {
@@ -308,12 +325,6 @@ export const accounts = new Hono<AuthEnv>()
       select: { id: true, accountId: true, date: true, amountCzk: true, rawData: true, kind: true, account: { select: { name: true, type: true } } },
     });
 
-    const VARIABLE_SYMBOL_KEY = 'Variabilní Symbol';
-    function readVariableSymbol(rawData: Prisma.JsonValue | null): string | null {
-      if (rawData === null || typeof rawData !== 'object' || Array.isArray(rawData)) return null;
-      const value = (rawData as Record<string, unknown>)[VARIABLE_SYMBOL_KEY];
-      return typeof value === 'string' && value.trim() ? value.trim() : null;
-    }
 
     const candidates: {
       creditTransactionId: string | null;
@@ -441,12 +452,6 @@ export const accounts = new Hono<AuthEnv>()
     if (!parsed.success) return c.json({ error: 'Neplatné transakce' }, 400);
     const { sourceTransactionId: sourceId, creditAccountId: creditId } = parsed.data;
 
-    const VARIABLE_SYMBOL_KEY = 'Variabilní Symbol';
-    function readVariableSymbol(rawData: Prisma.JsonValue | null): string | null {
-      if (rawData === null || typeof rawData !== 'object' || Array.isArray(rawData)) return null;
-      const value = (rawData as Record<string, unknown>)[VARIABLE_SYMBOL_KEY];
-      return typeof value === 'string' && value.trim() ? value.trim() : null;
-    }
 
     const [source, creditAccount] = await Promise.all([
       prisma.transaction.findUnique({
