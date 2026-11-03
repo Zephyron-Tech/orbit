@@ -259,7 +259,7 @@ would mean inventing rows.
 prisma.config.ts           # Prisma 7 config: schema path, migrations, DATABASE_URL
 Dockerfile                 # multi-stage: deps -> builder -> migrator / runner
 docker-compose.yml         # local dev: postgres + one-shot migrate + app + cron
-docker-compose.prod.yml    # VPS deploy: prebuilt GHCR images + Traefik labels
+docker-compose.prod.yml    # VPS deploy: prebuilt GHCR images + Traefik labels (api, db, cron, backup — web is on Vercel)
 prisma/
   schema.prisma            # single schema file (no datasource url — see prisma.config.ts)
   migrations/
@@ -386,6 +386,14 @@ with a placeholder `DATABASE_URL`, since generation never connects to a database
 
 There is no dev deployment — `dev` is a git branch only (a PR gate before `main`),
 nothing deploys from a push to it. Every fix happens once, on production.
+
+### Where each part runs
+- `apps/api`, Postgres, cron and backups: the VPS, deployed by `.github/workflows/deploy.yml` on every push to `main` (GHCR images + `docker-compose.prod.yml`).
+- `apps/web`: **Vercel** (project `orbit-web`, Root Directory `apps/web`, config in `apps/web/vercel.json`), deployed by Vercel's own Git integration on push to `main`. Not built by `deploy.yml`.
+- The web hostname must stay `orbit.zephyron.tech`: `COOKIE_DOMAIN`, `WEB_ORIGIN` (CORS) and invite links hang on it, and a `*.vercel.app` URL can never log in. `dev` has no Vercel deployments.
+- `NEXT_PUBLIC_API_URL` is a build-time env var in the Vercel project (`https://api.orbit.zephyron.tech`).
+- The Vercel build uses `next build --webpack`: with Turbopack the Vercel adapter's `onBuildComplete` can run before Next has finished writing `.next/next-server.js.nft.json` and fails with ENOENT. Docker and local dev still use Turbopack.
+- Web and API deploy independently, so ship an additive API change first and only then the web code that calls it.
 
 ### Reaching production data from a local machine
 

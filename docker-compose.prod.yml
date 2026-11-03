@@ -74,33 +74,6 @@ services:
       - 'traefik.http.routers.orbit-api.tls.certresolver=myresolver'
       - 'traefik.http.services.orbit-api.loadbalancer.server.port=4000'
 
-  web:
-    # NEXT_PUBLIC_API_URL is baked into this image at build time (it has to
-    # be — Next.js inlines NEXT_PUBLIC_* into the client bundle), pointed at
-    # https://api.orbit.zephyron.tech. No runtime env var needed for it here.
-    image: ghcr.io/zephyron-tech/orbit-web:latest
-    container_name: orbit-web
-    restart: unless-stopped
-    depends_on:
-      api:
-        condition: service_healthy
-    healthcheck:
-      test: ['CMD-SHELL', 'curl -fsS http://localhost:3000/api/health || exit 1']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    networks:
-      - default
-      - web_proxy
-    labels:
-      - 'traefik.enable=true'
-      - 'traefik.docker.network=web_proxy'
-      - 'traefik.http.routers.orbit-web.rule=Host(`orbit.zephyron.tech`)'
-      - 'traefik.http.routers.orbit-web.entrypoints=websecure'
-      - 'traefik.http.routers.orbit-web.tls.certresolver=myresolver'
-      - 'traefik.http.services.orbit-web.loadbalancer.server.port=3000'
-
   # Calls the Trading 212 sync every hour. A sleep loop rather than a cron
   # daemon: one dependency-free image, and the interval is the whole config.
   cron:
