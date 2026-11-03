@@ -129,6 +129,7 @@ export default async function PortfolioPage(): Promise<React.JSX.Element> {
     return [{
       capturedAt: item.capturedAt,
       total: Number(item.balance),
+      pnl: item.unrealizedPnl ? Number(item.unrealizedPnl) : null,
       positions: parsed.integrityIssues.includes('seznam pozic')
         ? {}
         : Object.fromEntries(parsed.positions.map((position) => [position.id, position.value])),

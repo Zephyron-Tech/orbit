@@ -9,6 +9,8 @@ export interface LineChartPoint {
   x: number;
   y: number;
   label: string;
+  /** Unrealized P/L at this point; when present the header change uses it, not the value. */
+  pnl?: number | null;
 }
 
 /**
@@ -47,7 +49,12 @@ export function LineChart({ points, height = 180, currency = '' }: { points: Lin
   const areaData = `${pathData} L ${toSvgX(points.length - 1)} ${height - bottomPadding} L ${toSvgX(0)} ${height - bottomPadding} Z`;
   const first = points[0];
   const last = points[points.length - 1];
-  const delta = first && last ? last.y - first.y : 0;
+  const delta =
+    first && last
+      ? typeof first.pnl === 'number' && typeof last.pnl === 'number'
+        ? last.pnl - first.pnl
+        : last.y - first.y
+      : 0;
 
   return (
     <View className="rounded-xl border border-line bg-surface p-4">

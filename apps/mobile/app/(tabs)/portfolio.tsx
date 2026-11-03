@@ -136,6 +136,7 @@ export default function PortfolioScreen(): React.JSX.Element {
     .map((snapshot) => ({
       x: new Date(snapshot.capturedAt).getTime(),
       y: Number(snapshot.balance),
+      pnl: snapshot.unrealizedPnl ? Number(snapshot.unrealizedPnl) : null,
       label: new Date(snapshot.capturedAt).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric' }),
     }));
 

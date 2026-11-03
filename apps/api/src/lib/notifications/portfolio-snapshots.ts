@@ -31,17 +31,22 @@ export async function loadInvestmentAccountDailyChanges(now: Date): Promise<Acco
     const latest = await prisma.accountSnapshot.findFirst({
       where: { accountId: account.id },
       orderBy: { capturedAt: 'desc' },
-      select: { balance: true, currency: true },
+      select: { balance: true, currency: true, unrealizedPnl: true },
     });
     if (!latest) continue;
 
     const previous = await prisma.accountSnapshot.findFirst({
       where: { accountId: account.id, capturedAt: { lte: dayAgo } },
       orderBy: { capturedAt: 'desc' },
-      select: { balance: true },
+      select: { balance: true, unrealizedPnl: true },
     });
 
-    const change = previous ? latest.balance.minus(previous.balance) : null;
+    // Balance moves with deposits; unrealized P/L only with the market. Use it when both snapshots have it.
+    const change = previous
+      ? latest.unrealizedPnl && previous.unrealizedPnl
+        ? latest.unrealizedPnl.minus(previous.unrealizedPnl)
+        : latest.balance.minus(previous.balance)
+      : null;
     const changePercent = previous && !previous.balance.isZero() ? change?.dividedBy(previous.balance).times(100) ?? null : null;
 
     results.push({
