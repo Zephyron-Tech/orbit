@@ -87,20 +87,22 @@ export async function rebuildMonthlyNetWorth(from: Date, to: Date): Promise<numb
         continue;
       }
       const usable = [...accountSnapshots]
-        .filter((snapshot) => snapshot.balanceCzk !== null && (account.type !== 'CREDIT' || snapshot.balanceCzk!.lessThanOrEqualTo(0)))
+        .filter((snapshot) => snapshot.balanceCzk !== null)
         .at(-1);
       const netAccount: NetWorthAccount = { id: account.id, name: account.name, type: account.type, currency: account.currency, includeInNetWorth: true };
       const balance = calculateAccountBalance(netAccount, transactionsForAccount, usable ? { accountId: account.id, capturedAt: usable.capturedAt, balanceCzk: usable.balanceCzk } : undefined);
       const directStatementForMonth = usable?.source === 'STATEMENT' && usable.capturedAt.getUTCFullYear() === asOf.getUTCFullYear() && usable.capturedAt.getUTCMonth() === asOf.getUTCMonth();
       const incomplete = !usable || (!directStatementForMonth && asOf.getTime() === naturalMonthEnd.getTime());
       if (incomplete) complete = false;
-      if (account.type === 'CREDIT') liability = liability.plus(balance.isNegative() ? balance.abs() : 0);
+      // Same split as calculateNetWorth: negative CREDIT balance is debt, a
+      // positive one (overpayment / "Přeplatek" on a statement) is a real asset.
+      if (account.type === 'CREDIT' && balance.isNegative()) liability = liability.plus(balance.abs());
       else cash = cash.plus(balance);
       breakdown.push({
         accountId: account.id,
         type: account.type,
         balance: balance.toFixed(2),
-        contribution: account.type === 'CREDIT' ? (balance.isNegative() ? balance.abs().toFixed(2) : '0.00') : balance.toFixed(2),
+        contribution: account.type === 'CREDIT' && balance.isNegative() ? balance.abs().toFixed(2) : balance.toFixed(2),
         status: usable?.source === 'STATEMENT' ? 'STATEMENT_DERIVED' : usable ? 'BANK_DERIVED_WITHOUT_MONTH_STATEMENT' : account.type === 'CREDIT' ? 'CREDIT_INCOMPLETE' : 'TRANSACTION_ONLY_INCOMPLETE',
         asOf: usable?.capturedAt.toISOString() ?? null,
         warning: incomplete ? 'Chybí potvrzený počáteční stav.' : undefined,

@@ -39,6 +39,8 @@ function MoneyTick({
 export interface PortfolioHistoryPoint {
   capturedAt: string;
   total: number;
+  /** Unrealized profit/loss of open positions; unaffected by deposits and purchases. */
+  pnl: number | null;
   positions: Record<string, number>;
 }
 
@@ -85,7 +87,7 @@ export function PortfolioHistoryChart({
   const positionData = filtered
     .filter((point) => point.positions[instrumentId] !== undefined)
     .map((point) => ({ capturedAt: point.capturedAt, value: point.positions[instrumentId] }));
-  const totalData = filtered.map((point) => ({ capturedAt: point.capturedAt, value: point.total }));
+  const totalData = filtered.map((point) => ({ capturedAt: point.capturedAt, value: point.total, pnl: point.pnl }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -107,7 +109,7 @@ export function PortfolioHistoryChart({
 
       <HistoryPanel
         title="Hodnota celého portfolia"
-        description="Vývoj hodnoty účtu včetně vlivu nákupů a vkladů; nejde o čistý investiční výnos."
+        description="Čára je hodnota účtu včetně vkladů; číslo vpravo je jen skutečný zisk / ztráta pozic za období, vklady a nákupy nezapočítává."
         data={totalData}
         money={money}
         color={palette.series1}
@@ -163,7 +165,7 @@ function HistoryPanel({
 }: {
   title: string;
   description: string;
-  data: { capturedAt: string; value: number }[];
+  data: { capturedAt: string; value: number; pnl?: number | null }[];
   money: Intl.NumberFormat;
   color: string;
   palette: ReturnType<typeof useChartPalette>;
@@ -210,7 +212,7 @@ function HistoryChart({
   range,
   emptyLabel,
 }: {
-  data: { capturedAt: string; value: number }[];
+  data: { capturedAt: string; value: number; pnl?: number | null }[];
   money: Intl.NumberFormat;
   color: string;
   palette: ReturnType<typeof useChartPalette>;
@@ -223,7 +225,10 @@ function HistoryChart({
 
   const first = data[0]?.value ?? 0;
   const last = data.at(-1)?.value ?? 0;
-  const difference = last - first;
+  // Value change mixes deposits with returns; when the points carry P/L, report that instead.
+  const firstPnl = data[0]?.pnl;
+  const lastPnl = data.at(-1)?.pnl;
+  const difference = typeof firstPnl === 'number' && typeof lastPnl === 'number' ? lastPnl - firstPnl : last - first;
   const formatAxisTick = createAxisTickFormatter(data.map((point) => point.value));
 
   return (
