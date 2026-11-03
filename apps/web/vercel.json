@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile --ignore-scripts",
+  "buildCommand": "cd ../.. && DATABASE_URL=postgresql://build:build@localhost:5432/build pnpm --filter @orbit/api exec prisma generate && pnpm --filter @orbit/web build",
+  "ignoreCommand": "npx turbo-ignore @orbit/web",
+  "git": {
+    "deploymentEnabled": {
+      "dev": false
+    }
+  }
+}
